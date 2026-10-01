@@ -249,6 +249,8 @@ function applyTaken() {
 function newRun() {
   const seed = (Date.now() % 1e9) | 0;
   genWorld(seed);
+  if (typeof noGhosts !== "undefined" && noGhosts)
+    for (const flo of world.floors) flo.ghosts.length = 0;   // modo puzzle
   film = FILM_START; sanity = 100;
   album = []; albumIdx = 0; photoCount = 0;
   albumReturn = "play";

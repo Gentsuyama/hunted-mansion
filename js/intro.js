@@ -122,6 +122,10 @@ function wrapText(s, maxChars) {
 // ------------------------------------------------------------------
 // TÍTULO
 // ------------------------------------------------------------------
+// modo de teste: iniciar sem fantasmas (só puzzles)
+let noGhosts = false;
+try { noGhosts = localStorage.getItem("hm_noghosts") === "1"; } catch (e) {}
+const CHK_GHOST = { x: 26, y: 620, w: 28, h: 28, label: "testar sem fantasmas (modo puzzle)" };
 function titleButtons() {
   const hasSave = !!loadRunData();
   const btns = [];
@@ -185,11 +189,35 @@ function drawTitle() {
     ctx.fillText(b.label, b.x + b.w / 2, b.y + b.h / 2 + 1);
   }
 
+  // checkbox do modo puzzle (canto inferior esquerdo)
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = noGhosts ? "rgba(140,220,140,0.85)" : "rgba(255,255,255,0.4)";
+  ctx.strokeRect(CHK_GHOST.x, CHK_GHOST.y, CHK_GHOST.w, CHK_GHOST.h);
+  if (noGhosts) {
+    ctx.strokeStyle = "rgba(140,220,140,0.95)";
+    ctx.beginPath();
+    ctx.moveTo(CHK_GHOST.x + 6, CHK_GHOST.y + 14);
+    ctx.lineTo(CHK_GHOST.x + 12, CHK_GHOST.y + 21);
+    ctx.lineTo(CHK_GHOST.x + 23, CHK_GHOST.y + 6);
+    ctx.stroke();
+  }
+  ctx.textAlign = "left";
+  ctx.font = "bold 14px 'Courier New', monospace";
+  ctx.fillStyle = noGhosts ? "rgba(140,220,140,0.85)" : "rgba(170,170,170,0.75)";
+  ctx.fillText(CHK_GHOST.label, CHK_GHOST.x + CHK_GHOST.w + 12, CHK_GHOST.y + 15);
+  ctx.textAlign = "center";
   // (cursor desenhado centralmente por drawCursor no render)
 }
 
 function titleHit(px2, py2) {
   initAudio();
+  // checkbox "sem fantasmas" (área do quadradinho + rótulo)
+  if (px2 >= CHK_GHOST.x && px2 <= CHK_GHOST.x + 420 &&
+      py2 >= CHK_GHOST.y - 6 && py2 <= CHK_GHOST.y + CHK_GHOST.h + 6) {
+    noGhosts = !noGhosts;
+    try { localStorage.setItem("hm_noghosts", noGhosts ? "1" : "0"); } catch (e) {}
+    return;
+  }
   for (const b of titleButtons())
     if (px2 >= b.x && px2 <= b.x + b.w && py2 >= b.y && py2 <= b.y + b.h) {
       if (b.id === "cont") continueRun();

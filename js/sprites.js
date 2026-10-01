@@ -619,22 +619,53 @@ function makeGlowSprite() {
 // MÓVEIS — tipos e sprites de foto (nanquim simples)
 // ------------------------------------------------------------------
 // def: ch = caractere no mapa; w,h em células; ph/pw = proporção na foto
+// w/h = footprint em células no mapa; hC = ALTURA real em "unidades de parede"
+// (parede = 1.0) — a foto usa o footprint projetado p/ largura e hC p/ altura
 const FURN_TYPES = {
-  sofa:     { id: 1,  ch: "▬", w: 3, h: 1, pAsp: 1.9, pH: 0.55 },
-  mesa:     { id: 2,  ch: "■", w: 2, h: 2, pAsp: 1.5, pH: 0.45 },
-  estante:  { id: 3,  ch: "▓", w: 3, h: 1, pAsp: 1.4, pH: 1.05 },
-  cadeira:  { id: 4,  ch: "π", w: 1, h: 1, pAsp: 0.8, pH: 0.55 },
-  piano:    { id: 5,  ch: "♪", w: 2, h: 2, pAsp: 1.6, pH: 0.75 },
-  cama:     { id: 6,  ch: "▭", w: 2, h: 3, pAsp: 1.8, pH: 0.45 },
-  poltrona: { id: 7,  ch: "∩", w: 1, h: 1, pAsp: 1.0, pH: 0.70 },
-  bau:      { id: 8,  ch: "Ξ", w: 2, h: 1, pAsp: 1.4, pH: 0.40 },
-  escrivaninha: { id: 9, ch: "Π", w: 2, h: 1, pAsp: 1.5, pH: 0.55 },
-  relogio:  { id: 10, ch: "Φ", w: 1, h: 1, pAsp: 0.45, pH: 1.30 },
-  espelho:  { id: 11, ch: "◊", w: 1, h: 1, pAsp: 0.50, pH: 1.10 },
-  berco:    { id: 12, ch: "Ш", w: 2, h: 2, pAsp: 1.2, pH: 0.60 },
+  sofa:     { id: 1,  ch: "▬", w: 3, h: 1, hC: 0.50 },
+  mesa:     { id: 2,  ch: "■", w: 2, h: 2, hC: 0.42 },
+  estante:  { id: 3,  ch: "▓", w: 3, h: 1, hC: 1.15 },
+  cadeira:  { id: 4,  ch: "π", w: 1, h: 1, hC: 0.55 },
+  piano:    { id: 5,  ch: "♪", w: 2, h: 2, hC: 0.70 },
+  cama:     { id: 6,  ch: "▭", w: 2, h: 3, hC: 0.40 },
+  poltrona: { id: 7,  ch: "∩", w: 1, h: 1, hC: 0.55 },
+  bau:      { id: 8,  ch: "Ξ", w: 2, h: 1, hC: 0.32 },
+  escrivaninha: { id: 9, ch: "Π", w: 2, h: 1, hC: 0.48 },
+  relogio:  { id: 10, ch: "Φ", w: 1, h: 1, hC: 1.25 },
+  espelho:  { id: 11, ch: "◊", w: 1, h: 1, hC: 0.95 },
+  berco:    { id: 12, ch: "Ш", w: 2, h: 2, hC: 0.50 },
 };
 const FURN_BY_ID = {};
 for (const k in FURN_TYPES) FURN_BY_ID[FURN_TYPES[k].id] = { name: k, ...FURN_TYPES[k] };
+
+// --- imagens do Gemini (Assets/Furniture/<tipo>.png): se existirem, substituem
+// o desenho procedural. Pipeline: fundo PRETO puro vira transparente; o corpo
+// cinza-escuro fica sólido e o traço branco por cima (ver furniture-prompts.md)
+const FURN_IMGS = {};
+(function loadFurnImgs() {
+  for (const k in FURN_TYPES) {
+    const im = new Image();
+    im.onload = () => { FURN_IMGS[k] = keyBlackToAlpha(im); };
+    im.onerror = () => {};
+    im.src = "Assets/Furniture/" + k + ".png";
+  }
+})();
+function keyBlackToAlpha(im) {
+  const w = im.naturalWidth, h = im.naturalHeight;
+  const cv = document.createElement("canvas");
+  cv.width = w; cv.height = h;
+  const g = cv.getContext("2d");
+  g.drawImage(im, 0, 0);
+  const d = g.getImageData(0, 0, w, h);
+  const p = d.data;
+  for (let i = 0; i < p.length; i += 4) {
+    const lum = (p[i] + p[i + 1] + p[i + 2]) / 3;
+    p[i + 3] = lum <= 10 ? 0 : 255;          // preto puro = fundo
+  }
+  g.putImageData(d, 0, 0);
+  return cv;
+}
+function furnArt(name) { return FURN_IMGS[name] || furnSprite(name); }
 
 const FURN_SPRS = {};
 function furnSprite(name) {

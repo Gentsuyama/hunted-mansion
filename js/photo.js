@@ -307,11 +307,18 @@ function renderPhoto(px, py, dir) {
                    0.35 + bright, Wc, CWc, FR);
     } else if (s.kind === "furn") {
       const ft = FURN_TYPES[s.furn.type];
-      const spr = furnSprite(s.furn.type);
-      const hPx = Math.min(areaH * 1.1, wallHpx * ft.pH);
-      const wPx = hPx * ft.pAsp;
+      const spr = furnArt(s.furn.type);
+      // LARGURA real: projeção do footprint (células) perpendicular à visão —
+      // um sofá de 3 células ocupa 3 células na foto, como as paredes
+      const vd = Math.hypot(dx, dy) || 1;
+      const ux2 = dx / vd, uy2 = dy / vd;
+      const lateralCells = ft.w * Math.abs(uy2) + ft.h * Math.abs(ux2);
+      const pxPerCell = (Wc * CWc) / (2 * tanF * ty);
+      const wPx = Math.max(8, lateralCells * pxPerCell);
+      // ALTURA real em unidades de parede (parede = wallHpx)
+      const hPx = Math.min(areaH * 1.2, ft.hC * wallHpx);
       blitOccluded(c, spr, zbuf, ty, centerX, floorPx - hPx, wPx, hPx,
-                   Math.min(1, 0.3 + bright * 1.0), Wc, CWc, FR);
+                   Math.min(1, 0.35 + bright * 1.0), Wc, CWc, FR);
     } else if (s.kind === "mark") {
       const spr = digitSprite(s.mk.digit, s.mk.ord);
       const hPx = Math.min(areaH * 0.8, wallHpx * 0.75);
