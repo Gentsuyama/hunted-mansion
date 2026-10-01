@@ -94,7 +94,8 @@ function renderRealisticScene(c, px, py, FR, PW, PH, dirX, dirY, planeX, planeY,
       if (sideX < sideY) { sideX += dX; mapX += stepX; side = 0; }
       else               { sideY += dY; mapY += stepY; side = 1; }
       if (mapX < 0 || mapY < 0 || mapX >= COLS || mapY >= ROWS) break;
-      if (grid[mapY * COLS + mapX] === T_WALL) {
+      const tHit = grid[mapY * COLS + mapX];
+      if (tHit === T_WALL || tHit === T_DOOR) {   // porta NÃO é vão (vão = parede falsa)
         perp = side === 0 ? sideX - dX : sideY - dY;
         hit = true; break;
       }
@@ -308,15 +309,16 @@ function renderPhoto(px, py, dir) {
     } else if (s.kind === "furn") {
       const ft = FURN_TYPES[s.furn.type];
       const spr = furnArt(s.furn.type);
-      // LARGURA real: projeção do footprint (células) perpendicular à visão —
-      // um sofá de 3 células ocupa 3 células na foto, como as paredes
+      // ALTURA física manda (hC em unidades de parede); a LARGURA segue a
+      // proporção da imagem, e o footprint só estica/comprime até 30% —
+      // nunca mais sofá-panqueca
+      const hPx = Math.min(areaH * 1.2, ft.hC * wallHpx);
+      const natW = hPx * (spr.width / spr.height);
       const vd = Math.hypot(dx, dy) || 1;
       const ux2 = dx / vd, uy2 = dy / vd;
       const lateralCells = ft.w * Math.abs(uy2) + ft.h * Math.abs(ux2);
-      const pxPerCell = (Wc * CWc) / (2 * tanF * ty);
-      const wPx = Math.max(8, lateralCells * pxPerCell);
-      // ALTURA real em unidades de parede (parede = wallHpx)
-      const hPx = Math.min(areaH * 1.2, ft.hC * wallHpx);
+      const footW = lateralCells * ((Wc * CWc) / (2 * tanF * ty));
+      const wPx = Math.max(natW * 0.7, Math.min(natW * 1.3, footW));
       blitOccluded(c, spr, zbuf, ty, centerX, floorPx - hPx, wPx, hPx,
                    Math.min(1, 0.35 + bright * 1.0), Wc, CWc, FR);
     } else if (s.kind === "mark") {
@@ -325,7 +327,10 @@ function renderPhoto(px, py, dir) {
       const wPx = hPx * 0.73;
       blitOccluded(c, spr, zbuf, ty, centerX, floorPx - wallHpx * 0.9, wPx, hPx,
                    Math.min(1, 0.35 + bright * 1.0), Wc, CWc, FR);
-      if (bright > 0.25 && Math.abs(sxCol - Wc / 2) < Wc * 0.45 && !s.mk.seen) {
+      const zc = zbuf[Math.max(0, Math.min(Wc - 1, sxCol | 0))];
+      if (bright > 0.25 && Math.abs(sxCol - Wc / 2) < Wc * 0.45 &&
+          ty < zc + 0.6 && !s.mk.seen) {         // só conta se a marca saiu na foto
+
         s.mk.seen = true;                        // o chat para de dar essa dica
         if (!world.flags.marksSeen.includes(s.mk.ord))
           world.flags.marksSeen.push(s.mk.ord);

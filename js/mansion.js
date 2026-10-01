@@ -44,9 +44,11 @@ function genWorld(seed) {
       digit: world.code[i], ord: i + 1, seen: false,
     });
   }
-  // cofre no 2º andar
+  // cofre no 2º andar (remove móveis colados nele — móvel é sólido e
+  // podia murar o ponto de interação)
   { const flo = world.floors[3]; const r = pickRoom(flo, rng);
-    const c = roomCenter(r); flo.safe = { x: c.x, y: c.y }; }
+    const c = roomCenter(r); flo.safe = { x: c.x, y: c.y };
+    clearFurnAround(flo, c.x, c.y, 2); }
   // quadro de fusíveis no porão, dentro do poço do elevador
   { const ec = roomCenter(ELEV_ROOM);
     world.floors[0].fusebox = { x: ec.x - 1.5, y: ELEV_ROOM.y + 1.2 }; }
@@ -56,14 +58,18 @@ function genWorld(seed) {
   const s1 = world.floors[sf].secretRooms[0];
   if (s1) world.items.push({ id: "fuse0", kind: "fuse", floor: sf,
     x: s1.x + s1.w / 2, y: s1.y + s1.h / 2, taken: false });
-  { const r = pickRoom(world.floors[0], rng);
-    world.items.push({ id: "fuse1", kind: "fuse", floor: 0,
-      x: r.x + 2 + rng() * (r.w - 4), y: r.y + 2 + rng() * (r.h - 4), taken: false }); }
+  else { // fallback: sem sala secreta nesse andar, o fusível cai numa sala comum
+    const p = world.floors[sf].freeSpot();
+    world.items.push({ id: "fuse0", kind: "fuse", floor: sf, x: p.x, y: p.y, taken: false });
+  }
+  { const p = world.floors[0].freeSpot();
+    world.items.push({ id: "fuse1", kind: "fuse", floor: 0, x: p.x, y: p.y, taken: false }); }
   // (fusível 3 está dentro do cofre)
-  // CHAVE da porta: sala secreta do PORÃO
+  // CHAVE da porta: sala secreta do PORÃO (fallback: sala comum — a run
+  // NUNCA pode nascer sem chave, senão é impossível vencer)
   const sk = world.floors[0].secretRooms[0];
-  if (sk) world.items.push({ id: "key", kind: "key", floor: 0,
-    x: sk.x + sk.w / 2, y: sk.y + sk.h / 2, taken: false });
+  const kp = sk ? { x: sk.x + sk.w / 2, y: sk.y + sk.h / 2 } : world.floors[0].freeSpot();
+  world.items.push({ id: "key", kind: "key", floor: 0, x: kp.x, y: kp.y, taken: false });
 
   setFloor(1);
   const c = roomCenter(ENTRY_HALL);
@@ -74,6 +80,16 @@ function genWorld(seed) {
 function pickRoom(flo, rng) {
   const free = flo.rooms.filter(r => !r.fixed);
   return free[rng() * free.length | 0];
+}
+
+// remove peças de mobília num raio (p/ garantir acesso a pontos de interação)
+function clearFurnAround(flo, x, y, rad) {
+  flo.furn = flo.furn.filter(p => {
+    const hit = p.cells.some(([i, j]) =>
+      Math.abs(i + 0.5 - x) <= rad + 0.5 && Math.abs(j + 0.5 - y) <= rad + 0.5);
+    if (hit) for (const [i, j] of p.cells) flo.furnGrid[j * COLS + i] = 0;
+    return !hit;
+  });
 }
 
 function genFloor(seed, f) {
@@ -132,6 +148,19 @@ function genFloor(seed, f) {
     for (let j = STAIR_DOWN_RECT.y; j < STAIR_DOWN_RECT.y + STAIR_DOWN_RECT.h; j++)
       for (let i = STAIR_DOWN_RECT.x; i < STAIR_DOWN_RECT.x + STAIR_DOWN_RECT.w; i++)
         g[j * COLS + i] = T_STAIR_DOWN;
+  // sela o anel em volta de cada nicho: um corredor que cruzasse os degraus
+  // virava teleporte forçado e cortava a ligação entre salas
+  function sealNiche(r, openSouth) {
+    const j0 = openSouth ? r.y - 1 : r.y;
+    const j1 = openSouth ? r.y + r.h - 1 : r.y + r.h;
+    for (let j = j0; j <= j1; j++)
+      for (let i = r.x - 1; i <= r.x + r.w; i++) {
+        const inside = i >= r.x && i < r.x + r.w && j >= r.y && j < r.y + r.h;
+        if (!inside) g[j * COLS + i] = T_WALL;
+      }
+  }
+  if (f < NFLOORS - 1) sealNiche(STAIR_UP_RECT, true);   // boca ao sul (hall)
+  if (f > 0) sealNiche(STAIR_DOWN_RECT, false);          // boca ao norte (hall)
   const ec = roomCenter(ELEV_ROOM);
   g[(ec.y | 0) * COLS + (ec.x | 0)] = T_ELEV;
 
@@ -182,6 +211,62 @@ function genFloor(seed, f) {
     }
   }
 
+  // --- REPARO DE CONECTIVIDADE ---
+  // o selo dos nichos pode ter cortado um corredor; religa salas isoladas
+  {
+    const prot = new Uint8Array(COLS * ROWS);   // células que o reparo não toca
+    const mark = (x0, y0, x1, y1) => {
+      for (let j = y0; j <= y1; j++) for (let i = x0; i <= x1; i++)
+        if (i >= 0 && j >= 0 && i < COLS && j < ROWS) prot[j * COLS + i] = 1;
+    };
+    if (f < NFLOORS - 1) mark(STAIR_UP_RECT.x - 1, STAIR_UP_RECT.y - 1,
+      STAIR_UP_RECT.x + STAIR_UP_RECT.w, STAIR_UP_RECT.y + STAIR_UP_RECT.h - 1);
+    if (f > 0) mark(STAIR_DOWN_RECT.x - 1, STAIR_DOWN_RECT.y,
+      STAIR_DOWN_RECT.x + STAIR_DOWN_RECT.w, STAIR_DOWN_RECT.y + STAIR_DOWN_RECT.h);
+    for (const sr of floor.secretRooms) mark(sr.x - 1, sr.y - 1, sr.x + sr.w, sr.y + sr.h);
+    const flood = () => {
+      const seen = new Uint8Array(COLS * ROWS);
+      const c0 = roomCenter(STAIR_ROOM);
+      const q = [(c0.y | 0) * COLS + (c0.x | 0)];
+      seen[q[0]] = 1;
+      while (q.length) {
+        const cu = q.pop(), cx = cu % COLS, cy = (cu / COLS) | 0;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = cx + dx, ny = cy + dy;
+          if (nx < 1 || ny < 1 || nx >= COLS - 1 || ny >= ROWS - 1) continue;
+          const ni = ny * COLS + nx;
+          if (seen[ni] || g[ni] === T_WALL) continue;   // parede FALSA é passável
+          seen[ni] = 1; q.push(ni);
+        }
+      }
+      return seen;
+    };
+    const gCarve = (x, y, w, h) => {
+      for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) {
+        const id = j * COLS + i;
+        if (i > 0 && j > 0 && i < COLS - 1 && j < ROWS - 1 && !prot[id]) g[id] = T_FLOOR;
+      }
+    };
+    const gH = (x1, x2, y) => gCarve(Math.min(x1, x2) - 1, y - 1, Math.abs(x2 - x1) + 3, 3);
+    const gV = (y1, y2, x) => gCarve(x - 1, Math.min(y1, y2) - 1, 3, Math.abs(y2 - y1) + 3);
+    const at = r => { const c = roomCenter(r); return (c.y | 0) * COLS + (c.x | 0); };
+    floor.reach = null;
+    for (let pass = 0; pass < 8; pass++) {
+      const seen = flood();
+      const broken = rooms.filter(r => !seen[at(r)]);
+      if (!broken.length) { floor.reach = seen; break; }
+      const ok = rooms.filter(r => seen[at(r)]);
+      for (const r of broken) {
+        const t = ok.length ? ok[rng() * ok.length | 0] : rooms[0];
+        const ca = roomCenter(r), cb = roomCenter(t);
+        const ax = ca.x | 0, ay = ca.y | 0, bx = cb.x | 0, by = cb.y | 0;
+        if (rng() < 0.5) { gH(ax, bx, ay); gV(ay, by, bx); }
+        else             { gV(ay, by, ax); gH(ax, bx, by); }
+      }
+    }
+    if (!floor.reach) floor.reach = flood();
+  }
+
   // --- móveis (não nas salas fixas) ---
   const typeNames = Object.keys(FURN_TYPES);
   for (const r of rooms) {
@@ -208,23 +293,32 @@ function genFloor(seed, f) {
     }
   }
 
+  // célula válida para item/fantasma: chão, sem móvel, alcançável
+  const freeRooms = rooms.filter(r => !r.fixed);
+  function freeSpot() {
+    for (let t = 0; t < 80; t++) {
+      const r = freeRooms[rng() * freeRooms.length | 0];
+      const x = r.x + 2 + rng() * (r.w - 4), y = r.y + 2 + rng() * (r.h - 4);
+      const id = (y | 0) * COLS + (x | 0);
+      if (g[id] === T_FLOOR && !furnGrid[id] && (!floor.reach || floor.reach[id]))
+        return { x, y };
+    }
+    const c = roomCenter(freeRooms[0] || rooms[0]);
+    return { x: c.x, y: c.y };
+  }
+  floor.freeSpot = freeSpot;
+
   // --- refis de filme ---
   const nFilm = f === 1 ? 3 : 2;
   for (let i = 0; i < nFilm; i++) {
-    const r = rooms[2 + (rng() * (rooms.length - 2) | 0)];
-    floor.films.push({
-      id: `${f}:${i}`,
-      x: r.x + 2 + rng() * (r.w - 4),
-      y: r.y + 2 + rng() * (r.h - 4),
-      taken: false,
-    });
+    const p = freeSpot();
+    floor.films.push({ id: `${f}:${i}`, x: p.x, y: p.y, taken: false });
   }
 
-  // --- fantasmas (porão é o pior lugar) ---
+  // --- fantasmas (porão é o pior lugar; nunca no hall de entrada) ---
   const nGhost = f === 0 ? 5 : f === 1 ? 2 : 3;
   for (let i = 0; i < nGhost; i++) {
-    const r = rooms[2 + (rng() * (rooms.length - 2) | 0)];
-    const p = { x: r.x + 2 + rng() * (r.w - 4), y: r.y + 2 + rng() * (r.h - 4) };
+    const p = freeSpot();
     floor.ghosts.push({
       x: p.x, y: p.y, wx: p.x, wy: p.y, chase: false,
       respawn: 0, bob: rng() * 6.28, artSeed: rng(), sprCv: null,
@@ -255,6 +349,7 @@ function newRun() {
   album = []; albumIdx = 0; photoCount = 0;
   albumReturn = "play";
   flashT = 0; flashCd = 0; attractT = 0; particles = [];
+  if (typeof liveReset === "function") liveReset();
   saveRun();
   state = "play";
 }
@@ -263,8 +358,10 @@ function continueRun() {
   const s = loadRunData();
   if (!s) { newRun(); return; }
   genWorld(s.seed);
+  if (typeof noGhosts !== "undefined" && noGhosts)
+    for (const flo of world.floors) flo.ghosts.length = 0;   // modo puzzle vale no continuar
   world.taken = new Set(s.taken || []);
-  if (s.flags) world.flags = s.flags;
+  if (s.flags) world.flags = Object.assign(world.flags, s.flags);  // save antigo não quebra
   world.timeSec = s.timeSec || 0;
   applyTaken();
   // marcas já fotografadas não geram dica de novo
@@ -277,6 +374,7 @@ function continueRun() {
   film = s.film; sanity = s.sanity; photoCount = s.photoCount || 0;
   album = []; albumIdx = 0;
   flashT = 0; flashCd = 0; attractT = 0; particles = [];
+  if (typeof liveReset === "function") liveReset();
   state = "play";
 }
 

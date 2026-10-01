@@ -9,6 +9,13 @@ const live = {
   hinted: new Set(), scroll: 0,
 };
 
+// cada run nova recomeça a live (dicas, lore e viewers zerados)
+function liveReset() {
+  live.viewers = 30 + (Math.random() * 20 | 0);
+  live.msgs = []; live.msgT = 4; live.loreIdx = 0; live.loreT = 40;
+  live.hinted = new Set(); live.scroll = 0;
+}
+
 const CHAT_USERS = ["ana_clips", "Dudu77", "spooky_fan", "Lari_br", "CanalDoPavor",
   "mateus.zzz", "vicky13", "olho_vivo", "GhostHunterBR", "janela13", "pipoca_doce",
   "renan_afk", "tia_do_zap", "xX_Dark_Xx", "medrosa_oficial"];
