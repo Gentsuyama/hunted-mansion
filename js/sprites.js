@@ -677,8 +677,22 @@ function keyBlackToAlpha(im) {
     stack.push(x + 1, y); stack.push(x - 1, y);
     stack.push(x, y + 1); stack.push(x, y - 1);
   }
+  // recorta ao conteúdo (bounding box): âncora no chão e proporção corretas,
+  // sem as margens transparentes inflando o tamanho
+  let minX = w, minY = h, maxX = -1, maxY = -1;
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++)
+      if (p[(y * w + x) * 4 + 3] > 0) {
+        if (x < minX) minX = x; if (x > maxX) maxX = x;
+        if (y < minY) minY = y; if (y > maxY) maxY = y;
+      }
   g.putImageData(d, 0, 0);
-  return cv;
+  if (maxX < 0) return cv;
+  const cw2 = maxX - minX + 1, ch2 = maxY - minY + 1;
+  const out = document.createElement("canvas");
+  out.width = cw2; out.height = ch2;
+  out.getContext("2d").drawImage(cv, minX, minY, cw2, ch2, 0, 0, cw2, ch2);
+  return out;
 }
 function furnArt(name) { return FURN_IMGS[name] || furnSprite(name); }
 
