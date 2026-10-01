@@ -8,8 +8,11 @@ const STAIR_ROOM = { x: 68, y: 40, w: 14, h: 12 };   // hall da escadaria
 const ELEV_ROOM  = { x: 86, y: 42, w: 6,  h: 8 };    // poço do elevador
 const ENTRY_HALL = { x: 60, y: 74, w: 28, h: 16 };   // hall de entrada (térreo)
 
-const STAIR_UP_CELL   = { x: STAIR_ROOM.x + 3,  y: STAIR_ROOM.y + 5 };
-const STAIR_DOWN_CELL = { x: STAIR_ROOM.x + 10, y: STAIR_ROOM.y + 5 };
+// escadas como ÁREAS nos CANTOS do hall (2 células de largura, 4 de comprimento);
+// pisar nelas sobe/desce automaticamente — sem botão
+const STAIR_UP_RECT   = { x: STAIR_ROOM.x + 1, y: STAIR_ROOM.y + 1, w: 2, h: 4 };
+const STAIR_DOWN_RECT = { x: STAIR_ROOM.x + STAIR_ROOM.w - 3,
+                          y: STAIR_ROOM.y + STAIR_ROOM.h - 6, w: 2, h: 4 };
 
 function roomCenter(r) { return { x: r.x + r.w / 2, y: r.y + r.h / 2 }; }
 function overlaps(a, b, m) {
@@ -119,9 +122,15 @@ function genFloor(seed, f) {
   for (let i = 0; i < 3; i++)
     connect(rooms[rng() * rooms.length | 0], rooms[rng() * rooms.length | 0]);
 
-  // --- escadas e elevador (tiles) ---
-  if (f < NFLOORS - 1) g[STAIR_UP_CELL.y * COLS + STAIR_UP_CELL.x] = T_STAIR_UP;
-  if (f > 0)           g[STAIR_DOWN_CELL.y * COLS + STAIR_DOWN_CELL.x] = T_STAIR_DOWN;
+  // --- escadas (áreas nos cantos) e elevador ---
+  if (f < NFLOORS - 1)
+    for (let j = STAIR_UP_RECT.y; j < STAIR_UP_RECT.y + STAIR_UP_RECT.h; j++)
+      for (let i = STAIR_UP_RECT.x; i < STAIR_UP_RECT.x + STAIR_UP_RECT.w; i++)
+        g[j * COLS + i] = T_STAIR_UP;
+  if (f > 0)
+    for (let j = STAIR_DOWN_RECT.y; j < STAIR_DOWN_RECT.y + STAIR_DOWN_RECT.h; j++)
+      for (let i = STAIR_DOWN_RECT.x; i < STAIR_DOWN_RECT.x + STAIR_DOWN_RECT.w; i++)
+        g[j * COLS + i] = T_STAIR_DOWN;
   const ec = roomCenter(ELEV_ROOM);
   g[(ec.y | 0) * COLS + (ec.x | 0)] = T_ELEV;
 
@@ -268,15 +277,18 @@ function continueRun() {
   state = "play";
 }
 
-// troca de andar pela escada
+// troca de andar pela escada (automática ao pisar; cooldown evita pingue-pongue)
 function useStairs(dirUp) {
   const nf = world.cur + (dirUp ? 1 : -1);
   if (nf < 0 || nf >= NFLOORS) return;
   setFloor(nf);
-  // aparece ao lado da escada correspondente no andar novo
-  const cell2 = dirUp ? STAIR_DOWN_CELL : STAIR_UP_CELL;
-  player.x = cell2.x + 0.5; player.y = cell2.y + 1.6;
+  // quem sobe emerge no PÉ da escada que desce do andar novo (e vice-versa)
+  const r = dirUp ? STAIR_DOWN_RECT : STAIR_UP_RECT;
+  player.x = r.x + 1;
+  player.y = r.y + r.h + 0.9;
   cam.x = player.x * CELL; cam.y = player.y * CELL;
+  stairCd = 1.0;
+  floorFadeT = 0.6;
   sfxStairs();
   saveRun();
 }

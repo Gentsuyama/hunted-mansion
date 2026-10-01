@@ -121,6 +121,7 @@ function elevatorHit(px2, py2) {
       const ec = roomCenter(ELEV_ROOM);
       player.x = ec.x; player.y = ELEV_ROOM.y + ELEV_ROOM.h - 1.6;
       cam.x = player.x * CELL; cam.y = player.y * CELL;
+      floorFadeT = 0.6; stairCd = 0.6;
       sfxStairs(); setTimeout(sfxSlam, 400);
       liveEvent("floor");
       saveRun();

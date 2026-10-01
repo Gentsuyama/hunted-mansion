@@ -80,17 +80,11 @@ function collides(x, y) {
 // Interação contextual (escadas, elevador)
 // ------------------------------------------------------------------
 let prompt = null;   // { text, action }
+let stairCd = 0;     // cooldown pós-escada (evita pingue-pongue)
+let floorFadeT = 0;  // fade de transição de andar
 function updatePrompt() {
   prompt = null;
   const t = tileAt(player.x | 0, player.y | 0);
-  if (t === T_STAIR_UP) {
-    prompt = { text: `SUBIR PARA ${FLOOR_NAMES[world.cur + 1]}`, action: () => useStairs(true) };
-    return;
-  }
-  if (t === T_STAIR_DOWN) {
-    prompt = { text: `DESCER PARA ${FLOOR_NAMES[world.cur - 1]}`, action: () => useStairs(false) };
-    return;
-  }
   if (t === T_ELEV) {
     prompt = world.flags.elevatorOn
       ? { text: "ELEVADOR — ESCOLHER ANDAR", action: () => { state = "elevator"; } }
@@ -162,6 +156,15 @@ function update(dt) {
   }
 
   updatePrompt();
+
+  // escadas automáticas: pisou, foi (com cooldown para não ricochetear)
+  if (stairCd > 0) stairCd -= dt;
+  else {
+    const tUnder = tileAt(player.x | 0, player.y | 0);
+    if (tUnder === T_STAIR_UP) useStairs(true);
+    else if (tUnder === T_STAIR_DOWN) useStairs(false);
+  }
+  if (floorFadeT > 0) floorFadeT -= dt;
 
   // timers
   if (flashCd > 0) flashCd -= dt;
@@ -299,6 +302,35 @@ function update(dt) {
 }
 
 // ------------------------------------------------------------------
+// Escadas desenhadas como DEGRAUS (subindo clareia, descendo afunda no breu)
+// ------------------------------------------------------------------
+function drawStairsTopDown() {
+  const defs = [];
+  if (world.cur < NFLOORS - 1) defs.push({ r: STAIR_UP_RECT, up: true });
+  if (world.cur > 0) defs.push({ r: STAIR_DOWN_RECT, up: false });
+  for (const d of defs) {
+    const L0 = Math.max(lightAt(d.r.x + 1, d.r.y + 1), lightAt(d.r.x + 1, d.r.y + 3));
+    if (L0 <= 0.03) continue;
+    const cxm = (d.r.x + d.r.w / 2) * CELL;
+    const steps = 6, stepH = d.r.h * CELL / steps;
+    for (let s = 0; s < steps; s++) {
+      const t = s / (steps - 1);                       // 0 = pé (sul), 1 = fundo
+      const y = (d.r.y + d.r.h) * CELL - (s + 1) * stepH;
+      // subir = degraus clareiam ao fundo; descer = somem na escuridão
+      const bright = d.up ? 0.30 + 0.70 * t : 0.85 - 0.80 * t;
+      const w2 = d.r.w * CELL * (1 - t * (d.up ? 0.30 : 0.12));
+      const a = Math.min(1, L0 * 1.7) * bright;
+      ctx.fillStyle = `rgba(206,214,232,${(a * 0.9).toFixed(3)})`;
+      ctx.fillRect(cxm - w2 / 2, y + 1.5, w2, stepH - 3);
+    }
+    ctx.font = "bold 8px 'Courier New', monospace";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillStyle = `rgba(200,214,240,${Math.min(1, L0 * 1.6).toFixed(3)})`;
+    ctx.fillText(d.up ? "SOBE" : "DESCE", cxm, (d.r.y + d.r.h) * CELL + 6);
+  }
+}
+
+// ------------------------------------------------------------------
 // Render top-down
 // ------------------------------------------------------------------
 function render() {
@@ -332,8 +364,10 @@ function render() {
   }
   addGlow(player.x, player.y, 3.5, 0.22);
   // escadas emitem um brilho fraco (precisam ser encontráveis)
-  if (world.cur < NFLOORS - 1) addGlow(STAIR_UP_CELL.x + 0.5, STAIR_UP_CELL.y + 0.5, 2.2, 0.12);
-  if (world.cur > 0) addGlow(STAIR_DOWN_CELL.x + 0.5, STAIR_DOWN_CELL.y + 0.5, 2.2, 0.12);
+  if (world.cur < NFLOORS - 1)
+    addGlow(STAIR_UP_RECT.x + 1, STAIR_UP_RECT.y + 2, 2.8, 0.13);
+  if (world.cur > 0)
+    addGlow(STAIR_DOWN_RECT.x + 1, STAIR_DOWN_RECT.y + 2, 2.8, 0.13);
 
   // células visíveis (culling pela câmera)
   const hw = canvas.width / (2 * camZoom), hh = canvas.height / (2 * camZoom);
@@ -372,8 +406,9 @@ function render() {
         ctx.fillStyle = `rgb(${b},${(b * 0.62) | 0},${(b * 0.34) | 0})`;
         ctx.fillText("▦", px2, py2);
       } else if (t === T_STAIR_UP || t === T_STAIR_DOWN) {
-        ctx.fillStyle = `rgba(200,220,255,${0.5 + 0.5 * clamped})`;
-        ctx.fillText(t === T_STAIR_UP ? "▲" : "▼", px2, py2);
+        // chão sob a escada; os degraus são desenhados por drawStairs()
+        ctx.fillStyle = `rgba(142,132,112,${(Math.min(1, raw) * 0.30).toFixed(3)})`;
+        ctx.fillRect(cx * CELL, cy * CELL, CELL, CELL);
       } else if (t === T_ELEV) {
         ctx.fillStyle = `rgb(${(b * 0.7) | 0},${(b * 0.7) | 0},${(b * 0.75) | 0})`;
         ctx.fillText("◫", px2, py2);
@@ -386,6 +421,8 @@ function render() {
       }
     }
   }
+
+  drawStairsTopDown();
 
   // refis
   ctx.font = "bold 12px 'Courier New', monospace";
@@ -464,6 +501,12 @@ function render() {
   ctx.restore();
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+  // fade de transição de andar
+  if (floorFadeT > 0) {
+    ctx.fillStyle = `rgba(0,0,0,${Math.min(1, floorFadeT * 2.2).toFixed(3)})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
 
   // clarão do flash
   if (flashT > 0) {
