@@ -17,6 +17,7 @@ const CINE_PANELS = [
 ];
 
 let cineIdx = 0, cineT = 0, cineImgs = [], cineLoaded = 0, cineSlammed = false;
+let cineThen = null;   // o que fazer quando a cinematic terminar
 
 function loadCineImages() {
   for (const p of CINE_PANELS) {
@@ -28,24 +29,23 @@ function loadCineImages() {
   }
 }
 
-function startCinematic() {
+function startCinematic(then) {
+  cineThen = then || null;
   cineIdx = 0; cineT = 0; cineSlammed = false;
   state = "cine";
+}
+
+function finishCine() {
+  if (cineThen) { const f = cineThen; cineThen = null; f(); }
+  else state = "title";
 }
 
 function cineAdvance(px, py) {
   initAudio();
   // botão PULAR (canto superior direito)
-  if (px !== undefined && px > canvas.width - 170 && py < 70) {
-    try { localStorage.setItem("hm_intro", "1"); } catch (e) {}
-    state = "title"; return;
-  }
-  if (cineIdx >= CINE_PANELS.length - 1) {
-    try { localStorage.setItem("hm_intro", "1"); } catch (e) {}
-    state = "title";
-  } else {
-    cineIdx++; cineT = 0; cineSlammed = false;
-  }
+  if (px !== undefined && px > canvas.width - 170 && py < 70) { finishCine(); return; }
+  if (cineIdx >= CINE_PANELS.length - 1) finishCine();
+  else { cineIdx++; cineT = 0; cineSlammed = false; }
 }
 
 function drawCinematic() {
@@ -133,26 +133,43 @@ function titleButtons() {
 }
 
 function drawTitle() {
-  // fundo: painel 6 bem apagado
-  const im = cineImgs[5];
+  // fundo: painel 3 (porta aberta + câmera na soleira), escurecido com vinheta
+  const im = cineImgs[2];
   if (im && im.complete && im.naturalWidth) {
-    ctx.globalAlpha = 0.22;
+    ctx.globalAlpha = 0.5;
     ctx.drawImage(im, 0, 0, canvas.width, canvas.height);
     ctx.globalAlpha = 1;
   }
+  const vg = ctx.createRadialGradient(canvas.width / 2, 320, 180,
+                                      canvas.width / 2, 320, 820);
+  vg.addColorStop(0, "rgba(0,0,0,0.25)");
+  vg.addColorStop(1, "rgba(0,0,0,0.94)");
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.font = "bold 64px 'Courier New', monospace";
-  const g = 190 + 50 * Math.sin(time * 2);
+
+  // título com flicker de luz ruim
+  const tick = Math.floor(time * 13);
+  let g = 205 + 40 * Math.sin(time * 2);
+  if (hash(tick, 3, 7) < 0.08) g *= 0.35;         // falha de energia ocasional
+  ctx.font = "bold 76px 'Courier New', monospace";
+  ctx.fillStyle = "rgba(0,0,0,0.75)";
+  ctx.fillText("HUNTED MANSION", canvas.width / 2 + 4, 154);
   ctx.fillStyle = `rgb(${g | 0},${g | 0},${g | 0})`;
-  ctx.fillText("HUNTED MANSION", canvas.width / 2, 170);
-  ctx.font = "bold 16px 'Courier New', monospace";
-  ctx.fillStyle = "rgba(170,170,170,0.8)";
-  ctx.fillText("a live na casa errada", canvas.width / 2, 225);
+  ctx.fillText("HUNTED MANSION", canvas.width / 2, 150);
+
+  // "ao vivo" como assinatura do jogo
+  ctx.font = "bold 17px 'Courier New', monospace";
+  ctx.fillStyle = `rgba(255,70,58,${0.65 + 0.35 * Math.sin(time * 4)})`;
+  ctx.fillText("●", canvas.width / 2 - 128, 212);
+  ctx.fillStyle = "rgba(210,210,210,0.9)";
+  ctx.fillText("  uma live na casa errada", canvas.width / 2, 212);
 
   ctx.font = "bold 13px 'Courier New', monospace";
-  ctx.fillStyle = "rgba(140,140,140,0.75)";
+  ctx.fillStyle = "rgba(150,150,150,0.8)";
   ctx.fillText("as portas trancaram · vasculhe · fotografe · encontre a saída",
-               canvas.width / 2, 300);
+               canvas.width / 2, 312);
 
   for (const b of titleButtons()) {
     const hov = mouse.x >= b.x && mouse.x <= b.x + b.w &&
@@ -183,12 +200,14 @@ function titleHit(px2, py2) {
   for (const b of titleButtons())
     if (px2 >= b.x && px2 <= b.x + b.w && py2 >= b.y && py2 <= b.y + b.h) {
       if (b.id === "cont") continueRun();
-      else if (b.id === "new") newRun();
-      else startCinematic();
+      else if (b.id === "new") startCinematic(() => newRun());  // abertura SEMPRE
+      else startCinematic(null);                                // rever, volta ao título
       return;
     }
 }
 function titleKey(code) {
   initAudio();
-  if (code === "Enter") { loadRunData() ? continueRun() : newRun(); }
+  if (code === "Enter") {
+    loadRunData() ? continueRun() : startCinematic(() => newRun());
+  }
 }

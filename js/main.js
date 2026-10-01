@@ -14,11 +14,9 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-// boot: carrega imagens da intro; mostra a intro na primeira visita
+// boot: carrega as imagens e vai para o TÍTULO;
+// a cinematic de abertura toca sempre que uma NOVA run começa
 loadCineImages();
-let introSeen = false;
-try { introSeen = localStorage.getItem("hm_intro") === "1"; } catch (e) {}
-if (introSeen) state = "title";
-else startCinematic();
+state = "title";
 
 requestAnimationFrame(frame);
