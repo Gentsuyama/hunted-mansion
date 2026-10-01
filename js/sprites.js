@@ -647,7 +647,7 @@ const FURN_IMGS = {};
     const im = new Image();
     im.onload = () => { FURN_IMGS[k] = keyBlackToAlpha(im); };
     im.onerror = () => {};
-    im.src = "Assets/Furniture/" + k + ".png";
+    im.src = "Assets/Furniture/" + k + ".jpg";
   }
 })();
 // recorte por INUNDAÇÃO a partir das bordas: só o preto CONECTADO à borda
