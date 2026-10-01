@@ -306,17 +306,23 @@ function update(dt) {
 // ------------------------------------------------------------------
 function drawStairsTopDown() {
   const defs = [];
-  if (world.cur < NFLOORS - 1) defs.push({ r: STAIR_UP_RECT, up: true });
-  if (world.cur > 0) defs.push({ r: STAIR_DOWN_RECT, up: false });
+  // SOBE: nicho na parede norte (degraus para CIMA da tela)
+  if (world.cur < NFLOORS - 1) defs.push({ r: STAIR_UP_RECT, up: true, north: true });
+  // DESCE: nicho na parede sul (degraus para BAIXO da tela)
+  if (world.cur > 0) defs.push({ r: STAIR_DOWN_RECT, up: false, north: false });
   for (const d of defs) {
-    const L0 = Math.max(lightAt(d.r.x + 1, d.r.y + 1), lightAt(d.r.x + 1, d.r.y + 3));
+    // luz medida na boca do nicho (dentro da sala) e dentro dele
+    const mouthY = d.north ? d.r.y + d.r.h + 0.5 : d.r.y - 0.5;
+    const L0 = Math.max(lightAt(d.r.x + 1, mouthY), lightAt(d.r.x + 1, d.r.y + 1));
     if (L0 <= 0.03) continue;
     const cxm = (d.r.x + d.r.w / 2) * CELL;
-    const steps = 6, stepH = d.r.h * CELL / steps;
+    const steps = 5, stepH = d.r.h * CELL / steps;
     for (let s = 0; s < steps; s++) {
-      const t = s / (steps - 1);                       // 0 = pé (sul), 1 = fundo
-      const y = (d.r.y + d.r.h) * CELL - (s + 1) * stepH;
-      // subir = degraus clareiam ao fundo; descer = somem na escuridão
+      const t = s / (steps - 1);               // 0 = boca, 1 = fundo do nicho
+      const y = d.north
+        ? (d.r.y + d.r.h) * CELL - (s + 1) * stepH
+        : d.r.y * CELL + s * stepH;
+      // subir = clareia e afunila ao fundo; descer = esmaece no breu
       const bright = d.up ? 0.30 + 0.70 * t : 0.85 - 0.80 * t;
       const w2 = d.r.w * CELL * (1 - t * (d.up ? 0.30 : 0.12));
       const a = Math.min(1, L0 * 1.7) * bright;
@@ -326,7 +332,9 @@ function drawStairsTopDown() {
     ctx.font = "bold 8px 'Courier New', monospace";
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillStyle = `rgba(200,214,240,${Math.min(1, L0 * 1.6).toFixed(3)})`;
-    ctx.fillText(d.up ? "SOBE" : "DESCE", cxm, (d.r.y + d.r.h) * CELL + 6);
+    // rótulo DENTRO da sala, junto à boca do nicho
+    ctx.fillText(d.up ? "SOBE" : "DESCE", cxm,
+                 d.north ? (d.r.y + d.r.h) * CELL + 7 : d.r.y * CELL - 6);
   }
 }
 
@@ -363,11 +371,11 @@ function render() {
     castLight(player.x, player.y, flashDir, FLASH.halfAngle, FLASH.range, p, FLASH.rays);
   }
   addGlow(player.x, player.y, 3.5, 0.22);
-  // escadas emitem um brilho fraco (precisam ser encontráveis)
+  // escadas emitem um brilho fraco na boca do nicho (precisam ser encontráveis)
   if (world.cur < NFLOORS - 1)
-    addGlow(STAIR_UP_RECT.x + 1, STAIR_UP_RECT.y + 2, 2.8, 0.13);
+    addGlow(STAIR_UP_RECT.x + 1, STAIR_UP_RECT.y + STAIR_UP_RECT.h + 0.5, 2.8, 0.13);
   if (world.cur > 0)
-    addGlow(STAIR_DOWN_RECT.x + 1, STAIR_DOWN_RECT.y + 2, 2.8, 0.13);
+    addGlow(STAIR_DOWN_RECT.x + 1, STAIR_DOWN_RECT.y - 0.5, 2.8, 0.13);
 
   // células visíveis (culling pela câmera)
   const hw = canvas.width / (2 * camZoom), hh = canvas.height / (2 * camZoom);

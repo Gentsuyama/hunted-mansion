@@ -8,11 +8,12 @@ const STAIR_ROOM = { x: 68, y: 40, w: 14, h: 12 };   // hall da escadaria
 const ELEV_ROOM  = { x: 86, y: 42, w: 6,  h: 8 };    // poço do elevador
 const ENTRY_HALL = { x: 60, y: 74, w: 28, h: 16 };   // hall de entrada (térreo)
 
-// escadas como ÁREAS nos CANTOS do hall (2 células de largura, 4 de comprimento);
-// pisar nelas sobe/desce automaticamente — sem botão
-const STAIR_UP_RECT   = { x: STAIR_ROOM.x + 1, y: STAIR_ROOM.y + 1, w: 2, h: 4 };
-const STAIR_DOWN_RECT = { x: STAIR_ROOM.x + STAIR_ROOM.w - 3,
-                          y: STAIR_ROOM.y + STAIR_ROOM.h - 6, w: 2, h: 4 };
+// escadas como NICHOS ABERTOS NA PAREDE do hall: o vão fica na borda da sala
+// e os degraus atravessam a parede para fora — nada obstrui a passagem.
+// SOBE: buraco na parede NORTE · DESCE: buraco na parede SUL
+const STAIR_UP_RECT   = { x: STAIR_ROOM.x + 2, y: STAIR_ROOM.y - 3, w: 2, h: 3 };
+const STAIR_DOWN_RECT = { x: STAIR_ROOM.x + STAIR_ROOM.w - 4,
+                          y: STAIR_ROOM.y + STAIR_ROOM.h, w: 2, h: 3 };
 
 function roomCenter(r) { return { x: r.x + r.w / 2, y: r.y + r.h / 2 }; }
 function overlaps(a, b, m) {
@@ -282,10 +283,11 @@ function useStairs(dirUp) {
   const nf = world.cur + (dirUp ? 1 : -1);
   if (nf < 0 || nf >= NFLOORS) return;
   setFloor(nf);
-  // quem sobe emerge no PÉ da escada que desce do andar novo (e vice-versa)
+  // quem sobe emerge na BOCA do nicho que desce do andar novo (e vice-versa),
+  // já DENTRO da sala, fora do gatilho
   const r = dirUp ? STAIR_DOWN_RECT : STAIR_UP_RECT;
   player.x = r.x + 1;
-  player.y = r.y + r.h + 0.9;
+  player.y = dirUp ? r.y - 1.5 : r.y + r.h + 1.5;
   cam.x = player.x * CELL; cam.y = player.y * CELL;
   stairCd = 1.0;
   floorFadeT = 0.6;
