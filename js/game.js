@@ -348,16 +348,23 @@ function render() {
   for (let cy = r0; cy <= r1; cy++) {
     for (let cx = c0; cx <= c1; cx++) {
       const idx = cy * COLS + cx;
-      let v = light[idx];
-      if (v <= 0.02) continue;
-      const n = hash(cx, cy, tick);
-      v = v * (0.82 + 0.36 * n);
-      const clamped = Math.min(v, 1);
-      const ci = Math.min(RAMP.length - 1, (clamped * RAMP.length) | 0);
-      if (ci === 0) continue;
+      const raw = light[idx];
+      if (raw <= 0.02) continue;
       const t = grid[idx];
-      const b = (60 + 195 * clamped) | 0;
       const px2 = cx * CELL + CELL / 2, py2 = cy * CELL + CELL / 2 + 1;
+
+      if (t === T_FLOOR && fg[idx] === 0) {
+        // CHÃO: luz suave contínua, sem caracteres (visual limpo)
+        const L = Math.min(1, raw);
+        ctx.fillStyle = `rgba(142,132,112,${(L * 0.30).toFixed(3)})`;
+        ctx.fillRect(cx * CELL, cy * CELL, CELL, CELL);
+        continue;
+      }
+
+      // elementos da casa continuam em caracteres, com leve vida
+      const n = hash(cx, cy, tick);
+      const clamped = Math.min(1, raw * (0.82 + 0.36 * n));
+      const b = (60 + 195 * clamped) | 0;
       if (t === T_WALL || t === T_FAKE) {   // falsa = idêntica à parede no jogo
         ctx.fillStyle = `rgb(${b},${(b * 0.88) | 0},${(b * 0.66) | 0})`;
         ctx.fillText("#", px2, py2);
@@ -371,12 +378,11 @@ function render() {
         ctx.fillStyle = `rgb(${(b * 0.7) | 0},${(b * 0.7) | 0},${(b * 0.75) | 0})`;
         ctx.fillText("◫", px2, py2);
       } else if (fg[idx] !== 0) {
-        // móvel: caractere próprio, amarelo como as paredes mas mais vivo
+        // móvel: chão suave por baixo + caractere do móvel por cima
+        ctx.fillStyle = `rgba(142,132,112,${(Math.min(1, raw) * 0.30).toFixed(3)})`;
+        ctx.fillRect(cx * CELL, cy * CELL, CELL, CELL);
         ctx.fillStyle = `rgb(${b},${(b * 0.8) | 0},${(b * 0.4) | 0})`;
         ctx.fillText(FURN_BY_ID[fg[idx]].ch, px2, py2);
-      } else {
-        ctx.fillStyle = `rgb(${b},${b},${b})`;
-        ctx.fillText(RAMP[ci], px2, py2);
       }
     }
   }

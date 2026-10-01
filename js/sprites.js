@@ -620,12 +620,18 @@ function makeGlowSprite() {
 // ------------------------------------------------------------------
 // def: ch = caractere no mapa; w,h em células; ph/pw = proporção na foto
 const FURN_TYPES = {
-  sofa:    { id: 1, ch: "▬", w: 3, h: 1, pAsp: 1.9, pH: 0.55 },
-  mesa:    { id: 2, ch: "■", w: 2, h: 2, pAsp: 1.5, pH: 0.45 },
-  estante: { id: 3, ch: "▓", w: 3, h: 1, pAsp: 1.4, pH: 1.05 },
-  cadeira: { id: 4, ch: "π", w: 1, h: 1, pAsp: 0.8, pH: 0.55 },
-  piano:   { id: 5, ch: "♪", w: 2, h: 2, pAsp: 1.6, pH: 0.75 },
-  cama:    { id: 6, ch: "▭", w: 2, h: 3, pAsp: 1.8, pH: 0.45 },
+  sofa:     { id: 1,  ch: "▬", w: 3, h: 1, pAsp: 1.9, pH: 0.55 },
+  mesa:     { id: 2,  ch: "■", w: 2, h: 2, pAsp: 1.5, pH: 0.45 },
+  estante:  { id: 3,  ch: "▓", w: 3, h: 1, pAsp: 1.4, pH: 1.05 },
+  cadeira:  { id: 4,  ch: "π", w: 1, h: 1, pAsp: 0.8, pH: 0.55 },
+  piano:    { id: 5,  ch: "♪", w: 2, h: 2, pAsp: 1.6, pH: 0.75 },
+  cama:     { id: 6,  ch: "▭", w: 2, h: 3, pAsp: 1.8, pH: 0.45 },
+  poltrona: { id: 7,  ch: "∩", w: 1, h: 1, pAsp: 1.0, pH: 0.70 },
+  bau:      { id: 8,  ch: "Ξ", w: 2, h: 1, pAsp: 1.4, pH: 0.40 },
+  escrivaninha: { id: 9, ch: "Π", w: 2, h: 1, pAsp: 1.5, pH: 0.55 },
+  relogio:  { id: 10, ch: "Φ", w: 1, h: 1, pAsp: 0.45, pH: 1.30 },
+  espelho:  { id: 11, ch: "◊", w: 1, h: 1, pAsp: 0.50, pH: 1.10 },
+  berco:    { id: 12, ch: "Ш", w: 2, h: 2, pAsp: 1.2, pH: 0.60 },
 };
 const FURN_BY_ID = {};
 for (const k in FURN_TYPES) FURN_BY_ID[FURN_TYPES[k].id] = { name: k, ...FURN_TYPES[k] };
@@ -684,6 +690,48 @@ function furnSprite(name) {
     box(10, 60, 160, 45);                 // colchão
     box(10, 25, 24, 80);                  // cabeceira
     T.pen(40, 70, 160, 68, 0.4, 1.2);     // dobra do lençol
+  } else if (name === "poltrona") {
+    box(40, 20, 100, 45);                 // encosto alto
+    box(35, 62, 110, 35);                 // assento
+    box(22, 48, 20, 55); box(138, 48, 20, 55); // braços
+  } else if (name === "bau") {
+    box(25, 55, 130, 55);                 // corpo
+    T.pen(25, 55, 155, 52, 0.55, 2);      // linha da tampa
+    T.pen(85, 55, 85, 80, 0.5, 1.5);      // fecho
+    g.strokeStyle = "rgba(230,230,238,0.6)";
+    g.strokeRect(80, 72, 16, 14);         // cadeado
+  } else if (name === "escrivaninha") {
+    box(15, 40, 150, 14);                 // tampo
+    box(100, 54, 60, 60);                 // gaveteiro
+    T.pen(104, 72, 156, 70, 0.45, 1.2);   // gavetas
+    T.pen(104, 90, 156, 88, 0.45, 1.2);
+    box(24, 54, 10, 60);                  // perna
+  } else if (name === "relogio") {
+    box(55, 8, 70, 116);                  // caixa alta
+    g.strokeStyle = "rgba(235,235,242,0.7)";
+    g.lineWidth = 2;
+    g.beginPath(); g.arc(90, 34, 20, 0, 7); g.stroke();   // mostrador
+    T.pen(90, 34, 90, 22, 0.7, 1.5);      // ponteiros parados
+    T.pen(90, 34, 100, 38, 0.7, 1.5);     // ...na hora errada
+    T.pen(90, 62, 90, 104, 0.4, 1.2);     // pêndulo
+    g.beginPath(); g.arc(90, 108, 7, 0, 7); g.stroke();
+  } else if (name === "espelho") {
+    // moldura oval de pé; o reflexo é só um borrão (de propósito)
+    g.strokeStyle = "rgba(225,225,233,0.7)";
+    g.lineWidth = 3;
+    g.beginPath(); g.ellipse(90, 55, 42, 52, 0, 0, 7); g.stroke();
+    const sm = g.createRadialGradient(90, 55, 4, 90, 55, 40);
+    sm.addColorStop(0, "rgba(120,125,140,0.35)");
+    sm.addColorStop(1, "rgba(40,42,50,0.1)");
+    g.fillStyle = sm;
+    g.beginPath(); g.ellipse(90, 55, 40, 50, 0, 0, 7); g.fill();
+    box(78, 106, 24, 10);                 // pé
+    T.pen(66, 124, 114, 122, 0.5, 2);     // base
+  } else if (name === "berco") {
+    box(25, 50, 130, 55);                 // caixa
+    for (let k = 0; k < 7; k++)           // grades verticais
+      T.pen(32 + k * 17, 28, 33 + k * 17, 52, 0.55, 1.8);
+    T.pen(25, 26, 155, 28, 0.6, 2);       // barra de cima
   }
   FURN_SPRS[name] = cv;
   return cv;
