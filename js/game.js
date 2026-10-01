@@ -20,7 +20,8 @@ function castLight(px, py, dir, halfAngle, range, power, rays) {
       const v = power * angFall * distFall;
       const idx = cy * COLS + cx;
       if (v > light[idx]) light[idx] = v;
-      if (grid[idx] === T_WALL) break;
+      const t = grid[idx];
+      if (t === T_WALL || t === T_FAKE || t === T_DOOR) break;  // falsa esconde!
     }
   }
 }
@@ -82,12 +83,62 @@ let prompt = null;   // { text, action }
 function updatePrompt() {
   prompt = null;
   const t = tileAt(player.x | 0, player.y | 0);
-  if (t === T_STAIR_UP)
+  if (t === T_STAIR_UP) {
     prompt = { text: `SUBIR PARA ${FLOOR_NAMES[world.cur + 1]}`, action: () => useStairs(true) };
-  else if (t === T_STAIR_DOWN)
+    return;
+  }
+  if (t === T_STAIR_DOWN) {
     prompt = { text: `DESCER PARA ${FLOOR_NAMES[world.cur - 1]}`, action: () => useStairs(false) };
-  else if (t === T_ELEV)
-    prompt = { text: "ELEVADOR SEM ENERGIA", action: null };
+    return;
+  }
+  if (t === T_ELEV) {
+    prompt = world.flags.elevatorOn
+      ? { text: "ELEVADOR — ESCOLHER ANDAR", action: () => { state = "elevator"; } }
+      : { text: "ELEVADOR SEM ENERGIA", action: null };
+    return;
+  }
+  // porta da frente (térreo)
+  if (world.cur === 1 && fl().door) {
+    const d = fl().door;
+    if (Math.hypot(d.x - player.x, d.y - player.y) < 2.4) {
+      if (world.flags.key)
+        prompt = { text: "ABRIR A PORTA COM A CHAVE", action: winGame };
+      else {
+        prompt = { text: "TRANCADA. PRECISA DE UMA CHAVE", action: null };
+        if (!live.hinted.has("door")) { live.hinted.add("door"); liveEvent("doorlock"); }
+      }
+      return;
+    }
+  }
+  // cofre
+  if (fl().safe && !world.flags.safeOpen) {
+    const s = fl().safe;
+    if (Math.hypot(s.x - player.x, s.y - player.y) < 2.2) {
+      prompt = { text: "COFRE — TENTAR O CÓDIGO", action: () => { state = "safe"; } };
+      return;
+    }
+  }
+  // quadro de fusíveis (porão)
+  if (fl().fusebox && !world.flags.elevatorOn) {
+    const fb = fl().fusebox;
+    if (Math.hypot(fb.x - player.x, fb.y - player.y) < 2.4) {
+      const total = world.flags.fusesIn;
+      if (total >= 3)
+        prompt = { text: "LIGAR A CHAVE GERAL", action: () => {
+          world.flags.elevatorOn = true;
+          sfxSting(); liveEvent("elevator"); saveRun();
+        }};
+      else if (world.flags.fuses > 0)
+        prompt = { text: `ENCAIXAR FUSÍVEL (${total}/3)`, action: () => {
+          world.flags.fusesIn += world.flags.fuses;
+          world.flags.fuses = 0;
+          sfxPickup(); saveRun();
+        }};
+      else
+        prompt = { text: `QUADRO DE FUSÍVEIS (${total}/3) — faltam fusíveis`, action: null };
+      return;
+    }
+  }
 }
 
 // ------------------------------------------------------------------
@@ -200,6 +251,34 @@ function update(dt) {
     }
   }
 
+  // itens especiais (fusíveis, chave) do andar atual
+  for (const it of world.items) {
+    if (it.taken || it.floor !== world.cur) continue;
+    if (Math.hypot(it.x - player.x, it.y - player.y) < 1.2) {
+      it.taken = true;
+      world.taken.add(it.id);
+      if (it.kind === "fuse") { world.flags.fuses++; liveEvent("fuse"); }
+      else if (it.kind === "key") { world.flags.key = true; liveEvent("key"); }
+      sfxSting();
+      saveRun();
+    }
+  }
+
+  // descoberta de sala secreta (entrou nela pela 1ª vez)
+  for (const sr of fl().secretRooms) {
+    if (world.flags.secretsFound.includes(sr.id)) continue;
+    if (player.x > sr.x && player.x < sr.x + sr.w &&
+        player.y > sr.y && player.y < sr.y + sr.h) {
+      world.flags.secretsFound.push(sr.id);
+      sfxSting(); liveEvent("secret");
+      saveRun();
+    }
+  }
+
+  // relógio da run + live
+  world.timeSec += dt;
+  liveTick(dt);
+
   // partículas
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
@@ -279,9 +358,12 @@ function render() {
       const t = grid[idx];
       const b = (60 + 195 * clamped) | 0;
       const px2 = cx * CELL + CELL / 2, py2 = cy * CELL + CELL / 2 + 1;
-      if (t === T_WALL) {
+      if (t === T_WALL || t === T_FAKE) {   // falsa = idêntica à parede no jogo
         ctx.fillStyle = `rgb(${b},${(b * 0.88) | 0},${(b * 0.66) | 0})`;
         ctx.fillText("#", px2, py2);
+      } else if (t === T_DOOR) {
+        ctx.fillStyle = `rgb(${b},${(b * 0.62) | 0},${(b * 0.34) | 0})`;
+        ctx.fillText("▦", px2, py2);
       } else if (t === T_STAIR_UP || t === T_STAIR_DOWN) {
         ctx.fillStyle = `rgba(200,220,255,${0.5 + 0.5 * clamped})`;
         ctx.fillText(t === T_STAIR_UP ? "▲" : "▼", px2, py2);
@@ -307,6 +389,37 @@ function render() {
     if (L <= 0.03) continue;
     ctx.fillStyle = `rgba(180,220,180,${L})`;
     ctx.fillText("¤", f.x * CELL, f.y * CELL);
+  }
+  // itens especiais (fusível F, chave K)
+  ctx.font = "bold 14px 'Courier New', monospace";
+  for (const it of world.items) {
+    if (it.taken || it.floor !== world.cur) continue;
+    const L = Math.min(1, lightAt(it.x, it.y) * 1.8);
+    if (L <= 0.03) continue;
+    ctx.fillStyle = it.kind === "key"
+      ? `rgba(240,210,110,${L})` : `rgba(255,170,90,${L})`;
+    ctx.fillText(it.kind === "key" ? "K" : "F", it.x * CELL, it.y * CELL);
+  }
+  // cofre e quadro de fusíveis (visíveis sob luz)
+  if (fl().safe) {
+    const s = fl().safe;
+    const L = Math.min(1, lightAt(s.x, s.y) * 1.8);
+    if (L > 0.03) {
+      ctx.font = "bold 15px 'Courier New', monospace";
+      ctx.fillStyle = world.flags.safeOpen
+        ? `rgba(120,120,120,${L * 0.6})` : `rgba(210,190,140,${L})`;
+      ctx.fillText("▣", s.x * CELL, s.y * CELL);
+    }
+  }
+  if (fl().fusebox) {
+    const fb = fl().fusebox;
+    const L = Math.min(1, lightAt(fb.x, fb.y) * 1.8);
+    if (L > 0.03) {
+      ctx.font = "bold 15px 'Courier New', monospace";
+      ctx.fillStyle = world.flags.elevatorOn
+        ? `rgba(130,220,130,${L})` : `rgba(230,200,90,${L})`;
+      ctx.fillText("⚡", fb.x * CELL, fb.y * CELL);
+    }
   }
 
   // fantasmas
@@ -375,6 +488,10 @@ function render() {
   drawHUD();
   if (state === "album") drawAlbum();
   if (state === "dead") drawDead();
+  if (state === "chat") drawChat();
+  if (state === "safe") drawSafe();
+  if (state === "elevator") drawElevator();
+  if (state === "win") drawWin();
 }
 
 // ------------------------------------------------------------------
@@ -431,6 +548,23 @@ function drawHUD() {
   ctx.fillText(film <= 0 ? "CAMERA [ SEM FILME ]" :
                flashCd <= 0 ? "CAMERA [ PRONTA ]" : "CAMERA [ RECARREGANDO ]",
                M ? 400 : 12, M ? 64 : canvas.height - 30);
+
+  // inventário especial
+  let invY = M ? 96 : 44;
+  ctx.font = M ? "bold 16px 'Courier New', monospace" : "bold 12px 'Courier New', monospace";
+  if (world.flags.fuses > 0 || world.flags.fusesIn > 0) {
+    ctx.fillStyle = "rgba(255,170,90,0.85)";
+    ctx.fillText(`FUSÍVEIS: ${world.flags.fuses} na mão · ${world.flags.fusesIn}/3 no quadro`,
+                 12, invY);
+    invY += M ? 24 : 18;
+  }
+  if (world.flags.key) {
+    ctx.fillStyle = "rgba(240,210,110,0.9)";
+    ctx.fillText("CHAVE DA PORTA ✓ — vá até o hall de entrada", 12, invY);
+  }
+
+  // painel da live (clicar/tocar PAUSA e abre o chat)
+  if (state === "play") drawLivePanel();
 
   // prompt contextual (escada/elevador)
   if (prompt && state === "play") {
@@ -638,6 +772,15 @@ window.addEventListener("keydown", e => {
 
   if (state === "cine")  { cineAdvance(); return; }
   if (state === "title") { titleKey(e.code); return; }
+  if (state === "chat" || state === "safe" || state === "elevator") {
+    if (e.code === "Escape") { state = "play"; live.scroll = 0; }
+    return;
+  }
+  if (state === "win") {
+    if (e.code === "Enter") newRun();
+    else if (e.code === "Escape") state = "title";
+    return;
+  }
 
   if (state === "dead") {
     if (e.code === "Enter") { newRun(); return; }
@@ -684,9 +827,21 @@ canvas.addEventListener("mousedown", e => {
   if (state === "title") { titleHit(mx, my); return; }
   if (state === "dead")  { deadHit(mx, my); return; }
   if (state === "album") { albumHit(mx, my); return; }
+  if (state === "chat")  { chatHit(mx, my); return; }
+  if (state === "safe")  { safeHit(mx, my); return; }
+  if (state === "elevator") { elevatorHit(mx, my); return; }
+  if (state === "win")   { winHit(mx, my); return; }
   if (state !== "play") return;
+  if (e.button === 0 && liveInPanel(mx, my)) { state = "chat"; live.scroll = 0; return; }
   if (e.button === 2) takePhoto();
 });
+
+// rolagem do chat com a roda do mouse
+window.addEventListener("wheel", e => {
+  if (state !== "chat") return;
+  const maxS = Math.max(0, live.msgs.length - 20);
+  live.scroll = Math.max(0, Math.min(maxS, live.scroll + (e.deltaY < 0 ? 3 : -3)));
+}, { passive: true });
 
 // toque
 function tcoord(t) {
@@ -721,6 +876,15 @@ canvas.addEventListener("touchstart", e => {
     if (state === "title") { enterFullscreen(); titleHit(p.x, p.y); return; }
     if (state === "dead")  { deadHit(p.x, p.y); return; }
     if (state === "album") { albumHit(p.x, p.y); return; }
+    if (state === "chat") {
+      chatHit(p.x, p.y);
+      if (state === "chat") { chatDragId = t.identifier; chatDragY = p.y; }
+      return;
+    }
+    if (state === "safe")  { safeHit(p.x, p.y); return; }
+    if (state === "elevator") { elevatorHit(p.x, p.y); return; }
+    if (state === "win")   { winHit(p.x, p.y); return; }
+    if (liveInPanel(p.x, p.y)) { state = "chat"; live.scroll = 0; return; }
     if (Math.hypot(p.x - BTN_PHOTO.x, p.y - BTN_PHOTO.y) < BTN_PHOTO.r + 16) {
       takePhoto(); continue;
     }
@@ -747,10 +911,18 @@ canvas.addEventListener("touchstart", e => {
   }
 }, { passive: false });
 
+let chatDragId = null, chatDragY = 0;
 canvas.addEventListener("touchmove", e => {
   e.preventDefault();
   for (const t of e.changedTouches) {
     const p = tcoord(t);
+    if (state === "chat" && t.identifier === chatDragId) {
+      const maxS = Math.max(0, live.msgs.length - 20);
+      live.scroll = Math.max(0, Math.min(maxS,
+        live.scroll + (p.y - chatDragY) / 26));
+      chatDragY = p.y;
+      continue;
+    }
     if (t.identifier === touchUI.joyId) updateMoveStick(p);
     else if (t.identifier === touchUI.aimId) updateAimStick(p);
   }
@@ -767,6 +939,7 @@ function touchEnd(e) {
       touchUI.aimId = null;
       touchUI.akx = 0; touchUI.aky = 0;
     }
+    if (t.identifier === chatDragId) chatDragId = null;
   }
 }
 canvas.addEventListener("touchend", touchEnd, { passive: false });

@@ -560,6 +560,48 @@ function makeFilmSprite() {
   return cv;
 }
 
+// dígito rabiscado na parede (só a FOTO enxerga); pontinhos = ordem no código
+const DIGIT_SPRS = {};
+function digitSprite(digit, ord) {
+  const k = digit + ":" + ord;
+  if (DIGIT_SPRS[k]) return DIGIT_SPRS[k];
+  const w = 110, h = 150;
+  const cv = document.createElement("canvas");
+  cv.width = w; cv.height = h;
+  const g = cv.getContext("2d");
+  const r = mulberry32(digit * 7919 + ord * 104729);
+  g.textAlign = "center"; g.textBaseline = "middle";
+  // número: várias passadas tremidas, como riscado na parede com unha
+  g.font = "bold 92px 'Courier New', monospace";
+  for (let i = 0; i < 7; i++) {
+    g.strokeStyle = `rgba(235,230,220,${0.18 + r() * 0.25})`;
+    g.lineWidth = 1.5 + r() * 1.5;
+    g.strokeText(String(digit), w / 2 + (r() - 0.5) * 5, h * 0.58 + (r() - 0.5) * 5);
+  }
+  // pontinhos da ordem (1, 2 ou 3)
+  for (let i = 0; i < ord; i++) {
+    const px2 = w / 2 + (i - (ord - 1) / 2) * 22;
+    for (let p2 = 0; p2 < 4; p2++) {
+      g.strokeStyle = `rgba(235,230,220,${0.3 + r() * 0.3})`;
+      g.lineWidth = 2;
+      g.beginPath();
+      g.arc(px2 + (r() - 0.5) * 2, h * 0.14 + (r() - 0.5) * 2, 5 + r() * 2, 0, 7);
+      g.stroke();
+    }
+  }
+  // riscos de arranhão em volta
+  for (let i = 0; i < 16; i++) {
+    g.strokeStyle = `rgba(220,215,205,${0.08 + r() * 0.15})`;
+    g.lineWidth = 1;
+    const x = r() * w, y = h * 0.3 + r() * h * 0.6;
+    g.beginPath(); g.moveTo(x, y);
+    g.lineTo(x + (r() - 0.5) * 20, y + 6 + r() * 14);
+    g.stroke();
+  }
+  DIGIT_SPRS[k] = cv;
+  return cv;
+}
+
 function makeGlowSprite() {
   const s = 128;
   const cv = document.createElement("canvas");

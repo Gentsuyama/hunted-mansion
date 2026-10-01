@@ -9,7 +9,9 @@ const FLOOR_NAMES = ["PORÃO", "TÉRREO", "1º ANDAR", "2º ANDAR", "3º ANDAR",
 const RAMP = " .:-=+*#%@";
 
 // tiles
-const T_FLOOR = 0, T_WALL = 1, T_STAIR_UP = 2, T_STAIR_DOWN = 3, T_ELEV = 4;
+const T_FLOOR = 0, T_WALL = 1, T_STAIR_UP = 2, T_STAIR_DOWN = 3, T_ELEV = 4,
+      T_FAKE = 5, T_DOOR = 6;
+// T_FAKE: parece parede e bloqueia LUZ, mas é atravessável — a FOTO denuncia
 
 const LANTERNA = { halfAngle: 0.42, range: 34, rays: 180, power: 1.0 };
 const FLASH    = { halfAngle: 0.85, range: 58, rays: 320, power: 2.6,
@@ -82,11 +84,18 @@ function isWall(cx, cy) {
   if (cx < 0 || cy < 0 || cx >= COLS || cy >= ROWS) return true;
   return grid[cy * COLS + cx] === T_WALL;
 }
-// sólido para COLISÃO (parede ou móvel); luz e foto só batem em parede
+// sólido para COLISÃO (parede, porta ou móvel) — T_FAKE é atravessável!
 function isSolid(cx, cy) {
   if (cx < 0 || cy < 0 || cx >= COLS || cy >= ROWS) return true;
-  if (grid[cy * COLS + cx] === T_WALL) return true;
+  const t = grid[cy * COLS + cx];
+  if (t === T_WALL || t === T_DOOR) return true;
   return fl().furnGrid[cy * COLS + cx] !== 0;
+}
+// opaco para LUZ e linha de visão (inclui parede FALSA — ela esconde no jogo)
+function isOpaque(cx, cy) {
+  if (cx < 0 || cy < 0 || cx >= COLS || cy >= ROWS) return true;
+  const t = grid[cy * COLS + cx];
+  return t === T_WALL || t === T_FAKE || t === T_DOOR;
 }
 function tileAt(cx, cy) {
   if (cx < 0 || cy < 0 || cx >= COLS || cy >= ROWS) return T_WALL;
@@ -101,7 +110,7 @@ function hasLOS(x0, y0, x1, y1) {
   const steps = Math.ceil(d * 2);
   for (let i = 1; i < steps; i++) {
     const t = i / steps;
-    if (isWall((x0 + (x1 - x0) * t) | 0, (y0 + (y1 - y0) * t) | 0)) return false;
+    if (isOpaque((x0 + (x1 - x0) * t) | 0, (y0 + (y1 - y0) * t) | 0)) return false;
   }
   return true;
 }
@@ -119,6 +128,8 @@ function saveRun() {
       px: player.x, py: player.y,
       film, sanity, photoCount,
       taken: [...world.taken],
+      flags: world.flags,
+      timeSec: world.timeSec,
     }));
   } catch (e) {}
 }

@@ -266,6 +266,9 @@ function renderPhoto(px, py, dir) {
     const dd = Math.hypot(fu.x - px, fu.y - py);
     if (dd < MAXD) sprites.push({ x: fu.x, y: fu.y, kind: "furn", furn: fu });
   }
+  // marcas com dígitos do cofre: SÓ a foto enxerga
+  for (const mk of fl().marks)
+    sprites.push({ x: mk.x, y: mk.y, kind: "mark", mk });
 
   const invDet = 1 / (planeX * dirY - dirX * planeY);
   sprites.sort((a, b) =>
@@ -309,6 +312,17 @@ function renderPhoto(px, py, dir) {
       const wPx = hPx * ft.pAsp;
       blitOccluded(c, spr, zbuf, ty, centerX, floorPx - hPx, wPx, hPx,
                    Math.min(1, 0.3 + bright * 1.0), Wc, CWc, FR);
+    } else if (s.kind === "mark") {
+      const spr = digitSprite(s.mk.digit, s.mk.ord);
+      const hPx = Math.min(areaH * 0.8, wallHpx * 0.75);
+      const wPx = hPx * 0.73;
+      blitOccluded(c, spr, zbuf, ty, centerX, floorPx - wallHpx * 0.9, wPx, hPx,
+                   Math.min(1, 0.35 + bright * 1.0), Wc, CWc, FR);
+      if (bright > 0.25 && Math.abs(sxCol - Wc / 2) < Wc * 0.45 && !s.mk.seen) {
+        s.mk.seen = true;                        // o chat para de dar essa dica
+        if (!world.flags.marksSeen.includes(s.mk.ord))
+          world.flags.marksSeen.push(s.mk.ord);
+      }
     }
   }
 
