@@ -341,13 +341,27 @@ function drawStairsTopDown() {
 // ------------------------------------------------------------------
 // Render top-down
 // ------------------------------------------------------------------
+// cursor desenhado pelo jogo (o CSS esconde o do sistema) — visível em TODA
+// tela interativa; no gameplay a mira de jogo cumpre esse papel
+function drawCursor() {
+  if (IS_TOUCH) return;
+  ctx.strokeStyle = "rgba(255,255,255,0.85)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(mouse.x - 7, mouse.y); ctx.lineTo(mouse.x + 7, mouse.y);
+  ctx.moveTo(mouse.x, mouse.y - 7); ctx.lineTo(mouse.x, mouse.y + 7);
+  ctx.stroke();
+  ctx.fillStyle = "rgba(255,255,255,0.95)";
+  ctx.fillRect(mouse.x - 1, mouse.y - 1, 2, 2);
+}
+
 function render() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  if (state === "cine")  { drawCinematic(); return; }
-  if (state === "title") { drawTitle(); return; }
+  if (state === "cine")  { drawCinematic(); drawCursor(); return; }
+  if (state === "title") { drawTitle(); drawCursor(); return; }
 
   const shx = shake > 0 ? (Math.random() - 0.5) * 7 * shake : 0;
   const shy = shake > 0 ? (Math.random() - 0.5) * 7 * shake : 0;
@@ -549,6 +563,7 @@ function render() {
   if (state === "safe") drawSafe();
   if (state === "elevator") drawElevator();
   if (state === "win") drawWin();
+  if (state !== "play") drawCursor();   // overlays: cursor sempre visível
 }
 
 // ------------------------------------------------------------------

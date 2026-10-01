@@ -185,14 +185,7 @@ function drawTitle() {
     ctx.fillText(b.label, b.x + b.w / 2, b.y + b.h / 2 + 1);
   }
 
-  if (!IS_TOUCH) {
-    ctx.strokeStyle = "rgba(255,255,255,0.7)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(mouse.x - 5, mouse.y); ctx.lineTo(mouse.x + 5, mouse.y);
-    ctx.moveTo(mouse.x, mouse.y - 5); ctx.lineTo(mouse.x, mouse.y + 5);
-    ctx.stroke();
-  }
+  // (cursor desenhado centralmente por drawCursor no render)
 }
 
 function titleHit(px2, py2) {
