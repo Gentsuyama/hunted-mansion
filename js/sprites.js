@@ -650,6 +650,8 @@ const FURN_IMGS = {};
     im.src = "Assets/Furniture/" + k + ".png";
   }
 })();
+// recorte por INUNDAÇÃO a partir das bordas: só o preto CONECTADO à borda
+// vira transparente — sombras escuras DENTRO do móvel sobrevivem intactas
 function keyBlackToAlpha(im) {
   const w = im.naturalWidth, h = im.naturalHeight;
   const cv = document.createElement("canvas");
@@ -658,9 +660,22 @@ function keyBlackToAlpha(im) {
   g.drawImage(im, 0, 0);
   const d = g.getImageData(0, 0, w, h);
   const p = d.data;
-  for (let i = 0; i < p.length; i += 4) {
-    const lum = (p[i] + p[i + 1] + p[i + 2]) / 3;
-    p[i + 3] = lum <= 10 ? 0 : 255;          // preto puro = fundo
+  const THR = 16;                      // "quase preto" conta como fundo
+  const seen = new Uint8Array(w * h);
+  const stack = [];
+  for (let x = 0; x < w; x++) { stack.push(x, 0); stack.push(x, h - 1); }
+  for (let y = 0; y < h; y++) { stack.push(0, y); stack.push(w - 1, y); }
+  while (stack.length) {
+    const y = stack.pop(), x = stack.pop();
+    if (x < 0 || y < 0 || x >= w || y >= h) continue;
+    const i = y * w + x;
+    if (seen[i]) continue;
+    seen[i] = 1;
+    const o = i * 4;
+    if ((p[o] + p[o + 1] + p[o + 2]) / 3 > THR) continue;  // bateu no móvel
+    p[o + 3] = 0;
+    stack.push(x + 1, y); stack.push(x - 1, y);
+    stack.push(x, y + 1); stack.push(x, y - 1);
   }
   g.putImageData(d, 0, 0);
   return cv;
