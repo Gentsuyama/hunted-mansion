@@ -90,6 +90,15 @@ function sfxPiano() {
     o.start(t0); o.stop(t0 + 1.4);
   });
 }
+// virar de página do álbum (farfalhar curto)
+function sfxPage() {
+  if (!AC) return;
+  const n = AC.createBufferSource(); n.buffer = noiseBuf(0.22);
+  const f = AC.createBiquadFilter(); f.type = "bandpass"; f.Q.value = 1.2;
+  f.frequency.setValueAtTime(900, AC.currentTime);
+  f.frequency.exponentialRampToValueAtTime(2600, AC.currentTime + 0.18);
+  n.connect(f); f.connect(envGain(0.1, 0.22)); n.start();
+}
 // passo pesado do Seu Bento (baque surdo)
 function sfxStep() {
   if (!AC) return;

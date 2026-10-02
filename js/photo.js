@@ -284,14 +284,31 @@ function blitOccluded(c, spr, zbuf, ty, centerX, topY, wPx, hPx, alpha, Wc, CWc,
 
 function renderPhoto(px, py, dir) {
   const W = 96, H = 58, CW = 6, CH = 7;
-  const FR = 14, BOT = 44;
+  // POLAROID: borda branca-creme, rodapé largo para a legenda à mão
+  const FR = 22, BOT = 66;
   const cv = document.createElement("canvas");
   cv.width = W * CW + FR * 2; cv.height = H * CH + FR + BOT;
   const c = cv.getContext("2d");
 
-  c.fillStyle = "#1a1a1a"; c.fillRect(0, 0, cv.width, cv.height);
-  c.strokeStyle = "#3a3a3a"; c.strokeRect(2.5, 2.5, cv.width - 5, cv.height - 5);
+  // papel instantâneo (creme, levemente manchado pelos anos)
+  const pap = c.createLinearGradient(0, 0, 0, cv.height);
+  pap.addColorStop(0, "#efe9db");
+  pap.addColorStop(1, "#e2dac6");
+  c.fillStyle = pap; c.fillRect(0, 0, cv.width, cv.height);
+  for (let i = 0; i < 4; i++) {          // manchas de idade
+    const mx = Math.random() * cv.width, my = Math.random() * cv.height;
+    const mg = c.createRadialGradient(mx, my, 2, mx, my, 16 + Math.random() * 22);
+    mg.addColorStop(0, "rgba(150,125,80,0.07)");
+    mg.addColorStop(1, "rgba(150,125,80,0)");
+    c.fillStyle = mg; c.fillRect(0, 0, cv.width, cv.height);
+  }
+  c.strokeStyle = "rgba(90,80,60,0.25)";
+  c.lineWidth = 1.5;
+  c.strokeRect(0.75, 0.75, cv.width - 1.5, cv.height - 1.5);
+  // o "vidro" da foto
   c.fillStyle = "#000"; c.fillRect(FR, FR, W * CW, H * CH);
+  c.strokeStyle = "rgba(60,52,40,0.5)";
+  c.strokeRect(FR - 0.5, FR - 0.5, W * CW + 1, H * CH + 1);
 
   c.textAlign = "center"; c.textBaseline = "middle";
 
@@ -528,9 +545,14 @@ function renderPhoto(px, py, dir) {
     }
   }
 
-  c.textAlign = "left";
-  c.font = "bold 12px 'Courier New', monospace";
-  c.fillStyle = "#888";
-  c.fillText(`FOTO ${photoCount}  ·  ${FLOOR_NAMES[world.cur]}`, FR, cv.height - 18);
+  // legenda à mão no rodapé da polaroid
+  c.save();
+  c.translate(FR + 4, cv.height - 26);
+  c.rotate(-0.015);
+  c.textAlign = "left"; c.textBaseline = "middle";
+  c.font = "italic 21px 'Segoe Script', 'Comic Sans MS', cursive";
+  c.fillStyle = "rgba(68,60,52,0.88)";
+  c.fillText(`foto ${photoCount} — ${FLOOR_NAMES[world.cur].toLowerCase()}`, 0, 0);
+  c.restore();
   return cv;
 }

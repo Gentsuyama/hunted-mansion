@@ -922,6 +922,28 @@ function chainsSprite(broken) {
   return cv;
 }
 
+// ==================================================================
+// UI do Gemini (opcional, com fallback procedural):
+// câmera do HUD em PEÇAS (Assets/UI/cam_<parte>.jpg, fundo preto) e o
+// fundo do álbum de fotos (Assets/UI/album.jpg, página dupla aberta)
+// ==================================================================
+const CAM_IMGS = {};
+(function loadCamImgs() {
+  for (const k of ["corpo", "tampa", "lente", "obturador", "flash", "passado"]) {
+    const im = new Image();
+    im.onload = () => { CAM_IMGS[k] = keyBlackToAlpha(im); };
+    im.onerror = () => {};
+    im.src = "Assets/UI/cam_" + k + ".jpg";
+  }
+})();
+let ALBUM_IMG = null;
+(function loadAlbumImg() {
+  const im = new Image();
+  im.onload = () => { ALBUM_IMG = im; };   // fundo inteiro: sem recorte
+  im.onerror = () => {};
+  im.src = "Assets/UI/album.jpg";
+})();
+
 // o SINAL do Hóspede: um olho riscado, rabiscado na parede
 let SINAL_SPR = null;
 function sinalSprite() {

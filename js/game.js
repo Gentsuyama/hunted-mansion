@@ -219,6 +219,7 @@ function update(dt) {
 
   // timers
   if (flashCd > 0) flashCd -= dt;
+  if (toastT > 0) toastT -= dt;
   if (flashT > 0) flashT = Math.max(0, flashT - dt / FLASH.duration);
   if (attractT > 0) attractT -= dt;
   if (shake > 0) shake = Math.max(0, shake - dt * 3);
@@ -322,6 +323,9 @@ function update(dt) {
           film = Math.min(filmMax(), film + 6);   // a tampa vem com rolos
           world.flags.filmLoaded = true;
           liveEvent("tampa");
+          toast(touchUI.seen
+            ? "TAMPA + FILME!  toque na câmera do canto para pôr/tirar o rolo"
+            : "TAMPA + FILME!  [R] põe/tira o rolo — sem filme o flash só espanta", 8);
         } else if (it.part === "obturador") liveEvent("obturador");
         else if (it.part === "lente") liveEvent("lente");
         else if (it.part === "passado") {
@@ -733,9 +737,16 @@ function camHudHit(px2, py2) {
   const r = camHudRect();
   return px2 > r.x && px2 < r.x + r.w && py2 > r.y && py2 < r.y + r.h;
 }
+// aviso central temporário (ensina mecânica nova sem depender do chat)
+let toastT = 0, toastText = "";
+function toast(txt, seg) { toastText = txt; toastT = seg || 6; }
+
 function toggleFilm() {
   if (!world.flags.cam.tampa) return;
   world.flags.filmLoaded = !world.flags.filmLoaded;
+  toast(world.flags.filmLoaded
+    ? "FILME NA CÂMERA — a foto registra e captura (gasta rolo)"
+    : "FILME FORA — o flash só espanta, de graça", 2.8);
   sfxPickup();
   if (!live.hinted.has("filmtoggle")) {
     live.hinted.add("filmtoggle");
@@ -760,12 +771,40 @@ function drawCamHUD() {
   ctx.fillText("CÂMERA", r.x + 10, r.y + 13);
   if (cm.tampa) {
     ctx.textAlign = "right";
-    ctx.font = "bold 9px 'Courier New', monospace";
-    ctx.fillStyle = "rgba(150,150,160,0.7)";
-    ctx.fillText(touchUI.seen ? "toque: pôr/tirar filme" : "R: pôr/tirar filme",
-                 r.x + r.w - 8, r.y + 13);
+    ctx.font = "bold 10px 'Courier New', monospace";
+    if (world.flags.filmLoaded && film > 0) {
+      ctx.fillStyle = "rgba(150,230,150,0.95)";
+      ctx.fillText("FILME DENTRO", r.x + r.w - 8, r.y + 13);
+    } else {
+      ctx.fillStyle = "rgba(235,195,110,0.95)";
+      ctx.fillText(film <= 0 ? "SEM ROLOS" : "FILME FORA — SÓ ESPANTA",
+                   r.x + r.w - 8, r.y + 13);
+    }
   }
 
+  if (CAM_IMGS.corpo) {
+    // MONTAGEM com a arte do Gemini: cada peça encaixa no corpo; a que
+    // falta aparece como fantasma apagado (o jogador vê o que procurar)
+    const area = { x: r.x + 10, y: r.y + 20, w: r.w - 20, h: r.h - 44 };
+    const slots = [
+      ["corpo",     0.52, 0.56, 0.92, true],
+      ["tampa",     0.82, 0.58, 0.34, cm.tampa],
+      ["lente",     0.40, 0.60, 0.40, cm.lente],
+      ["flash",     0.20, 0.12, 0.30, true],
+      ["obturador", 0.80, 0.08, 0.17, cm.obturador],
+      ["passado",   0.14, 0.86, 0.20, cm.passado],
+    ];
+    for (const [k, fx, fy, fw, tem] of slots) {
+      const im = CAM_IMGS[k];
+      if (!im) continue;
+      const w2 = area.w * fw, h2 = w2 * im.height / im.width;
+      ctx.save();
+      ctx.globalAlpha = tem ? 1 : 0.15;
+      ctx.drawImage(im, area.x + area.w * fx - w2 / 2,
+                    area.y + area.h * fy - h2 / 2, w2, h2);
+      ctx.restore();
+    }
+  } else {
   // corpo
   const bx = r.x + 12, by = r.y + 34, bw = r.w - 24, bh = 46;
   ctx.strokeStyle = "rgba(210,210,220,0.8)";
@@ -821,12 +860,21 @@ function drawCamHUD() {
       ctx.fillText(film > 0 ? "VAZIA" : "S/ROLO", fx + fw / 2, by + bh / 2 + 1);
     }
   }
-  // reserva de rolos
+  }   // fim do fallback procedural
+
+  // reserva de rolos + como pôr/tirar
   ctx.textAlign = "left";
   ctx.font = "bold 11px 'Courier New', monospace";
   ctx.fillStyle = film > 0 ? "rgba(185,215,185,0.9)" : "rgba(230,90,80,0.9)";
   ctx.fillText("ROLOS " + "▮".repeat(film) +
                "▯".repeat(Math.max(0, filmMax() - film)), r.x + 10, r.y + r.h - 10);
+  if (cm.tampa) {
+    ctx.textAlign = "right";
+    ctx.font = "bold 9px 'Courier New', monospace";
+    ctx.fillStyle = "rgba(170,170,180,0.85)";
+    ctx.fillText(touchUI.seen ? "toque aqui: pôr/tirar" : "[R] pôr/tirar",
+                 r.x + r.w - 8, r.y + r.h - 10);
+  }
   ctx.restore();
   ctx.textAlign = "left";
 }
@@ -861,7 +909,7 @@ function drawHUD() {
     ctx.fillStyle = sc;
     ctx.fillRect(96, canvas.height - 51, 138 * Math.max(0, sanity) / 100, 9);
     ctx.fillStyle = "rgba(160,160,160,0.55)";
-    ctx.fillText("WASD mover · mouse lanterna · botão direito FOTO · F álbum · E usar",
+    ctx.fillText("WASD mover · mouse lanterna · botão direito FOTO · R filme · F álbum · E usar",
                  12, canvas.height - 14);
   }
   const cm = world.flags.cam;
@@ -892,6 +940,22 @@ function drawHUD() {
 
   // a câmera no canto (peças coletadas + filme dentro/fora)
   if (state === "play") drawCamHUD();
+
+  // aviso central (mecânica nova / filme dentro-fora)
+  if (state === "play" && toastT > 0) {
+    const a = Math.min(1, toastT);
+    ctx.textAlign = "center";
+    ctx.font = "bold " + (M ? 20 : 16) + "px 'Courier New', monospace";
+    const tw2 = ctx.measureText(toastText).width;
+    ctx.fillStyle = `rgba(8,8,10,${(0.78 * a).toFixed(2)})`;
+    ctx.fillRect(canvas.width / 2 - tw2 / 2 - 18, (M ? 118 : 96) - 20, tw2 + 36, 40);
+    ctx.strokeStyle = `rgba(235,210,130,${(0.6 * a).toFixed(2)})`;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(canvas.width / 2 - tw2 / 2 - 18, (M ? 118 : 96) - 20, tw2 + 36, 40);
+    ctx.fillStyle = `rgba(240,225,170,${a.toFixed(2)})`;
+    ctx.fillText(toastText, canvas.width / 2, M ? 118 : 96);
+    ctx.textAlign = "left";
+  }
 
   // painel da live (clicar/tocar PAUSA e abre o chat)
   if (state === "play") drawLivePanel();
@@ -971,42 +1035,127 @@ function drawHUD() {
   }
 }
 
+// --- ÁLBUM COMO LIVRO: páginas duplas com 4 polaroids, clique dá zoom ---
+let albumPage = 0, albumZoom = -1;
+function openAlbum(ret) {
+  state = "album"; albumReturn = ret;
+  albumZoom = -1;
+  albumPage = Math.max(0, Math.ceil(album.length / 4) - 1);   // última página
+}
+function albumBookRect() {
+  return { x: canvas.width / 2 - 505, y: 64, w: 1010, h: 578 };
+}
+function albumSlots() {
+  const b = albumBookRect();
+  const out = [];
+  const tw = 300, th = tw * 0.80;
+  for (let i = 0; i < 4; i++) {
+    const col = i % 2, row = (i / 2) | 0;
+    out.push({
+      x: b.x + (col === 0 ? 92 : b.w / 2 + 102) + (row === 1 ? 10 - col * 16 : 0),
+      y: b.y + 38 + row * 262,
+      w: tw, h: th,
+      rot: [-0.028, 0.024, 0.02, -0.023][i],
+    });
+  }
+  return out;
+}
 function drawAlbum() {
-  ctx.fillStyle = "rgba(0,0,0,0.86)";
+  ctx.fillStyle = "rgba(0,0,0,0.9)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.font = "bold 18px 'Courier New', monospace";
-  ctx.fillStyle = "rgba(200,200,200,0.9)";
-  ctx.fillText("ÁLBUM DE FOTOS", canvas.width / 2, 36);
 
-  if (album.length === 0) {
-    ctx.font = "bold 14px 'Courier New', monospace";
-    ctx.fillStyle = "rgba(150,150,150,0.7)";
-    ctx.fillText("nenhuma foto revelada ainda", canvas.width / 2, canvas.height / 2);
+  const b = albumBookRect();
+  const pages = Math.max(1, Math.ceil(album.length / 4));
+  if (albumPage > pages - 1) albumPage = pages - 1;
+
+  if (albumZoom < 0) {
+    // o livro aberto
+    if (ALBUM_IMG) {
+      ctx.drawImage(ALBUM_IMG, b.x - 26, b.y - 16, b.w + 52, b.h + 36);
+    } else {
+      // capa de couro + páginas creme + vinco central
+      ctx.fillStyle = "#241b13";
+      ctx.fillRect(b.x - 16, b.y - 12, b.w + 32, b.h + 24);
+      ctx.fillStyle = "#e6dec9";
+      ctx.fillRect(b.x, b.y, b.w / 2 - 3, b.h);
+      ctx.fillRect(b.x + b.w / 2 + 3, b.y, b.w / 2 - 3, b.h);
+      const sp = ctx.createLinearGradient(b.x + b.w / 2 - 36, 0, b.x + b.w / 2 + 36, 0);
+      sp.addColorStop(0, "rgba(60,45,30,0)");
+      sp.addColorStop(0.5, "rgba(60,45,30,0.5)");
+      sp.addColorStop(1, "rgba(60,45,30,0)");
+      ctx.fillStyle = sp;
+      ctx.fillRect(b.x + b.w / 2 - 36, b.y, 72, b.h);
+    }
+
+    if (album.length === 0) {
+      ctx.font = "italic 24px 'Segoe Script', 'Comic Sans MS', cursive";
+      ctx.fillStyle = "rgba(90,78,62,0.75)";
+      ctx.fillText("nenhuma foto colada ainda…", canvas.width / 2, b.y + b.h / 2);
+    }
+
+    // as polaroids da página (com sombra e leve rotação)
+    const slots = albumSlots();
+    for (let i = 0; i < 4; i++) {
+      const idx = albumPage * 4 + i;
+      if (idx >= album.length) break;
+      const s = slots[i], ph = album[idx].cv;
+      const hov = albumZoom < 0 && mouse.x > s.x && mouse.x < s.x + s.w &&
+                  mouse.y > s.y && mouse.y < s.y + s.h;
+      ctx.save();
+      ctx.translate(s.x + s.w / 2, s.y + s.h / 2);
+      ctx.rotate(s.rot + (hov ? 0.012 : 0));
+      ctx.shadowColor = "rgba(0,0,0,0.45)";
+      ctx.shadowBlur = 14; ctx.shadowOffsetY = 5;
+      const sc = (hov ? 1.045 : 1) * s.w / ph.width;
+      ctx.drawImage(ph, -ph.width * sc / 2, -ph.height * sc / 2,
+                    ph.width * sc, ph.height * sc);
+      ctx.restore();
+    }
+
+    // virar páginas
+    if (pages > 1) {
+      ctx.font = "bold 70px 'Courier New', monospace";
+      ctx.fillStyle = albumPage > 0
+        ? `rgba(255,255,255,${0.5 + 0.25 * Math.sin(time * 4)})` : "rgba(255,255,255,0.1)";
+      ctx.fillText("<", 56, canvas.height / 2);
+      ctx.fillStyle = albumPage < pages - 1
+        ? `rgba(255,255,255,${0.5 + 0.25 * Math.sin(time * 4)})` : "rgba(255,255,255,0.1)";
+      ctx.fillText(">", canvas.width - 56, canvas.height / 2);
+    }
+    ctx.font = "italic 17px 'Segoe Script', 'Comic Sans MS', cursive";
+    ctx.fillStyle = "rgba(200,190,170,0.8)";
+    ctx.fillText(`página ${albumPage + 1} de ${pages}`,
+                 canvas.width / 2, canvas.height - 16);
   } else {
-    const ph = album[albumIdx];
-    const maxH = 520;
-    const sc = Math.min(maxH / ph.cv.height, 900 / ph.cv.width);
-    const w = ph.cv.width * sc, h = ph.cv.height * sc;
-    ctx.drawImage(ph.cv, canvas.width / 2 - w / 2, 70, w, h);
+    // ZOOM numa foto
+    const ph = album[albumZoom].cv;
+    const sc = Math.min(560 / ph.height, 980 / ph.width);
+    ctx.save();
+    ctx.shadowColor = "rgba(0,0,0,0.6)";
+    ctx.shadowBlur = 26; ctx.shadowOffsetY = 8;
+    ctx.drawImage(ph, canvas.width / 2 - ph.width * sc / 2, 54,
+                  ph.width * sc, ph.height * sc);
+    ctx.restore();
+    if (album.length > 1) {
+      ctx.font = "bold 70px 'Courier New', monospace";
+      ctx.fillStyle = albumZoom > 0 ? "rgba(255,255,255,0.65)" : "rgba(255,255,255,0.1)";
+      ctx.fillText("<", 56, canvas.height / 2);
+      ctx.fillStyle = albumZoom < album.length - 1
+        ? "rgba(255,255,255,0.65)" : "rgba(255,255,255,0.1)";
+      ctx.fillText(">", canvas.width - 56, canvas.height / 2);
+    }
     ctx.font = "bold 13px 'Courier New', monospace";
     ctx.fillStyle = "rgba(170,170,170,0.8)";
-    ctx.fillText(`${albumIdx + 1} / ${album.length}`, canvas.width / 2, canvas.height - 56);
-  }
-
-  if (album.length > 1) {
-    ctx.font = "bold 76px 'Courier New', monospace";
-    ctx.fillStyle = albumIdx > 0
-      ? `rgba(255,255,255,${0.55 + 0.25 * Math.sin(time * 4)})` : "rgba(255,255,255,0.12)";
-    ctx.fillText("<", 72, canvas.height / 2);
-    ctx.fillStyle = albumIdx < album.length - 1
-      ? `rgba(255,255,255,${0.55 + 0.25 * Math.sin(time * 4)})` : "rgba(255,255,255,0.12)";
-    ctx.fillText(">", canvas.width - 72, canvas.height / 2);
+    ctx.fillText(`${albumZoom + 1} / ${album.length}   ·   ` +
+                 (touchUI.seen ? "toque fora para voltar ao álbum"
+                               : "clique fora volta ao álbum · ← →"),
+                 canvas.width / 2, canvas.height - 20);
   }
 
   const hovC = mouse.x >= ALB_CLOSE.x && mouse.x <= ALB_CLOSE.x + ALB_CLOSE.w &&
                mouse.y >= ALB_CLOSE.y && mouse.y <= ALB_CLOSE.y + ALB_CLOSE.h;
-  ctx.fillStyle = "rgba(255,255,255,0.07)";
+  ctx.fillStyle = "rgba(0,0,0,0.5)";
   ctx.fillRect(ALB_CLOSE.x, ALB_CLOSE.y, ALB_CLOSE.w, ALB_CLOSE.h);
   ctx.lineWidth = hovC ? 3 : 2;
   ctx.strokeStyle = hovC ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.5)";
@@ -1014,12 +1163,6 @@ function drawAlbum() {
   ctx.font = "bold 19px 'Courier New', monospace";
   ctx.fillStyle = "rgba(230,230,230,0.9)";
   ctx.fillText("FECHAR", ALB_CLOSE.x + ALB_CLOSE.w / 2, ALB_CLOSE.y + ALB_CLOSE.h / 2 + 1);
-
-  ctx.font = "bold 12px 'Courier New', monospace";
-  ctx.fillStyle = "rgba(140,140,140,0.7)";
-  ctx.fillText(touchUI.seen ? "toque nas setas para passar as fotos"
-                            : "← → navegar   ·   F fechar",
-               canvas.width / 2, canvas.height - 28);
 }
 
 function drawDead() {
@@ -1064,10 +1207,8 @@ function drawDead() {
 function deadHit(px2, py2) {
   for (const b of DEAD_BTNS)
     if (px2 >= b.x && px2 <= b.x + b.w && py2 >= b.y && py2 <= b.y + b.h) {
-      if (b.id === "fotos") {
-        state = "album"; albumReturn = "dead";
-        albumIdx = Math.max(0, album.length - 1);
-      } else if (b.id === "jogar") newRun();
+      if (b.id === "fotos") openAlbum("dead");
+      else if (b.id === "jogar") newRun();
       else state = "title";
       return;
     }
@@ -1075,12 +1216,42 @@ function deadHit(px2, py2) {
 function albumHit(px2, py2) {
   if (px2 >= ALB_CLOSE.x && px2 <= ALB_CLOSE.x + ALB_CLOSE.w &&
       py2 >= ALB_CLOSE.y && py2 <= ALB_CLOSE.y + ALB_CLOSE.h) {
-    state = albumReturn; return;
+    if (albumZoom >= 0) albumZoom = -1;
+    else state = albumReturn;
+    return;
   }
-  if (album.length && px2 > canvas.width * 0.66)
-    albumIdx = Math.min(album.length - 1, albumIdx + 1);
-  else if (album.length && px2 < canvas.width * 0.33 && albumIdx > 0) albumIdx--;
-  else state = albumReturn;
+  if (albumZoom >= 0) {
+    // no zoom: laterais navegam, o resto volta ao livro
+    if (px2 > canvas.width * 0.8 && albumZoom < album.length - 1) albumZoom++;
+    else if (px2 < canvas.width * 0.2 && albumZoom > 0) albumZoom--;
+    else albumZoom = -1;
+    return;
+  }
+  // clicou numa polaroid? → zoom
+  const slots = albumSlots();
+  for (let i = 0; i < 4; i++) {
+    const idx = albumPage * 4 + i;
+    if (idx >= album.length) break;
+    const s = slots[i];
+    if (px2 > s.x - 8 && px2 < s.x + s.w + 8 &&
+        py2 > s.y - 8 && py2 < s.y + s.h + 8) {
+      albumZoom = idx; return;
+    }
+  }
+  // laterais viram a página
+  const pages = Math.max(1, Math.ceil(album.length / 4));
+  if (px2 > canvas.width - 120) {
+    if (albumPage < pages - 1) { albumPage++; sfxPage(); }
+    return;
+  }
+  if (px2 < 120) {
+    if (albumPage > 0) { albumPage--; sfxPage(); }
+    return;
+  }
+  // fora do livro: fecha
+  const b = albumBookRect();
+  if (px2 < b.x || px2 > b.x + b.w || py2 < b.y || py2 > b.y + b.h)
+    state = albumReturn;
 }
 
 function enterFullscreen() {
@@ -1116,24 +1287,28 @@ window.addEventListener("keydown", e => {
   if (state === "dead") {
     if (e.code === "Enter") { newRun(); return; }
     if (e.code === "Escape" || e.code === "KeyM") { state = "title"; return; }
-    if (e.code === "KeyF") {
-      state = "album"; albumReturn = "dead";
-      albumIdx = Math.max(0, album.length - 1);
-    }
+    if (e.code === "KeyF") openAlbum("dead");
     return;
   }
 
   if (e.code === "KeyF") {
-    if (state === "play") {
-      state = "album"; albumReturn = "play";
-      albumIdx = Math.max(0, album.length - 1);
-    } else if (state === "album") state = albumReturn;
+    if (state === "play") openAlbum("play");
+    else if (state === "album") state = albumReturn;
     return;
   }
   if (state === "album") {
-    if (e.code === "Escape") state = albumReturn;
-    if (e.code === "ArrowLeft"  && albumIdx > 0) albumIdx--;
-    if (e.code === "ArrowRight" && albumIdx < album.length - 1) albumIdx++;
+    const pages = Math.max(1, Math.ceil(album.length / 4));
+    if (e.code === "Escape") {
+      if (albumZoom >= 0) albumZoom = -1;
+      else state = albumReturn;
+    }
+    if (albumZoom >= 0) {
+      if (e.code === "ArrowLeft"  && albumZoom > 0) albumZoom--;
+      if (e.code === "ArrowRight" && albumZoom < album.length - 1) albumZoom++;
+    } else {
+      if (e.code === "ArrowLeft"  && albumPage > 0) { albumPage--; sfxPage(); }
+      if (e.code === "ArrowRight" && albumPage < pages - 1) { albumPage++; sfxPage(); }
+    }
     return;
   }
   if (e.code === "KeyE" && state === "play" && prompt && prompt.action) {
@@ -1235,8 +1410,7 @@ canvas.addEventListener("touchstart", e => {
       takePhoto(); continue;
     }
     if (Math.hypot(p.x - BTN_ALBUM.x, p.y - BTN_ALBUM.y) < BTN_ALBUM.r + 16) {
-      state = "album"; albumReturn = "play";
-      albumIdx = Math.max(0, album.length - 1); continue;
+      openAlbum("play"); continue;
     }
     if (Math.hypot(p.x - BTN_FS.x, p.y - BTN_FS.y) < BTN_FS.r + 14) {
       toggleFullscreen(); continue;
