@@ -193,8 +193,10 @@ quebradas = saída. Cada alma resolvida (libertada OU queimada) quebra uma.
 ### A câmera por PEÇAS (HUD no canto, silhueta que se completa)
 - Início: corpo + flash. Flash ESPANTA (arremessa/atordoa) mas nada salva.
 - TAMPA (hall de entrada, minutos iniciais): fotos salvam/revelam/capturam.
-- LENTE NOVA (dentro do cofre): antes dela a foto sai RACHADA — vê-se que
-  há algo escrito, não O QUÊ. Destrava dígitos e sinais.
+- LENTE NOVA (sala secreta do TÉRREO — fora do cofre: o código do cofre
+  vem das marcas, e marca sem lente é ilegível, seria beco sem saída):
+  antes dela a foto sai RACHADA — vê-se que há algo escrito, não O QUÊ.
+  Destrava dígitos e sinais.
 - OBTURADOR DE PRATA (junto da chave, secreta do porão): capturar ALMAS.
 - LENTE DO PASSADO (fatia 3, ateliê): foto mostra o cômodo décadas atrás.
 - FILME É ESCOLHA: R (ou toque na câmera) põe/tira o rolo. SEM filme =

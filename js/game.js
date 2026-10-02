@@ -323,6 +323,7 @@ function update(dt) {
           world.flags.filmLoaded = true;
           liveEvent("tampa");
         } else if (it.part === "obturador") liveEvent("obturador");
+        else if (it.part === "lente") liveEvent("lente");
         else if (it.part === "passado") {
           livePush(liveRandUser(), "essa lente é DIFERENTE… o vidro é mais velho que a casa");
           livePush(liveRandUser(), "A LENTE DO PASSADO!! fotografa os lugares deles e OLHA a legenda");
@@ -703,10 +704,12 @@ function render() {
 // ------------------------------------------------------------------
 // HUD e telas
 // ------------------------------------------------------------------
-const BTN_PHOTO  = { x: 1050, y: 360, r: 62 };
+// FOTO/USAR afastados dos analógicos: a zona de toque de um não pode
+// invadir a área de pega do outro (tocar o topo do analógico disparava foto)
+const BTN_PHOTO  = { x: 1050, y: 318, r: 62 };
 const BTN_ALBUM  = { x: 1118, y: 70,  r: 46 };
 const BTN_FS     = { x: 1118, y: 182, r: 40 };
-const BTN_USE    = { x: 150,  y: 370, r: 52 };
+const BTN_USE    = { x: 150,  y: 314, r: 52 };
 const MOVE_STICK = { x: 150,  y: 530, r: 90, travel: 56, knob: 30 };
 const AIM_STICK  = { x: 1050, y: 530, r: 90, travel: 56, knob: 30 };
 const DEAD_BTNS = [
@@ -723,7 +726,7 @@ const touchUI = { seen: IS_TOUCH, joyId: null, jx: 0, jy: 0, jkx: 0, jky: 0,
 function camHudRect() {
   // touch: coluna esquerda (direita está cheia de botões); desktop: canto inf-dir
   return touchUI.seen
-    ? { x: 12, y: 150, w: 172, h: 104 }
+    ? { x: 12, y: 140, w: 172, h: 104 }
     : { x: canvas.width - 184, y: canvas.height - 122, w: 172, h: 104 };
 }
 function camHudHit(px2, py2) {
@@ -1140,6 +1143,16 @@ window.addEventListener("keydown", e => {
   keys.add(e.code);
 });
 window.addEventListener("keyup", e => keys.delete(e.code));
+// alt-tab com tecla pressionada: o keyup se perde e o jogador andaria sozinho
+function limpaEntradas() {
+  keys.clear();
+  touchUI.joyId = null; touchUI.jx = 0; touchUI.jy = 0;
+  touchUI.jkx = 0; touchUI.jky = 0;
+  touchUI.aimId = null; touchUI.akx = 0; touchUI.aky = 0;
+}
+window.addEventListener("blur", limpaEntradas);
+document.addEventListener("visibilitychange",
+  () => { if (document.hidden) limpaEntradas(); });
 
 canvas.addEventListener("mousemove", e => {
   const r = canvas.getBoundingClientRect();
@@ -1218,7 +1231,7 @@ canvas.addEventListener("touchstart", e => {
     if (state === "win")   { winHit(p.x, p.y); return; }
     if (liveInPanel(p.x, p.y)) { state = "chat"; live.scroll = 0; return; }
     if (camHudHit(p.x, p.y)) { toggleFilm(); continue; }
-    if (Math.hypot(p.x - BTN_PHOTO.x, p.y - BTN_PHOTO.y) < BTN_PHOTO.r + 16) {
+    if (Math.hypot(p.x - BTN_PHOTO.x, p.y - BTN_PHOTO.y) < BTN_PHOTO.r + 10) {
       takePhoto(); continue;
     }
     if (Math.hypot(p.x - BTN_ALBUM.x, p.y - BTN_ALBUM.y) < BTN_ALBUM.r + 16) {
@@ -1229,7 +1242,7 @@ canvas.addEventListener("touchstart", e => {
       toggleFullscreen(); continue;
     }
     if (prompt && prompt.action &&
-        Math.hypot(p.x - BTN_USE.x, p.y - BTN_USE.y) < BTN_USE.r + 16) {
+        Math.hypot(p.x - BTN_USE.x, p.y - BTN_USE.y) < BTN_USE.r + 10) {
       prompt.action(); continue;
     }
     if (touchUI.aimId === null &&

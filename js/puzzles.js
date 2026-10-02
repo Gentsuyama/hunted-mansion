@@ -74,11 +74,9 @@ function safeHit(px2, py2) {
     if (safeUI.guess.join("") === world.code.join("")) {
       world.flags.safeOpen = true;
       world.flags.fuses++;
-      world.flags.cam.lente = true;            // a LENTE NOVA estava no cofre
       film = Math.min(filmMax(), film + 4);
       sfxSting(); liveEvent("safe");
-      livePush("CanalDoPavor", "tinha um FUSÍVEL, filme e uma LENTE nova!!");
-      livePush(liveRandUser(), "troca a lente! agora dá pra LER o que a rachada borrava");
+      livePush("CanalDoPavor", "tinha um FUSÍVEL e filme dentro!!");
       soulsOnSafeOpened();               // reserva da Cecília (casa sem espelho)
       saveRun();
       state = "play";

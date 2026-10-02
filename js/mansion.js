@@ -83,7 +83,13 @@ function genWorld(seed) {
   // obturador de prata: junto da chave — sem ele a câmera não PRENDE almas
   world.items.push({ id: "obturador", kind: "campart", part: "obturador",
     floor: 0, x: kp.x + 1.5, y: kp.y + 1, taken: false });
-  // (lente nova: dentro do cofre — ver puzzles.js)
+  // lente NOVA: sala secreta do TÉRREO (fora do cofre! o código do cofre
+  // vem das marcas, e marca sem lente é ilegível — seria um beco sem saída)
+  { const ss = world.floors[1].secretRooms[0];
+    const lp = ss ? { x: ss.x + ss.w / 2 + 1, y: ss.y + ss.h / 2 }
+                  : world.floors[1].freeSpot();
+    world.items.push({ id: "lente", kind: "campart", part: "lente",
+      floor: 1, x: lp.x, y: lp.y, taken: false }); }
   // lente do PASSADO: num canto do ateliê, no último andar
   world.items.push({ id: "passado", kind: "campart", part: "passado",
     floor: NFLOORS - 1, x: ATELIER.x + ATELIER.w - 4,

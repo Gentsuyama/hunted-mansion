@@ -29,7 +29,7 @@ function takePhoto() {
   if (fotoReal) {
     film--;
     photoCount++;
-    window._espelhoPend = -1;
+    window._espelhoPend = -1; window._pianoPend = -1;
     const cv = renderPhoto(player.x, player.y, flashDir);
     album.push({ cv, caption: `FOTO ${photoCount} · ${FLOOR_NAMES[world.cur]}` });
     if (album.length > ALBUM_MAX) album.shift();
@@ -37,6 +37,14 @@ function takePhoto() {
     if (window._espelhoPend >= 0) {
       soulsOnMirror(window._espelhoPend);
       window._espelhoPend = -1;
+    }
+    // modo puzzle: a foto do piano acordou a pianista
+    if (window._pianoPend >= 0) {
+      const pf = window._pianoPend; window._pianoPend = -1;
+      if (world.flags.souls.olivia.state === "dormant") {
+        soulAwaken("olivia", pf);
+        livePush(liveRandUser(), "o PIANO respondeu a foto… tem alguém sentado nele agora");
+      }
     }
 
     // CAPTURA ecos no cone (com filme, o eco vai para o filme)
@@ -374,6 +382,16 @@ function renderPhoto(px, py, dir) {
       const wPx = Math.max(natW * 0.7, Math.min(natW * 1.3, footW));
       blitOccluded(c, spr, zbuf, ty, centerX, floorPx - hPx, wPx, hPx,
                    Math.min(1, 0.35 + bright * 1.0), Wc, CWc, FR);
+      // MODO PUZZLE (sem ecos): fotografar O piano desperta a Olívia
+      if (typeof noGhosts !== "undefined" && noGhosts &&
+          world.pianoOlivia && s.furn.type === "piano" &&
+          Math.abs(s.furn.x - world.pianoOlivia.x) < 1 &&
+          Math.abs(s.furn.y - world.pianoOlivia.y) < 1 &&
+          world.flags.souls.olivia &&
+          world.flags.souls.olivia.state === "dormant" && bright > 0.25) {
+        const zcp = zbuf[Math.max(0, Math.min(Wc - 1, sxCol | 0))];
+        if (ty < zcp + 0.6) window._pianoPend = world.pianoOlivia.floor;
+      }
       // A NOIVA NO REFLEXO: no espelho certo, ela sai na foto antes de
       // existir no mundo (desenhada POR CIMA do vidro, translúcida)
       if (world.espelhoCecilia && s.furn === world.espelhoCecilia.furn &&

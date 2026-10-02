@@ -137,6 +137,8 @@ const CHAT_REACT = {
              "aperta R pra pôr/tirar o rolo (no celular toca na câmera)"],
   obturador:["o OBTURADOR DE PRATA…", "é com ISSO que a câmera prende espírito forte",
              "igual ao do Blackwood. arrepiei"],
+  lente:    ["uma LENTE NOVA!! troca AGORA", "adeus lente rachada!!",
+             "agora dá pra LER o que o borrão escondia — volta nas paredes escritas"],
   freed:    ["salvou uma ALMA ao vivo, esse canal é HISTÓRICO",
              "o chat inteiro chorando junto", "FAZ O L DE LIBERTADO"],
 };
@@ -164,7 +166,7 @@ function liveEvent(type) {
   }
   const bump = { photo: 8, dissolve: 22, damage: 30, ghost: 15, floor: 6,
                  secret: 45, doorlock: 10, key: 35, fuse: 12, elevator: 18,
-                 safe: 40, tampa: 20, obturador: 35, freed: 90 }[type] || 5;
+                 safe: 40, tampa: 20, obturador: 35, lente: 25, freed: 90 }[type] || 5;
   live.viewers += bump + (Math.random() * bump | 0);
 }
 

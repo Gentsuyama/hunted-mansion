@@ -322,13 +322,28 @@ function soulsUpdate(dt) {
     let toca = false;                    // esta alma machuca por toque?
 
     if (e.id === "tomas") {
-      // FOGE do jogador; nunca ataca; ri quando escapa
-      if (d < 14) {
+      // FOGE do jogador; nunca ataca; ri quando escapa — mas é uma
+      // CRIANÇA: depois de ~12s de correria ele CANSA e para ofegante
+      if (e.cansadoT > 0) {
+        e.cansadoT -= dt;               // parado: a janela de captura
+      } else if (d < 14) {
         soulMoveTo(e, e.x + (e.x - player.x), e.y + (e.y - player.y),
                    GHOST_SPEED * 1.1, dt);
+        e.fugaT = (e.fugaT || 0) + dt;
+        if (e.fugaT > 12) {
+          e.fugaT = 0; e.cansadoT = 3.5;
+          sfxWhisper();
+          if (!live.hinted.has("tomasCansa")) {
+            live.hinted.add("tomasCansa");
+            livePush(liveRandUser(), "ele CANSOU de correr!! AGORA, fotografa AGORA");
+          }
+        }
         e.giggleT -= dt;
         if (e.giggleT <= 0) { e.giggleT = 4 + Math.random() * 5; sfxWhisper(); }
-      } else { soulWander(e, 15); soulMoveTo(e, e.wx, e.wy, GHOST_SPEED * 0.4, dt); }
+      } else {
+        e.fugaT = Math.max(0, (e.fugaT || 0) - dt * 0.5);
+        soulWander(e, 15); soulMoveTo(e, e.wx, e.wy, GHOST_SPEED * 0.4, dt);
+      }
 
     } else if (e.id === "cecilia") {
       // congela quando ENQUADRADA; avança quando você desvia o olhar
