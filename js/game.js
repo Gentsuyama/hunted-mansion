@@ -126,6 +126,18 @@ function updatePrompt() {
       return;
     }
   }
+  // a cadeira do Fotógrafo (ateliê): com Blackwood no negativo, a casa OFERECE
+  if (world.cur === NFLOORS - 1 && world.flags.souls &&
+      world.flags.souls.blackwood &&
+      world.flags.souls.blackwood.state === "captured") {
+    const ca = ATELIER_CADEIRA;
+    if (Math.hypot(ca.x - player.x, ca.y - player.y) < 2) {
+      prompt = { text: "SENTAR NA CADEIRA DO FOTÓGRAFO", action: () => {
+        winGame("fotografo");
+      }};
+      return;
+    }
+  }
   // bancada de revelação (quarto escuro do porão)
   if (world.cur === 0 && fl().bench) {
     const b = fl().bench;
@@ -311,6 +323,10 @@ function update(dt) {
           world.flags.filmLoaded = true;
           liveEvent("tampa");
         } else if (it.part === "obturador") liveEvent("obturador");
+        else if (it.part === "passado") {
+          livePush(liveRandUser(), "essa lente é DIFERENTE… o vidro é mais velho que a casa");
+          livePush(liveRandUser(), "A LENTE DO PASSADO!! fotografa os lugares deles e OLHA a legenda");
+        }
       }
       sfxSting();
       saveRun();
@@ -357,10 +373,11 @@ function update(dt) {
 // ------------------------------------------------------------------
 function drawStairsTopDown() {
   const defs = [];
-  // SOBE: nicho na parede norte (degraus para CIMA da tela)
-  if (world.cur < NFLOORS - 1) defs.push({ r: STAIR_UP_RECT, up: true, north: true });
-  // DESCE: nicho na parede sul (degraus para BAIXO da tela)
-  if (world.cur > 0) defs.push({ r: STAIR_DOWN_RECT, up: false, north: false });
+  // SOBE: nicho na parede norte (o penúltimo andar NÃO sobe — ateliê emparedado)
+  if (world.cur < NFLOORS - 2) defs.push({ r: STAIR_UP_RECT, up: true, north: true });
+  // DESCE: nicho na parede sul (o último andar só sai de elevador)
+  if (world.cur > 0 && world.cur < NFLOORS - 1)
+    defs.push({ r: STAIR_DOWN_RECT, up: false, north: false });
   for (const d of defs) {
     // luz medida na boca do nicho (dentro da sala) e dentro dele
     const mouthY = d.north ? d.r.y + d.r.h + 0.5 : d.r.y - 0.5;
@@ -537,6 +554,23 @@ function render() {
       ctx.fillText("◱", b.x * CELL, b.y * CELL);
     }
   }
+  // o ateliê: cavalete e a cadeira do Fotógrafo (último andar)
+  if (world.cur === NFLOORS - 1) {
+    const cv2 = ATELIER_CAVALETE, ca2 = ATELIER_CADEIRA;
+    const Lc = Math.min(1, lightAt(cv2.x, cv2.y) * 1.8);
+    if (Lc > 0.03) {
+      ctx.fillStyle = `rgba(190,180,160,${Lc})`;
+      ctx.fillText("╽", cv2.x * CELL, cv2.y * CELL);   // o cavalete
+    }
+    const La = Math.min(1, lightAt(ca2.x, ca2.y) * 1.8);
+    if (La > 0.03) {
+      const pronta = world.flags.souls && world.flags.souls.blackwood &&
+                     world.flags.souls.blackwood.state === "captured";
+      ctx.fillStyle = pronta
+        ? `rgba(240,210,110,${La})` : `rgba(170,165,155,${La})`;
+      ctx.fillText("Π", ca2.x * CELL, ca2.y * CELL);   // a cadeira
+    }
+  }
   // cofre e quadro de fusíveis (visíveis sob luz)
   if (fl().safe) {
     const s = fl().safe;
@@ -616,6 +650,23 @@ function render() {
   if (flashT > 0) {
     ctx.fillStyle = `rgba(255,255,255,${(flashT * flashT * 0.18).toFixed(3)})`;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  // BLACKWOOD TE ENQUADRANDO: moldura vermelha pulsando — QUEBRE a visão dele
+  if (state === "play" && bossWarnT > 0) {
+    const a = 0.25 + 0.35 * Math.abs(Math.sin(time * 14));
+    ctx.strokeStyle = `rgba(220,40,30,${a.toFixed(2)})`;
+    ctx.lineWidth = 10;
+    ctx.strokeRect(8, 8, canvas.width - 16, canvas.height - 16);
+    // cantos de mira de câmera
+    ctx.lineWidth = 4;
+    const L2 = 46;
+    for (const [cx2, cy2, sx2, sy2] of [[26, 26, 1, 1], [canvas.width - 26, 26, -1, 1],
+        [26, canvas.height - 26, 1, -1], [canvas.width - 26, canvas.height - 26, -1, -1]]) {
+      ctx.beginPath();
+      ctx.moveTo(cx2 + sx2 * L2, cy2); ctx.lineTo(cx2, cy2);
+      ctx.lineTo(cx2, cy2 + sy2 * L2);
+      ctx.stroke();
+    }
   }
   // estática
   if (sanity < 70) {
@@ -737,6 +788,12 @@ function drawCamHUD() {
     ctx.stroke();
     ctx.strokeStyle = "rgba(210,210,220,0.8)";
     ctx.lineWidth = 2;
+  }
+  // lente do passado acoplada (pequeno aro sépia)
+  if (cm.passado) {
+    ctx.strokeStyle = "rgba(205,170,110,0.9)";
+    ctx.beginPath(); ctx.arc(lx - 20, ly + 12, 5, 0, 7); ctx.stroke();
+    ctx.strokeStyle = "rgba(210,210,220,0.8)";
   }
   // compartimento do filme (direita)
   const fx = bx + bw - 46, fw = 38;

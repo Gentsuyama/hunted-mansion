@@ -473,7 +473,42 @@ function renderPhoto(px, py, dir) {
   vg.addColorStop(1, "rgba(0,0,0,0.55)");
   c.fillStyle = vg; c.fillRect(FR, FR, W * CW, H * CH);
 
+  // LENTE DO PASSADO: perto do lugar de uma alma, a foto volta décadas
+  let passadoSpot = null;
+  if (world.flags.cam.passado) {
+    let best = 10;
+    for (const r2 of world.retratos) {
+      if (r2.floor !== world.cur) continue;
+      const dd = Math.hypot(r2.x - px, r2.y - py);
+      if (dd > best) continue;
+      const ty2 = invDet * (-planeY * (r2.x - px) + planeX * (r2.y - py));
+      if (ty2 <= 0.2) continue;              // precisa estar no enquadramento
+      best = dd; passadoSpot = r2;
+    }
+    if (passadoSpot) {                        // lavagem sépia (vai sob o VHS)
+      c.fillStyle = "rgba(205,170,110,0.14)";
+      c.fillRect(FR, FR, W * CW, H * CH);
+      c.fillStyle = "rgba(110,75,30,0.10)";
+      c.fillRect(FR, FR, W * CW, H * CH);
+    }
+  }
+
   vhsPass(cv, FR, FR, W * CW, H * CH);
+
+  // a legenda do passado "queima" por cima do VHS, como data de filmadora
+  if (passadoSpot) {
+    c.font = "italic bold 14px 'Courier New', monospace";
+    c.textAlign = "left";
+    c.fillStyle = "rgba(242,226,188,0.92)";
+    c.fillText(PASSADO_TXT[passadoSpot.soul] || "", FR + 8, FR + H * CH - 14);
+    const hid = "pass_" + passadoSpot.soul;
+    if (!live.hinted.has(hid)) {
+      live.hinted.add(hid);
+      livePush(liveRandUser(), 'a legenda da foto… "' +
+               (PASSADO_TXT[passadoSpot.soul] || "") + '"');
+      live.viewers += 25;
+    }
+  }
 
   c.textAlign = "left";
   c.font = "bold 12px 'Courier New', monospace";

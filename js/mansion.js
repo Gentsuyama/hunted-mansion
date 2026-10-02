@@ -8,6 +8,10 @@ const STAIR_ROOM = { x: 68, y: 40, w: 14, h: 12 };   // hall da escadaria
 const ELEV_ROOM  = { x: 86, y: 42, w: 6,  h: 8 };    // poço do elevador
 const ENTRY_HALL = { x: 60, y: 74, w: 28, h: 16 };   // hall de entrada (térreo)
 const DARKROOM   = { x: 94, y: 42, w: 9,  h: 8 };    // quarto escuro (só porão)
+const ATELIER    = { x: 56, y: 18, w: 30, h: 16 };   // ateliê (só último andar)
+// pontos fixos do ateliê: o cavalete do autorretrato e a cadeira do dono
+const ATELIER_CAVALETE = { x: ATELIER.x + 8,  y: ATELIER.y + 5 };
+const ATELIER_CADEIRA  = { x: ATELIER.x + ATELIER.w / 2, y: ATELIER.y + 3 };
 
 // escadas como NICHOS ABERTOS NA PAREDE do hall: o vão fica na borda da sala
 // e os degraus atravessam a parede para fora — nada obstrui a passagem.
@@ -80,6 +84,10 @@ function genWorld(seed) {
   world.items.push({ id: "obturador", kind: "campart", part: "obturador",
     floor: 0, x: kp.x + 1.5, y: kp.y + 1, taken: false });
   // (lente nova: dentro do cofre — ver puzzles.js)
+  // lente do PASSADO: num canto do ateliê, no último andar
+  world.items.push({ id: "passado", kind: "campart", part: "passado",
+    floor: NFLOORS - 1, x: ATELIER.x + ATELIER.w - 4,
+    y: ATELIER.y + ATELIER.h - 3, taken: false });
 
   // --- MÓVEIS-CHAVE GARANTIDOS (gatilhos e esconderijos das almas) ---
   // se a casa nasceu sem algum, planta um numa sala comum
@@ -176,6 +184,8 @@ function genWorld(seed) {
                            : { tipos: ["cama"] });
   addRetrato("hospede", { tipos: ["relogio", "escrivaninha", "espelho"] });
   addRetrato("aurora",  { tipos: ["poltrona", "cadeira", "cama"] });
+  addRetrato("blackwood", { fixo: { floor: NFLOORS - 1,
+    x: ATELIER_CAVALETE.x, y: ATELIER_CAVALETE.y, movel: "cavalete do ateliê" } });
 
   soulsInit();
 
@@ -233,6 +243,8 @@ function genFloor(seed, f) {
                  rooms.push({ ...DARKROOM, fixed: "dark" });
                  floor.bench = { x: DARKROOM.x + DARKROOM.w / 2,
                                  y: DARKROOM.y + 1.6 }; }
+  if (f === NFLOORS - 1) { carve(ATELIER.x, ATELIER.y, ATELIER.w, ATELIER.h);
+                           rooms.push({ ...ATELIER, fixed: "atelier" }); }
 
   // --- salas procedurais GRANDES ---
   const target = 11 + (rng() * 4 | 0);
@@ -251,12 +263,16 @@ function genFloor(seed, f) {
   for (let i = 0; i < 3; i++)
     connect(rooms[rng() * rooms.length | 0], rooms[rng() * rooms.length | 0]);
 
-  // --- escadas (áreas nos cantos) e elevador ---
-  if (f < NFLOORS - 1)
+  // --- escadas (nichos na parede) e elevador ---
+  // o ÚLTIMO andar (ateliê) foi EMPAREDADO em 1954: só o elevador chega —
+  // nada de escada SUBINDO no penúltimo nem DESCENDO no último
+  const temUp = f < NFLOORS - 2;
+  const temDown = f > 0 && f < NFLOORS - 1;
+  if (temUp)
     for (let j = STAIR_UP_RECT.y; j < STAIR_UP_RECT.y + STAIR_UP_RECT.h; j++)
       for (let i = STAIR_UP_RECT.x; i < STAIR_UP_RECT.x + STAIR_UP_RECT.w; i++)
         g[j * COLS + i] = T_STAIR_UP;
-  if (f > 0)
+  if (temDown)
     for (let j = STAIR_DOWN_RECT.y; j < STAIR_DOWN_RECT.y + STAIR_DOWN_RECT.h; j++)
       for (let i = STAIR_DOWN_RECT.x; i < STAIR_DOWN_RECT.x + STAIR_DOWN_RECT.w; i++)
         g[j * COLS + i] = T_STAIR_DOWN;
@@ -271,8 +287,8 @@ function genFloor(seed, f) {
         if (!inside) g[j * COLS + i] = T_WALL;
       }
   }
-  if (f < NFLOORS - 1) sealNiche(STAIR_UP_RECT, true);   // boca ao sul (hall)
-  if (f > 0) sealNiche(STAIR_DOWN_RECT, false);          // boca ao norte (hall)
+  if (temUp) sealNiche(STAIR_UP_RECT, true);     // boca ao sul (hall)
+  if (temDown) sealNiche(STAIR_DOWN_RECT, false);// boca ao norte (hall)
   const ec = roomCenter(ELEV_ROOM);
   g[(ec.y | 0) * COLS + (ec.x | 0)] = T_ELEV;
 
@@ -331,9 +347,9 @@ function genFloor(seed, f) {
       for (let j = y0; j <= y1; j++) for (let i = x0; i <= x1; i++)
         if (i >= 0 && j >= 0 && i < COLS && j < ROWS) prot[j * COLS + i] = 1;
     };
-    if (f < NFLOORS - 1) mark(STAIR_UP_RECT.x - 1, STAIR_UP_RECT.y - 1,
+    if (temUp) mark(STAIR_UP_RECT.x - 1, STAIR_UP_RECT.y - 1,
       STAIR_UP_RECT.x + STAIR_UP_RECT.w, STAIR_UP_RECT.y + STAIR_UP_RECT.h - 1);
-    if (f > 0) mark(STAIR_DOWN_RECT.x - 1, STAIR_DOWN_RECT.y,
+    if (temDown) mark(STAIR_DOWN_RECT.x - 1, STAIR_DOWN_RECT.y,
       STAIR_DOWN_RECT.x + STAIR_DOWN_RECT.w, STAIR_DOWN_RECT.y + STAIR_DOWN_RECT.h);
     for (const sr of floor.secretRooms) mark(sr.x - 1, sr.y - 1, sr.x + sr.w, sr.y + sr.h);
     const flood = () => {

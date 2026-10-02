@@ -83,7 +83,30 @@ const SOUL_DEFS = {
     ],
     dicaRetrato: "a POLTRONA dela. ninguém mais podia sentar ali",
   },
-  blackwood: { impl: false, nome: "BLACKWOOD", titulo: "o fotógrafo" },
+  blackwood: {
+    impl: true, nome: "BLACKWOOD", titulo: "o fotógrafo",
+    artSeed: 0.941, escala: 1.15, dano: 1.5,
+    // desperta: as outras 6 correntes quebradas — ele espera no ateliê
+    hist: [
+      "ele acordou. BLACKWOOD ACORDOU",
+      "a sétima corrente é a DELE. ele se prendeu no próprio autorretrato",
+      "ele tá no ATELIÊ, no último andar. a escada de lá foi emparedada em 54",
+      "só o ELEVADOR sobe até lá. e… ele sabe que você vai",
+      "CUIDADO: lá em cima é ELE quem fotografa. não deixa ele te ENQUADRAR",
+    ],
+    dicaRetrato: "o AUTORRETRATO fica no cavalete do ateliê. fotografa o estúdio pra achar",
+  },
+};
+
+// a lente do passado: cada lugar de alma guarda uma cena antiga
+const PASSADO_TXT = {
+  tomas:     "1951 — ele ainda conta até cem.",
+  cecilia:   "1948 — o buquê nunca murchou.",
+  bento:     "1953 — a ronda não terminou.",
+  olivia:    "1952 — o compasso 44 segue aberto.",
+  hospede:   "19·· — ele pagava em prata.",
+  aurora:    "1946 — a primeira fotografia.",
+  blackwood: "1954 — o estúdio nunca fechou.",
 };
 const SOUL_IDS_ACTIVE = Object.keys(SOUL_DEFS).filter(k => SOUL_DEFS[k].impl);
 // quantas correntes precisam quebrar p/ abrir a porta (cresce a cada fatia)
@@ -91,6 +114,7 @@ const CHAINS_NEEDED = SOUL_IDS_ACTIVE.length;
 
 // entidades vivas no mundo (recriadas do estado salvo; posição não persiste)
 let soulEnts = [];
+let bossWarnT = 0;   // >0: Blackwood está te ENQUADRANDO (vinheta de aviso)
 
 function soulFlags() { return world.flags.souls; }
 function chainsBroken() {
@@ -154,6 +178,8 @@ function soulSpawnPos(id, floorIdx) {
   if (id === "bento") return { x: ELEV_ROOM.x + 3, y: ELEV_ROOM.y + 4 };
   if (id === "hospede" && world.sinal && world.sinal.floor === floorIdx)
     return { x: world.sinal.x, y: world.sinal.y + 3 };
+  if (id === "blackwood")
+    return { x: ATELIER.x + ATELIER.w / 2, y: ATELIER.y + ATELIER.h / 2 };
   return {};
 }
 
@@ -227,6 +253,19 @@ function soulsOnSinal(floorIdx) {
     livePush(liveRandUser(), "esse símbolo… EU JÁ VI ESSE SÍMBOLO. sai daí AGORA");
   }
 }
+// Blackwood: as outras 6 correntes caíram — o ateliê abre
+function soulsCheckBlackwood() {
+  if (!soulDormant("blackwood")) return;
+  let n = 0;
+  for (const id in soulFlags()) {
+    if (id === "blackwood") continue;
+    const s = soulFlags()[id];
+    if (s.state === "freed" || s.state === "burned") n++;
+  }
+  if (n < 6) return;
+  soulAwaken("blackwood", NFLOORS - 1);
+  shake = 1.6; sfxSlam();
+}
 // Madame Aurora: 3 almas resolvidas — ela aparece num andar que você já fotografou
 function soulsCheckAurora() {
   if (!soulDormant("aurora")) return;
@@ -274,6 +313,7 @@ function soulAimedAt(e) {
 }
 
 function soulsUpdate(dt) {
+  bossWarnT = 0;
   for (const e of soulEnts) {
     if (e.floor !== world.cur) continue;
     e.bob += dt * 2.0;
@@ -324,6 +364,35 @@ function soulsUpdate(dt) {
       soulMoveTo(e, player.x, player.y, GHOST_SPEED * 0.45, dt);
       toca = true;
 
+    } else if (e.id === "blackwood") {
+      // o caçador que enquadra: mantém distância de foto (8-13) e DISPARA
+      if (d < 7)
+        soulMoveTo(e, e.x + (e.x - player.x), e.y + (e.y - player.y),
+                   GHOST_SPEED * 0.8, dt);
+      else if (d > 13) soulMoveTo(e, player.x, player.y, GHOST_SPEED * 0.7, dt);
+      else {
+        const a = Math.atan2(e.y - player.y, e.x - player.x) + dt * 0.45;
+        soulMoveTo(e, player.x + Math.cos(a) * d, player.y + Math.sin(a) * d,
+                   GHOST_SPEED * 0.5, dt);
+      }
+      e.frameT = (e.frameT === undefined ? 5 : e.frameT) - dt;
+      if (e.frameT <= 1.2 && e.frameT > 0 &&
+          hasLOS(e.x, e.y, player.x, player.y)) bossWarnT = e.frameT;
+      if (e.frameT <= 0) {
+        e.frameT = 6 + Math.random() * 4;
+        if (hasLOS(e.x, e.y, player.x, player.y) && d < 22) {
+          // ele te fotografou: o flash DELE rouba sanidade
+          sanity -= 15; shake = 1.5;
+          flashT = Math.max(flashT, 0.7);
+          sfxCamera(); sfxDamage();
+          livePush(liveRandUser(), "ELE TE FOTOGRAFOU!!! quebra a linha de visão!!");
+        } else if (!live.hinted.has("dodgeBW")) {
+          live.hinted.add("dodgeBW");
+          livePush(liveRandUser(), "ISSO!! parede entre vocês na hora do disparo!!");
+        }
+      }
+      toca = true;
+
     } else if (e.id === "aurora") {
       // some e REAPARECE perto de você (onde a câmera já olhou)
       e.teleT = (e.teleT === undefined ? 12 : e.teleT) - dt;
@@ -364,6 +433,30 @@ function soulsOnFlash(dir, fotoReal) {
     if (!inFlashCone(e.x, e.y, dir)) continue;
     hit = true;
     const temRetrato = world.taken.has("ret_" + e.id);
+    if (fotoReal && temRetrato && world.flags.cam.obturador &&
+        e.id === "blackwood") {
+      // o CHEFE precisa de várias fotos — cada alma LIBERTADA empresta luz
+      let livres = 0;
+      for (const id2 in soulFlags())
+        if (id2 !== "blackwood" && soulFlags()[id2].state === "freed") livres++;
+      const need = 1 + Math.max(0, 6 - livres);
+      e.hits = (e.hits || 0) + 1;
+      hit = true;
+      if (e.hits < need) {
+        // ele recua, se recompõe e recomeça a caçada
+        for (let t = 0; t < 14; t++) {
+          const a = Math.random() * 6.28, rr2 = 13 + Math.random() * 7;
+          const nx = player.x + Math.cos(a) * rr2, ny = player.y + Math.sin(a) * rr2;
+          if (!isOpaque(nx | 0, ny | 0)) { e.x = nx; e.y = ny; break; }
+        }
+        e.frameT = 4;
+        sfxDissolve(); shake = 1;
+        livePush(liveRandUser(),
+          "ACERTOU ELE!! " + e.hits + "/" + need + " — as almas livres tão SEGURANDO ele!");
+        continue;
+      }
+      // último acerto cai na captura normal abaixo
+    }
     if (fotoReal && temRetrato && world.flags.cam.obturador) {
       // CAPTURA: a alma é sugada para o próprio retrato
       soulFlags()[e.id].state = "captured";
@@ -417,6 +510,7 @@ function soulFree(id) {
   live.viewers += 150;
   liveEvent("freed");
   soulsCheckAurora();
+  soulsCheckBlackwood();
   saveRun();
 }
 function soulBurn(id) {
@@ -428,6 +522,7 @@ function soulBurn(id) {
   livePush(liveRandUser(), "os vultos daquele andar ficaram inquietos…");
   live.viewers -= 40;
   soulsCheckAurora();
+  soulsCheckBlackwood();
   saveRun();
 }
 

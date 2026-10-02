@@ -139,20 +139,22 @@ function drawWin() {
   ctx.fillStyle = "rgba(0,0,0,0.92)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const fim = ENDINGS[world.endType] || ENDINGS.alvorada;
   ctx.font = "bold 44px 'Courier New', monospace";
-  const g = 200 + 40 * Math.sin(time * 2);
-  ctx.fillStyle = `rgb(${g | 0},${g | 0},${g | 0})`;
-  ctx.fillText("VOCÊ SAIU DA CASA", canvas.width / 2, 170);
+  const p = 0.8 + 0.2 * Math.sin(time * 2);
+  ctx.fillStyle = `rgba(${fim.cor[0]},${fim.cor[1]},${fim.cor[2]},${p.toFixed(2)})`;
+  ctx.fillText(fim.titulo, canvas.width / 2, 150);
   ctx.font = "bold 16px 'Courier New', monospace";
-  ctx.fillStyle = "rgba(180,180,180,0.85)";
-  ctx.fillText("…por enquanto.", canvas.width / 2, 220);
+  ctx.fillStyle = "rgba(185,185,185,0.85)";
+  fim.linhas.forEach((ln, i) =>
+    ctx.fillText(ln, canvas.width / 2, 200 + i * 26));
 
   const mm = String((world.timeSec / 60) | 0).padStart(2, "0");
   const ss = String((world.timeSec | 0) % 60).padStart(2, "0");
   ctx.font = "bold 15px 'Courier New', monospace";
   ctx.fillStyle = "rgba(160,160,160,0.85)";
   ctx.fillText(`tempo na casa: ${mm}:${ss}   ·   fotos reveladas: ${photoCount}   ·   pico da live: ${fmtViewers(live.viewers)}`,
-               canvas.width / 2, 290);
+               canvas.width / 2, 330);
 
   const btns = [
     { id: "new", x: 330, y: 400, w: 240, h: 70, label: "NOVA RUN" },
@@ -346,8 +348,52 @@ function overlayCloseHit(px2, py2) {
          py2 >= ALB_CLOSE.y && py2 <= ALB_CLOSE.y + ALB_CLOSE.h;
 }
 
-// --- vencer: abrir a porta da frente com a chave ---
-function winGame() {
+// --- vencer: 3 finais ---
+// porta: ALVORADA (todas libertadas) ou CINZAS (alguma queimada)
+// cadeira do Fotógrafo: O NOVO FOTÓGRAFO (final secreto)
+const ENDINGS = {
+  alvorada: {
+    titulo: "ALVORADA",
+    linhas: ["As sete correntes caíram. A porta abriu sozinha.",
+             "Sete vultos atravessam o jardim com você — e, um a um,",
+             "viram só luz da manhã. O chat não escreve nada. Ninguém sai da live."],
+    cor: [235, 225, 200],
+  },
+  cinzas: {
+    titulo: "CINZAS",
+    linhas: ["A porta abriu. Você saiu.",
+             "Mas parte do que estava preso aqui não saiu com você —",
+             "virou fumaça no quarto escuro. A casa ficou mais leve. E mais vazia."],
+    cor: [200, 170, 150],
+  },
+  fotografo: {
+    titulo: "O NOVO FOTÓGRAFO",
+    linhas: ["Você sentou. A cadeira estava morna.",
+             "A câmera encaixa na sua mão como se sempre tivesse sido sua.",
+             "A live caiu. O último frame mostra você… sorrindo para o cavalete.",
+             "A casa tem um dono de novo."],
+    cor: [160, 150, 170],
+  },
+};
+
+function winGame(tipo) {
+  if (!tipo) {
+    // saída pela porta: depende do que você fez com as almas
+    let queimada = false;
+    for (const id in world.flags.souls)
+      if (world.flags.souls[id].state === "burned") queimada = true;
+    tipo = queimada ? "cinzas" : "alvorada";
+  }
+  world.endType = tipo;
+  if (tipo === "alvorada") {
+    livePush(liveRandUser(), "eu tô CHORANDO, eles foram EMBORA JUNTOS");
+    livePush(liveRandUser(), "melhor final da história das lives");
+  } else if (tipo === "cinzas") {
+    livePush(liveRandUser(), "saiu… mas a que custo, mano");
+  } else {
+    livePush(liveRandUser(), "a live caiu?? alguém tá vendo isso?");
+    livePush(liveRandUser(), "a câmera dele ainda tá gravando…");
+  }
   state = "win";
   sfxSlam();
   clearRun();

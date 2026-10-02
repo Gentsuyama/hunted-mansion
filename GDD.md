@@ -256,4 +256,11 @@ Categorias: parede falsa, marca, cofre, quadro, retrato visto, peça ✦.
    nasce num andar já fotografado). CHAINS_NEEDED=6. Móveis-chave
    garantidos na geração (ensureFurn); retratos: berço/espelho/poço/
    piano/relógio/poltrona.
-3. Ateliê + Blackwood + lente do passado + 3 finais.
+3. [FEITA] Ateliê no último andar (escada emparedada: penúltimo sem SOBE,
+   último sem DESCE — só elevador), Blackwood boss (te enquadra: vinheta
+   vermelha de aviso + flash dele rouba 15 de sanidade se houver LOS;
+   capturável com autorretrato do cavalete; fotos necessárias = 1 +
+   (6 - almas LIBERTADAS)), lente do passado (item no ateliê; foto perto
+   de lugar de alma ganha lavagem sépia + legenda datada), 3 finais:
+   ALVORADA (porta, todas livres) · CINZAS (porta, alguma queimada) ·
+   O NOVO FOTÓGRAFO (sentar na cadeira com Blackwood no negativo).
