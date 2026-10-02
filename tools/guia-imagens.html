@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guia de Imagens — Hunted Mansion</title>
+<style>
+  :root { --bg:#14120f; --pane:#1e1b16; --ink:#e8e2d2; --dim:#9a927e;
+          --ok:#7fc87f; --accent:#d8b36a; --red:#c05848; }
+  body { background:var(--bg); color:var(--ink); margin:0;
+         font:15px/1.5 "Segoe UI", system-ui, sans-serif; padding:24px 16px 80px; }
+  .wrap { max-width:980px; margin:0 auto; }
+  h1 { font-size:26px; margin:0 0 4px; color:var(--accent); }
+  .sub { color:var(--dim); margin-bottom:18px; }
+  #prog { background:#2a261e; border-radius:8px; height:22px; overflow:hidden;
+          margin:10px 0 6px; }
+  #progbar { background:var(--ok); height:100%; width:0; transition:width .3s; }
+  #progtxt { color:var(--dim); font-size:13px; margin-bottom:14px; }
+  nav a { color:var(--accent); margin-right:14px; font-size:14px; }
+  details.etapa { background:var(--pane); border:1px solid #35302a;
+                  border-radius:10px; margin:14px 0; }
+  details.etapa > summary { cursor:pointer; padding:12px 16px; font-size:18px;
+                            font-weight:600; color:var(--accent); }
+  .nota-etapa { padding:0 16px 10px; color:var(--dim); font-size:14px; }
+  .passo { border-top:1px solid #35302a; padding:14px 16px; }
+  .passo.done { opacity:.62; }
+  .pid { font-weight:700; }
+  .pid input { transform:scale(1.3); margin-right:10px; vertical-align:-2px; }
+  .ctx { color:var(--dim); font-size:13px; margin:2px 0 8px 30px; }
+  .rotulo { font-size:12px; letter-spacing:.08em; color:var(--accent);
+            margin:10px 0 4px 30px; text-transform:uppercase; }
+  .anexo, .salvar { margin:2px 0 2px 30px; font-size:13px; }
+  code.path { background:#2a261e; padding:2px 7px; border-radius:5px;
+              color:#cfc6ae; font-size:12px; word-break:break-all; }
+  .prompt { background:#0f0d0a; border:1px solid #3a342c; border-radius:8px;
+            padding:10px 12px; margin:4px 0 4px 30px; font:13px/1.55 Consolas,
+            monospace; color:#d6cdb6; white-space:pre-wrap; }
+  button.cp { background:#3a342c; color:var(--ink); border:0; border-radius:6px;
+              padding:3px 11px; margin-left:8px; cursor:pointer; font-size:12px; }
+  button.cp:hover { background:#4a4336; }
+  button.cp.feito { background:var(--ok); color:#111; }
+  ul.qc { margin:4px 0 4px 30px; padding-left:18px; color:var(--dim);
+          font-size:13px; }
+  ul.qc li::marker { color:var(--accent); }
+  .nota { margin:6px 0 0 30px; font-size:13px; color:#b8a97f; }
+  img.previa { max-width:230px; max-height:150px; border-radius:6px;
+               border:1px solid #4a4336; margin:8px 0 0 30px; display:block; }
+  .biblia { padding:4px 16px 16px; font-size:14px; }
+  .biblia h3 { color:var(--accent); margin:14px 0 4px; font-size:15px; }
+  .bloco-fixo { background:#0f0d0a; border:1px dashed #5a5142; border-radius:8px;
+                padding:9px 12px; font:12.5px/1.5 Consolas, monospace;
+                color:#d6cdb6; }
+  table.ancoras { border-collapse:collapse; font-size:13px; margin-top:6px; }
+  table.ancoras td, table.ancoras th { border:1px solid #3a342c;
+                padding:5px 10px; text-align:left; }
+  .licoes { background:#241d16; border:1px solid #5a4330; border-radius:10px;
+            padding:12px 16px; font-size:14px; margin:14px 0; }
+  .licoes b { color:var(--red); }
+</style>
+</head>
+<body><div class="wrap">
+<h1>Guia de Imagens — HUNTED MANSION</h1>
+<div class="sub">Abra pelo jogo: <code class="path">http://localhost:8138/tools/guia-imagens.html</code> —
+assim o guia marca sozinho os passos cujo arquivo já existe e mostra a prévia.
+Gere no Gemini/Nano Banana, 1 passo por vez, <b>conversa nova a cada passo</b>.</div>
+<div id="prog"><div id="progbar"></div></div>
+<div id="progtxt"></div>
+<nav id="sumario"></nav>
+
+<div class="licoes"><b>Regras aprendidas</b><br>
+· <b>Sem referência, a locação muda:</b> a 1ª “alvorada” saiu de outra casa — toda
+imagem de um lugar já aprovado ANEXA a imagem aprovada e pede “the same … as the attached image”.<br>
+· <b>Sem folha de personagem, o protagonista muda de rosto a cada painel:</b> a folha
+(REF-001) vem antes de qualquer vinheta e é anexada em todas.<br>
+· <b>Prompt em inglês, só descrição positiva:</b> nada de “sem X” sobre a cena —
+negação só no formato (“no text, no watermark”).</div>
+
+<div id="guia"></div>
+</div>
+<script>
+// ============== FONTE DOS PASSOS (edite AQUI, nunca o HTML gerado) ==========
+const RAIZ = "G:\\Meu Drive\\Projetos\\SimpleGameHorror\\Hunted Mansion\\";
+
+const BLOCO_Q = "Black and white ink illustration in gritty horror comic style, dense cross-hatching, heavy black shadows, stark high contrast, muted single-color accents only where stated, aged paper grain. No text, no speech balloons, no watermark.";
+const BLOCO_F = "Analog 1980s photograph look, heavy film grain, crushed shadows, strong dark vignette, desaturated cold tones, quiet unsettling horror mood. No text, no watermark.";
+
+const BIBLIA = `
+<h3>Blocos de estilo fixos (sempre no FIM do prompt, literais)</h3>
+<p><b>QUADRINHO</b> (vinhetas e folhas de referência):</p>
+<div class="bloco-fixo">${BLOCO_Q}</div>
+<p><b>FOTO</b> (fundos de telas do jogo):</p>
+<div class="bloco-fixo">${BLOCO_F}</div>
+<h3>Âncoras do protagonista (vão em TODO prompt dele)</h3>
+<table class="ancoras">
+<tr><th>#</th><th>âncora</th></tr>
+<tr><td>1</td><td>early-twenties Brazilian man, brown skin</td></tr>
+<tr><td>2</td><td>short black tightly-curled hair</td></tr>
+<tr><td>3</td><td>lean build</td></tr>
+<tr><td>4</td><td>dark red hoodie worn open over a grey t-shirt (the ONLY red element)</td></tr>
+<tr><td>5</td><td>handheld camera gimbal with a small ring light</td></tr>
+</table>
+<h3>Âncoras da câmera instantânea</h3>
+<table class="ancoras">
+<tr><td>boxy 1980s instant camera · square flash window on the top-left ·
+round ribbed lens at the centre · film door on the right side</td></tr>
+</table>
+<h3>Proporções</h3>
+<p>Vinhetas e telas: <b>horizontal 16:9</b> · Folhas de referência: <b>horizontal 16:9</b> ·
+Resolução mínima: lado menor ≥ 768 px (baixe no tamanho original, não a miniatura).</p>`;
+
+const ETAPAS = [
+{ id:"refs", titulo:"Etapa 1 — Referências (gerar ANTES das vinhetas)",
+  nota:"Conversa nova para cada passo. Estas folhas serão ANEXADAS em todos os passos seguintes.",
+  passos:[
+  { id:"REF-001", titulo:"Folha do protagonista",
+    ctx:"Referência de personagem usada em todas as vinhetas · nunca aparece no jogo",
+    anexos:[["Estilo (nanquim da intro)", "Assets/Intro/intro6.jpg"]],
+    prompt:`Character reference sheet, horizontal 16:9, plain dark grey studio background, soft even light, three views of the SAME character: front full body on the left side of the picture, 3/4 profile in the middle, large face close-up on the right side. An early-twenties Brazilian man with brown skin, short black tightly-curled hair, lean build, wearing a dark red hoodie open over a grey t-shirt, dark jeans, worn sneakers, holding a handheld camera gimbal with a small ring light. Same ink style as the attached image. ${BLOCO_Q}`,
+    qc:["3 vistas da MESMA pessoa","pele parda + cabelo preto enrolado curto","moletom vermelho-escuro é a única cor","gimbal com ring light na mão","fundo cinza liso de estúdio"],
+    salvar:"Assets\\Refs\\protagonista.jpg" },
+  { id:"REF-002", titulo:"Folha da câmera instantânea",
+    ctx:"Referência de objeto usada nas vinhetas em que a câmera aparece",
+    anexos:[["Modelo da câmera (forma)", "Assets/UI/cam_corpo.jpg"],
+            ["Estilo (nanquim da intro)", "Assets/Intro/intro6.jpg"]],
+    prompt:`Object reference sheet, horizontal 16:9, plain dark grey studio background, soft even light, three views of the SAME camera: front view large at the centre, side view on the left side of the picture, back view on the right side. The same boxy 1980s instant camera as the first attached image: square flash window on the top-left, round ribbed lens at the centre, film door on the right side. Same ink style as the second attached image. ${BLOCO_Q}`,
+    qc:["mesma câmera do anexo 1 (caixa anos 80)","flash quadrado no topo-esquerdo","lente redonda serrilhada central","3 vistas no fundo cinza liso"],
+    salvar:"Assets\\Refs\\camera.jpg" },
+]},
+{ id:"vin", titulo:"Etapa 2 — Vinhetas (painéis de história)",
+  nota:"Anexe SEMPRE a folha do protagonista (1º anexo) + o que o passo pedir, NA ORDEM. Conversa nova por passo.",
+  passos:[
+  { id:"VIN-001", titulo:"Encontrando a tampa",
+    ctx:"Painel ao pegar a TAMPA no hall de entrada · 16:9 · 1 variação",
+    anexos:[["Protagonista", "Assets/Refs/protagonista.jpg"],
+            ["Câmera", "Assets/Refs/camera.jpg"]],
+    prompt:`Single horror comic panel, horizontal 16:9, low camera angle close on hands. The man from the first image kneeling on dusty wooden floorboards of a grand Victorian entrance hall, lifting the small film door of the camera from the second image; the camera body lies beside his knee. His flashlight on the floor lights the scene from the left side of the picture, long sharp shadows to the right. Focused, tense expression. ${BLOCO_Q}`,
+    qc:["mesmo rosto/roupa da folha","tampinha pequena na mão + câmera no chão ao lado","luz vinda da esquerda com sombras longas","só o moletom tem cor"],
+    salvar:"Assets\\Vinhetas\\tampa.jpg" },
+  { id:"VIN-002", titulo:"A lente nova",
+    ctx:"Painel ao pegar a LENTE na sala secreta do térreo · 16:9",
+    anexos:[["Protagonista", "Assets/Refs/protagonista.jpg"],
+            ["Formato da lente", "Assets/UI/cam_lente.jpg"]],
+    prompt:`Single horror comic panel, horizontal 16:9, medium shot. The man from the first image inside a narrow windowless hidden room with bare cracked plaster walls, unwrapping from an old cloth the round ribbed camera lens from the second image, holding it up at eye level; the glass catches a thin reflection. His flashlight stands on the floor pointing up, lighting his face from below. Wary, curious expression. ${BLOCO_Q}`,
+    qc:["mesmo rosto/roupa da folha","lente redonda serrilhada igual ao anexo 2","pano velho nas mãos","luz de baixo para cima no rosto"],
+    salvar:"Assets\\Vinhetas\\lente.jpg" },
+  { id:"VIN-003", titulo:"O obturador de prata",
+    ctx:"Painel ao pegar o OBTURADOR na secreta do porão · 16:9",
+    anexos:[["Protagonista", "Assets/Refs/protagonista.jpg"],
+            ["Formato do botão", "Assets/UI/cam_obturador.jpg"]],
+    prompt:`Single horror comic panel, horizontal 16:9, extreme close-up. The open palm of the man from the first image holding the small knurled silver shutter button from the second image; his own face reflects distorted on the polished silver dome. Rough stone basement wall behind, lit by a single flashlight beam from the right side of the picture. The silver has a cold metallic sheen as the stated color accent. ${BLOCO_Q}`,
+    qc:["palma aberta com o botão de prata","reflexo distorcido do rosto no metal","fundo de pedra de porão","brilho metálico frio como único destaque"],
+    salvar:"Assets\\Vinhetas\\obturador.jpg" },
+  { id:"VIN-004", titulo:"A lente do passado",
+    ctx:"Painel ao pegar a LENTE DO PASSADO no ateliê · 16:9",
+    anexos:[["Protagonista", "Assets/Refs/protagonista.jpg"],
+            ["Formato da lente antiga", "Assets/UI/cam_passado.jpg"]],
+    prompt:`Single horror comic panel, horizontal 16:9, profile medium close-up. The man from the first image raising to his eye the ornate antique brass lens from the second image; through its round amber glass, a small circle of the dark room appears furnished and alive as decades ago, with warm amber glow as the stated color accent. The rest of the room stays in black ink shadow. Astonished expression. ${BLOCO_Q}`,
+    qc:["lente de latão ornamentada igual ao anexo 2","círculo âmbar mostrando o cômodo 'vivo'","resto do quadro em nanquim escuro","perfil do protagonista correto"],
+    salvar:"Assets\\Vinhetas\\passado.jpg" },
+  { id:"VIN-005", titulo:"O primeiro retrato",
+    ctx:"Painel ao pegar o 1º RETRATO (atrás do berço) · 16:9",
+    anexos:[["Protagonista", "Assets/Refs/protagonista.jpg"],
+            ["O retrato oval", "Assets/Retratos/tomas.jpg"]],
+    prompt:`Single horror comic panel, horizontal 16:9, over-the-shoulder shot. The man from the first image crouching beside a Victorian wooden crib, pulling out from behind it the oval framed portrait from the second image, seen at a steep angle half turned away. Dust motes float in the flashlight beam coming from the left side of the picture. His gloved fingers grip the ornate frame edge. Uneasy expression. ${BLOCO_Q}`,
+    qc:["berço vitoriano presente","moldura oval igual ao anexo 2","poeira no feixe de luz","mesmo protagonista da folha"],
+    salvar:"Assets\\Vinhetas\\retrato.jpg" },
+  { id:"VIN-006", titulo:"A primeira captura",
+    ctx:"Painel na 1ª alma sugada para o retrato · 16:9",
+    anexos:[["Protagonista", "Assets/Refs/protagonista.jpg"],
+            ["O retrato oval", "Assets/Retratos/tomas.jpg"]],
+    prompt:`Single horror comic panel, horizontal 16:9, dynamic dutch angle. A blinding white camera flash burst at the centre of the picture; a wispy spectral figure made of smoke is being pulled in a spiral into the oval framed portrait from the second image, held up at arm's length by the man from the first image on the right side of the picture. Speed lines converge toward the frame. His arm is tense, hood shadows his face. ${BLOCO_Q}`,
+    qc:["clarão central + espiral de fumaça entrando na moldura","linhas de velocidade convergindo","moldura oval igual ao anexo 2","braço/moletom do protagonista à direita"],
+    salvar:"Assets\\Vinhetas\\captura.jpg" },
+  { id:"VIN-007", titulo:"Chegada ao ateliê",
+    ctx:"Painel quando o elevador abre no último andar · 16:9",
+    anexos:[["Protagonista", "Assets/Refs/protagonista.jpg"],
+            ["O ateliê (locação)", "Assets/UI/final_fotografo.jpg"]],
+    prompt:`Single horror comic panel, horizontal 16:9, seen from inside the room. The folding brass grate of an antique elevator slides open on the left side of the picture; the man from the first image stands in the doorway seen from the front, flashlight raised. Beyond him only darkness; in the foreground, the same wooden studio chair, easel and bellows camera on tripod as the second image, drawn as stark ink silhouettes. A single hanging bulb glows above. ${BLOCO_Q}`,
+    qc:["grade de elevador aberta à esquerda","cadeira + cavalete + câmera de fole em silhueta (iguais ao anexo 2)","lâmpada pendente única","protagonista na soleira com lanterna"],
+    salvar:"Assets\\Vinhetas\\atelie.jpg" },
+]},
+{ id:"telas", titulo:"Etapa 3 — Telas do jogo",
+  nota:"Estilo FOTO (não quadrinho). A referência anexada é a LOCAÇÃO: o resultado tem que ser o mesmo lugar.",
+  passos:[
+  { id:"TELA-001", titulo:"Final ALVORADA (refazer)",
+    ctx:"Fundo da tela do final bom · 16:9 · substitui o banho dourado provisório",
+    anexos:[["A locação (hall e portas — MESMO lugar)", "Assets/UI/final_cinzas.jpg"]],
+    prompt:`Wide interior shot, horizontal 16:9. The same decayed Victorian entrance hall, double doors and camera position as the attached image, now at golden dawn: warm low sunlight floods in through the open doorway, long golden light rays across the dusty floor. Seven translucent human silhouettes of different heights walk away through the doorway into the light, mid-stride, their edges dissolving into drifting bright motes. ${BLOCO_F}`,
+    qc:["MESMO hall e portas do anexo (comparar lado a lado)","luz dourada baixa entrando pela porta","7 silhuetas translúcidas saindo","bordas delas virando partículas de luz"],
+    salvar:"Assets\\UI\\final_alvorada.jpg",
+    nota:"Se vier outra casa: reforce no começo do prompt 'the same room as the attached image, keep the architecture identical'." },
+]},
+];
+// ============================================================================
+
+function copiar(btn, txt) {
+  const fim = () => { btn.classList.add("feito"); btn.textContent = "copiado ✓";
+    setTimeout(() => { btn.classList.remove("feito"); btn.textContent = "copiar"; }, 1600); };
+  try { navigator.clipboard.writeText(txt).then(fim, () => fallback()); }
+  catch (e) { fallback(); }
+  function fallback() {
+    const ta = document.createElement("textarea");
+    ta.value = txt; document.body.appendChild(ta);
+    ta.select(); document.execCommand("copy"); ta.remove(); fim();
+  }
+}
+function chave(id) { return "guiaimg_" + id; }
+function marcado(id) { try { return localStorage.getItem(chave(id)) === "1"; } catch(e){ return false; } }
+function marca(id, v) { try { localStorage.setItem(chave(id), v ? "1" : "0"); } catch(e){}
+  atualizaProg(); }
+
+let TOTAL = 0;
+function atualizaProg() {
+  let ok = 0;
+  for (const et of ETAPAS) for (const p of et.passos) if (marcado(p.id)) ok++;
+  document.getElementById("progbar").style.width = (100 * ok / TOTAL) + "%";
+  document.getElementById("progtxt").textContent = ok + " de " + TOTAL + " passos feitos";
+  for (const et of ETAPAS) for (const p of et.passos) {
+    const el = document.getElementById("passo_" + p.id);
+    if (el) el.classList.toggle("done", marcado(p.id));
+  }
+}
+
+function render() {
+  const g = document.getElementById("guia");
+  const sum = document.getElementById("sumario");
+  let html = `<details class="etapa" open><summary>Etapa 0 — Bíblia visual (leia uma vez)</summary>
+    <div class="biblia">${BIBLIA}</div></details>`;
+  sum.innerHTML = `<a href="#et_biblia">Bíblia</a>` +
+    ETAPAS.map(e => `<a href="#et_${e.id}">${e.titulo.split("—")[0].trim()}</a>`).join("");
+  for (const et of ETAPAS) {
+    TOTAL += et.passos.length;
+    html += `<details class="etapa" open id="et_${et.id}"><summary>${et.titulo}</summary>
+      <div class="nota-etapa">${et.nota}</div>`;
+    for (const p of et.passos) {
+      const caminhoRel = "../" + p.salvar.replace(/\\\\/g, "/").replace(/\\/g, "/");
+      const caminhoAbs = RAIZ + p.salvar;
+      html += `<div class="passo" id="passo_${p.id}">
+        <div class="pid"><input type="checkbox" ${marcado(p.id) ? "checked" : ""}
+          onchange="marca('${p.id}', this.checked)">${p.id} · ${p.titulo}</div>
+        <div class="ctx">${p.ctx}</div>`;
+      if (p.anexos && p.anexos.length) {
+        html += `<div class="rotulo">Anexar (nesta ordem)</div>`;
+        p.anexos.forEach((a, i) => {
+          const abs = RAIZ + a[1].replace(/\//g, "\\");
+          html += `<div class="anexo">${i + 1}º — ${a[0]}: <code class="path">${abs}</code>
+            <button class="cp" onclick="copiar(this, ${JSON.stringify(abs).replace(/"/g, "&quot;")})">copiar</button></div>`;
+        });
+      }
+      html += `<div class="rotulo">Prompt
+          <button class="cp" onclick="copiar(this, document.getElementById('pr_${p.id}').textContent)">copiar</button></div>
+        <div class="prompt" id="pr_${p.id}">${p.prompt}</div>
+        <div class="rotulo">QC — confira antes de salvar</div>
+        <ul class="qc">${p.qc.map(q => "<li>" + q + "</li>").join("")}<li>lado menor ≥ 768 px (download original)</li></ul>
+        <div class="rotulo">Salvar como</div>
+        <div class="salvar"><code class="path">${caminhoAbs}</code>
+          <button class="cp" onclick="copiar(this, ${JSON.stringify(caminhoAbs).replace(/"/g, "&quot;")})">copiar</button></div>`;
+      if (p.nota) html += `<div class="nota">💡 ${p.nota}</div>`;
+      html += `<img class="previa" id="prev_${p.id}" style="display:none">
+        </div>`;
+    }
+    html += `</details>`;
+  }
+  g.innerHTML = html;
+  atualizaProg();
+  // auto-check + prévia: se o arquivo já existe no servidor, marca e mostra
+  for (const et of ETAPAS) for (const p of et.passos) {
+    const rel = "../" + p.salvar.replace(/\\/g, "/");
+    fetch(rel, { method: "HEAD" }).then(r => {
+      if (!r.ok) return;
+      if (!marcado(p.id)) { marca(p.id, true);
+        const cb = document.querySelector("#passo_" + p.id + " input");
+        if (cb) cb.checked = true; }
+      const im = document.getElementById("prev_" + p.id);
+      im.src = rel; im.style.display = "block";
+    }).catch(() => {});
+  }
+}
+render();
+</script>
+</body>
+</html>

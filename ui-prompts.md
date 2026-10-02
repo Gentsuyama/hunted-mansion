@@ -64,7 +64,7 @@ Fotografia de uma bancada de quarto escuro fotográfico banhada em luz VERMELHA 
 
 Fotografia frontal do painel interno de um elevador antigo de latão envelhecido com uma coluna vertical de SEIS botões redondos sem identificação ao centro, grade de ferro desfocada ao fundo, iluminação fraca âmbar de lâmpada incandescente piscando, estilo foto analógica, formato RETRATO 9:16, sem números, sem texto, sem marca d'água
 
-### final_alvorada.jpg · final_cinzas.jpg · final_fotografo.jpg
+### final_cinzas.jpg · final_fotografo.jpg (final_alvorada: refazer PELO GUIA tools/guia-imagens.html)
 
 Fotografia da porta dupla aberta de uma mansão vitoriana vista de dentro do hall escuro com a luz dourada do amanhecer inundando a entrada e sete silhuetas translúcidas humanas caminhando em direção à luz se desfazendo em partículas, estilo analógico com grão, formato paisagem 16:9, sem texto, sem marca d'água
 
