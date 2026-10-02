@@ -309,5 +309,6 @@ function drawVinheta() {
   ctx.fillText(leg, canvas.width / 2, y + h + 43);
   ctx.font = "bold 13px 'Courier New', monospace";
   ctx.fillStyle = `rgba(200,200,200,${0.4 + 0.3 * Math.sin(time * 3)})`;
-  ctx.fillText("clique para continuar", canvas.width / 2, canvas.height - 22);
+  ctx.fillText(touchUI.seen ? "toque para continuar" : "clique para continuar",
+               canvas.width / 2, canvas.height - 22);
 }

@@ -802,7 +802,7 @@ function drawCamHUD() {
   ctx.font = "bold 11px 'Courier New', monospace";
   ctx.textAlign = "left"; ctx.textBaseline = "middle";
   ctx.fillStyle = "rgba(200,200,205,0.85)";
-  ctx.fillText(cm.tampa ? (touchUI.seen ? "CÂMERA · toque: filme"
+  ctx.fillText(cm.tampa ? (touchUI.seen ? "toque: filme"
                                         : "CÂMERA · [R] filme")
                         : "CÂMERA", r.x + 10, r.y + 13);
   if (cm.tampa) {
