@@ -68,6 +68,10 @@ Gere no Gemini/Nano Banana, 1 passo por vez, <b>conversa nova a cada passo</b>.<
 <nav id="sumario"></nav>
 
 <div class="licoes"><b>Regras aprendidas</b><br>
+· <b>Âncoras saem da ARTE APROVADA, nunca da memória:</b> a 1ª folha do protagonista
+saiu com cabelo enrolado curto e sem mochila porque o prompt descreveu um personagem
+imaginado — o certo é abrir a imagem canônica (intro1), extrair as âncoras DELA e
+anexá-la como “the same character as in the attached image”.<br>
 · <b>Sem referência, a locação muda:</b> a 1ª “alvorada” saiu de outra casa — toda
 imagem de um lugar já aprovado ANEXA a imagem aprovada e pede “the same … as the attached image”.<br>
 · <b>Sem folha de personagem, o protagonista muda de rosto a cada painel:</b> a folha
@@ -90,15 +94,18 @@ const BIBLIA = `
 <div class="bloco-fixo">${BLOCO_Q}</div>
 <p><b>FOTO</b> (fundos de telas do jogo):</p>
 <div class="bloco-fixo">${BLOCO_F}</div>
-<h3>Âncoras do protagonista (vão em TODO prompt dele)</h3>
+<h3>Âncoras do protagonista — extraídas do intro1.jpg (vão em TODO prompt dele)</h3>
 <table class="ancoras">
 <tr><th>#</th><th>âncora</th></tr>
-<tr><td>1</td><td>early-twenties Brazilian man, brown skin</td></tr>
-<tr><td>2</td><td>short black tightly-curled hair</td></tr>
-<tr><td>3</td><td>lean build</td></tr>
-<tr><td>4</td><td>dark red hoodie worn open over a grey t-shirt (the ONLY red element)</td></tr>
-<tr><td>5</td><td>handheld camera gimbal with a small ring light</td></tr>
+<tr><td>1</td><td>eighteen-year-old Brazilian streamer, light brown skin, soft rounded features</td></tr>
+<tr><td>2</td><td>messy wavy dark-brown chin-length hair with bangs falling over his forehead, small earring</td></tr>
+<tr><td>3</td><td>dark red hooded sweatshirt, black cargo trousers, dark purple sneakers, light blue wristwatch on his left wrist</td></tr>
+<tr><td>4</td><td>small black backpack on both shoulders</td></tr>
+<tr><td>5</td><td>smartphone mounted on a handheld gimbal with a small glowing ring light on top</td></tr>
 </table>
+<p>Nas vinhetas, a âncora curta repetida é:
+<i>“the young streamer from the first image (messy chin-length dark hair,
+dark red hoodie, small black backpack)”.</i></p>
 <h3>Âncoras da câmera instantânea</h3>
 <table class="ancoras">
 <tr><td>boxy 1980s instant camera · square flash window on the top-left ·
@@ -113,11 +120,13 @@ const ETAPAS = [
   nota:"Conversa nova para cada passo. Estas folhas serão ANEXADAS em todos os passos seguintes.",
   passos:[
   { id:"REF-001", titulo:"Folha do protagonista",
-    ctx:"Referência de personagem usada em todas as vinhetas · nunca aparece no jogo",
-    anexos:[["Estilo (nanquim da intro)", "Assets/Intro/intro6.jpg"]],
-    prompt:`Character reference sheet, horizontal 16:9, plain dark grey studio background, soft even light, three views of the SAME character: front full body on the left side of the picture, 3/4 profile in the middle, large face close-up on the right side. An early-twenties Brazilian man with brown skin, short black tightly-curled hair, lean build, wearing a dark red hoodie open over a grey t-shirt, dark jeans, worn sneakers, holding a handheld camera gimbal with a small ring light. Same ink style as the attached image. ${BLOCO_Q}`,
-    qc:["3 vistas da MESMA pessoa","pele parda + cabelo preto enrolado curto","moletom vermelho-escuro é a única cor","gimbal com ring light na mão","fundo cinza liso de estúdio"],
-    salvar:"Assets\\Refs\\protagonista.jpg" },
+    ctx:"Referência de personagem usada em todas as vinhetas · é O MESMO personagem do intro1",
+    anexos:[["O PERSONAGEM (canônico, da intro)", "Assets/Intro/intro1.jpg"],
+            ["Estilo final (nanquim da intro)", "Assets/Intro/intro6.jpg"]],
+    prompt:`Character reference sheet, horizontal 16:9, plain dark grey studio background, soft even light, three views of the SAME character as the person in the first attached image: front full body on the left side of the picture, 3/4 profile in the middle, large face close-up on the right side. An eighteen-year-old Brazilian streamer with light brown skin, soft rounded features, messy wavy dark-brown chin-length hair with bangs falling over his forehead, a small earring; dark red hooded sweatshirt, black cargo trousers, dark purple sneakers, light blue wristwatch on his left wrist, small black backpack on both shoulders; holding a smartphone mounted on a handheld gimbal with a small glowing ring light on top. Redrawn in the same black ink style as the second attached image, keeping the dark red sweatshirt as the stated color accent. ${BLOCO_Q}`,
+    qc:["COMPARE com o intro1: mesmo rosto jovem e arredondado","cabelo castanho bagunçado na altura do queixo com franja (NÃO enrolado curto)","mochila preta + relógio azul no pulso esquerdo","CELULAR no gimbal com ring light (não câmera profissional)","estilo nanquim do intro6, moletom vinho como única cor"],
+    salvar:"Assets\\Refs\\protagonista.jpg",
+    nota:"Se vier com cabelo curto/enrolado ou sem mochila: reforce no início 'keep the exact same hair, face and backpack as the first attached image'." },
   { id:"REF-002", titulo:"Folha da câmera instantânea",
     ctx:"Referência de objeto usada nas vinhetas em que a câmera aparece",
     anexos:[["Modelo da câmera (forma)", "Assets/UI/cam_corpo.jpg"],
@@ -133,49 +142,49 @@ const ETAPAS = [
     ctx:"Painel ao pegar a TAMPA no hall de entrada · 16:9 · 1 variação",
     anexos:[["Protagonista", "Assets/Refs/protagonista.jpg"],
             ["Câmera", "Assets/Refs/camera.jpg"]],
-    prompt:`Single horror comic panel, horizontal 16:9, low camera angle close on hands. The man from the first image kneeling on dusty wooden floorboards of a grand Victorian entrance hall, lifting the small film door of the camera from the second image; the camera body lies beside his knee. His flashlight on the floor lights the scene from the left side of the picture, long sharp shadows to the right. Focused, tense expression. ${BLOCO_Q}`,
+    prompt:`Single horror comic panel, horizontal 16:9, low camera angle close on hands. The young streamer from the first image (messy chin-length dark hair, dark red hoodie, small black backpack) kneeling on dusty wooden floorboards of a grand Victorian entrance hall, lifting the small film door of the camera from the second image; the camera body lies beside his knee. His flashlight on the floor lights the scene from the left side of the picture, long sharp shadows to the right. Focused, tense expression. ${BLOCO_Q}`,
     qc:["mesmo rosto/roupa da folha","tampinha pequena na mão + câmera no chão ao lado","luz vinda da esquerda com sombras longas","só o moletom tem cor"],
     salvar:"Assets\\Vinhetas\\tampa.jpg" },
   { id:"VIN-002", titulo:"A lente nova",
     ctx:"Painel ao pegar a LENTE na sala secreta do térreo · 16:9",
     anexos:[["Protagonista", "Assets/Refs/protagonista.jpg"],
             ["Formato da lente", "Assets/UI/cam_lente.jpg"]],
-    prompt:`Single horror comic panel, horizontal 16:9, medium shot. The man from the first image inside a narrow windowless hidden room with bare cracked plaster walls, unwrapping from an old cloth the round ribbed camera lens from the second image, holding it up at eye level; the glass catches a thin reflection. His flashlight stands on the floor pointing up, lighting his face from below. Wary, curious expression. ${BLOCO_Q}`,
+    prompt:`Single horror comic panel, horizontal 16:9, medium shot. The young streamer from the first image (messy chin-length dark hair, dark red hoodie, small black backpack) inside a narrow windowless hidden room with bare cracked plaster walls, unwrapping from an old cloth the round ribbed camera lens from the second image, holding it up at eye level; the glass catches a thin reflection. His flashlight stands on the floor pointing up, lighting his face from below. Wary, curious expression. ${BLOCO_Q}`,
     qc:["mesmo rosto/roupa da folha","lente redonda serrilhada igual ao anexo 2","pano velho nas mãos","luz de baixo para cima no rosto"],
     salvar:"Assets\\Vinhetas\\lente.jpg" },
   { id:"VIN-003", titulo:"O obturador de prata",
     ctx:"Painel ao pegar o OBTURADOR na secreta do porão · 16:9",
     anexos:[["Protagonista", "Assets/Refs/protagonista.jpg"],
             ["Formato do botão", "Assets/UI/cam_obturador.jpg"]],
-    prompt:`Single horror comic panel, horizontal 16:9, extreme close-up. The open palm of the man from the first image holding the small knurled silver shutter button from the second image; his own face reflects distorted on the polished silver dome. Rough stone basement wall behind, lit by a single flashlight beam from the right side of the picture. The silver has a cold metallic sheen as the stated color accent. ${BLOCO_Q}`,
+    prompt:`Single horror comic panel, horizontal 16:9, extreme close-up. The open palm of the young streamer from the first image (messy chin-length dark hair, dark red hoodie, small black backpack) holding the small knurled silver shutter button from the second image; his own face reflects distorted on the polished silver dome. Rough stone basement wall behind, lit by a single flashlight beam from the right side of the picture. The silver has a cold metallic sheen as the stated color accent. ${BLOCO_Q}`,
     qc:["palma aberta com o botão de prata","reflexo distorcido do rosto no metal","fundo de pedra de porão","brilho metálico frio como único destaque"],
     salvar:"Assets\\Vinhetas\\obturador.jpg" },
   { id:"VIN-004", titulo:"A lente do passado",
     ctx:"Painel ao pegar a LENTE DO PASSADO no ateliê · 16:9",
     anexos:[["Protagonista", "Assets/Refs/protagonista.jpg"],
             ["Formato da lente antiga", "Assets/UI/cam_passado.jpg"]],
-    prompt:`Single horror comic panel, horizontal 16:9, profile medium close-up. The man from the first image raising to his eye the ornate antique brass lens from the second image; through its round amber glass, a small circle of the dark room appears furnished and alive as decades ago, with warm amber glow as the stated color accent. The rest of the room stays in black ink shadow. Astonished expression. ${BLOCO_Q}`,
+    prompt:`Single horror comic panel, horizontal 16:9, profile medium close-up. The young streamer from the first image (messy chin-length dark hair, dark red hoodie, small black backpack) raising to his eye the ornate antique brass lens from the second image; through its round amber glass, a small circle of the dark room appears furnished and alive as decades ago, with warm amber glow as the stated color accent. The rest of the room stays in black ink shadow. Astonished expression. ${BLOCO_Q}`,
     qc:["lente de latão ornamentada igual ao anexo 2","círculo âmbar mostrando o cômodo 'vivo'","resto do quadro em nanquim escuro","perfil do protagonista correto"],
     salvar:"Assets\\Vinhetas\\passado.jpg" },
   { id:"VIN-005", titulo:"O primeiro retrato",
     ctx:"Painel ao pegar o 1º RETRATO (atrás do berço) · 16:9",
     anexos:[["Protagonista", "Assets/Refs/protagonista.jpg"],
             ["O retrato oval", "Assets/Retratos/tomas.jpg"]],
-    prompt:`Single horror comic panel, horizontal 16:9, over-the-shoulder shot. The man from the first image crouching beside a Victorian wooden crib, pulling out from behind it the oval framed portrait from the second image, seen at a steep angle half turned away. Dust motes float in the flashlight beam coming from the left side of the picture. His gloved fingers grip the ornate frame edge. Uneasy expression. ${BLOCO_Q}`,
+    prompt:`Single horror comic panel, horizontal 16:9, over-the-shoulder shot. The young streamer from the first image (messy chin-length dark hair, dark red hoodie, small black backpack) crouching beside a Victorian wooden crib, pulling out from behind it the oval framed portrait from the second image, seen at a steep angle half turned away. Dust motes float in the flashlight beam coming from the left side of the picture. His fingers grip the ornate frame edge. Uneasy expression. ${BLOCO_Q}`,
     qc:["berço vitoriano presente","moldura oval igual ao anexo 2","poeira no feixe de luz","mesmo protagonista da folha"],
     salvar:"Assets\\Vinhetas\\retrato.jpg" },
   { id:"VIN-006", titulo:"A primeira captura",
     ctx:"Painel na 1ª alma sugada para o retrato · 16:9",
     anexos:[["Protagonista", "Assets/Refs/protagonista.jpg"],
             ["O retrato oval", "Assets/Retratos/tomas.jpg"]],
-    prompt:`Single horror comic panel, horizontal 16:9, dynamic dutch angle. A blinding white camera flash burst at the centre of the picture; a wispy spectral figure made of smoke is being pulled in a spiral into the oval framed portrait from the second image, held up at arm's length by the man from the first image on the right side of the picture. Speed lines converge toward the frame. His arm is tense, hood shadows his face. ${BLOCO_Q}`,
+    prompt:`Single horror comic panel, horizontal 16:9, dynamic dutch angle. A blinding white camera flash burst at the centre of the picture; a wispy spectral figure made of smoke is being pulled in a spiral into the oval framed portrait from the second image, held up at arm's length by the young streamer from the first image (messy chin-length dark hair, dark red hoodie, small black backpack) on the right side of the picture. Speed lines converge toward the frame. His arm is tense, hood shadows his face. ${BLOCO_Q}`,
     qc:["clarão central + espiral de fumaça entrando na moldura","linhas de velocidade convergindo","moldura oval igual ao anexo 2","braço/moletom do protagonista à direita"],
     salvar:"Assets\\Vinhetas\\captura.jpg" },
   { id:"VIN-007", titulo:"Chegada ao ateliê",
     ctx:"Painel quando o elevador abre no último andar · 16:9",
     anexos:[["Protagonista", "Assets/Refs/protagonista.jpg"],
             ["O ateliê (locação)", "Assets/UI/final_fotografo.jpg"]],
-    prompt:`Single horror comic panel, horizontal 16:9, seen from inside the room. The folding brass grate of an antique elevator slides open on the left side of the picture; the man from the first image stands in the doorway seen from the front, flashlight raised. Beyond him only darkness; in the foreground, the same wooden studio chair, easel and bellows camera on tripod as the second image, drawn as stark ink silhouettes. A single hanging bulb glows above. ${BLOCO_Q}`,
+    prompt:`Single horror comic panel, horizontal 16:9, seen from inside the room. The folding brass grate of an antique elevator slides open on the left side of the picture; the young streamer from the first image (messy chin-length dark hair, dark red hoodie, small black backpack) stands in the doorway seen from the front, flashlight raised. Beyond him only darkness; in the foreground, the same wooden studio chair, easel and bellows camera on tripod as the second image, drawn as stark ink silhouettes. A single hanging bulb glows above. ${BLOCO_Q}`,
     qc:["grade de elevador aberta à esquerda","cadeira + cavalete + câmera de fole em silhueta (iguais ao anexo 2)","lâmpada pendente única","protagonista na soleira com lanterna"],
     salvar:"Assets\\Vinhetas\\atelie.jpg" },
 ]},
