@@ -74,6 +74,30 @@ function sfxSting() {
     o.start(); o.stop(AC.currentTime + 1.2);
   });
 }
+// piano fantasma da Olívia: frase curta em tom menor, desafinada de leve
+function sfxPiano() {
+  if (!AC) return;
+  const notas = [220, 261.6, 196, 164.8, 220];      // lá-dó-sol-mi-lá (menor)
+  notas.forEach((fr, i) => {
+    const t0 = AC.currentTime + i * 0.42 + Math.random() * 0.05;
+    const o = AC.createOscillator(); o.type = "triangle";
+    o.frequency.value = fr * (1 + (Math.random() - 0.5) * 0.008);
+    const g = AC.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.14, t0 + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.4);
+    o.connect(g); g.connect(master);
+    o.start(t0); o.stop(t0 + 1.4);
+  });
+}
+// passo pesado do Seu Bento (baque surdo)
+function sfxStep() {
+  if (!AC) return;
+  const o = AC.createOscillator(); o.type = "sine";
+  o.frequency.setValueAtTime(70, AC.currentTime);
+  o.frequency.exponentialRampToValueAtTime(38, AC.currentTime + 0.18);
+  o.connect(envGain(0.16, 0.22)); o.start(); o.stop(AC.currentTime + 0.22);
+}
 function sfxHeart(vol) {
   if (!AC) return;
   for (const dt of [0, 0.14]) {

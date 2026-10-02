@@ -29,9 +29,15 @@ function takePhoto() {
   if (fotoReal) {
     film--;
     photoCount++;
+    window._espelhoPend = -1;
     const cv = renderPhoto(player.x, player.y, flashDir);
     album.push({ cv, caption: `FOTO ${photoCount} · ${FLOOR_NAMES[world.cur]}` });
     if (album.length > ALBUM_MAX) album.shift();
+    // a noiva apareceu no reflexo? (desperta DEPOIS da foto renderizada)
+    if (window._espelhoPend >= 0) {
+      soulsOnMirror(window._espelhoPend);
+      window._espelhoPend = -1;
+    }
 
     // CAPTURA ecos no cone (com filme, o eco vai para o filme)
     for (const g of fl().ghosts) {
@@ -40,6 +46,7 @@ function takePhoto() {
         g.respawn = 10 + Math.random() * 6;
         g.chase = false;
         sfxDissolve();
+        soulsOnEcoCaptured();            // 7 ecos no filme despertam a Olívia
         for (let i = 0; i < 26; i++) {
           const a = Math.random() * 6.28, s = 4 + Math.random() * 14;
           particles.push({
@@ -313,6 +320,9 @@ function renderPhoto(px, py, dir) {
   // as 7 correntes espectrais da porta da frente
   if (world.cur === 1 && fl().door)
     sprites.push({ x: fl().door.x, y: fl().door.y - 0.6, kind: "chains" });
+  // o SINAL do Hóspede (olho riscado): só a foto — e só com a lente nova
+  if (world.sinal && world.sinal.floor === world.cur)
+    sprites.push({ x: world.sinal.x, y: world.sinal.y, kind: "sinal" });
 
   const invDet = 1 / (planeX * dirY - dirX * planeY);
   sprites.sort((a, b) =>
@@ -364,6 +374,21 @@ function renderPhoto(px, py, dir) {
       const wPx = Math.max(natW * 0.7, Math.min(natW * 1.3, footW));
       blitOccluded(c, spr, zbuf, ty, centerX, floorPx - hPx, wPx, hPx,
                    Math.min(1, 0.35 + bright * 1.0), Wc, CWc, FR);
+      // A NOIVA NO REFLEXO: no espelho certo, ela sai na foto antes de
+      // existir no mundo (desenhada POR CIMA do vidro, translúcida)
+      if (world.espelhoCecilia && s.furn === world.espelhoCecilia.furn &&
+          world.flags.souls.cecilia &&
+          world.flags.souls.cecilia.state === "dormant" && bright > 0.25) {
+        const zc0 = zbuf[Math.max(0, Math.min(Wc - 1, sxCol | 0))];
+        if (ty < zc0 + 0.6) {
+          const gspr = ghostSprite(SOUL_DEFS.cecilia.artSeed);
+          const ghPx = hPx * 0.85;
+          blitOccluded(c, gspr, zbuf, ty, centerX, floorPx - hPx * 0.95,
+                       ghPx * (gspr._aspect || 0.72), ghPx,
+                       0.30, Wc, CWc, FR);
+          window._espelhoPend = world.cur;
+        }
+      }
     } else if (s.kind === "mark") {
       // sem a LENTE NOVA a foto sai rachada: dá pra ver QUE tem algo, não O QUÊ
       const nitida = world.flags.cam.lente;
@@ -398,7 +423,9 @@ function renderPhoto(px, py, dir) {
       }
     } else if (s.kind === "soul") {
       const def = SOUL_DEFS[s.ent.id];
-      const spr = ghostSprite(def.artSeed);
+      // o Hóspede não tem rosto no mundo — NA FOTO ele tem o SEU
+      const spr = s.ent.id === "hospede" ? hospedeSprite()
+                                         : ghostSprite(def.artSeed);
       const hs = (spr._hscale || 1) * (def.escala || 1);
       const hPx = Math.min(areaH * 1.3, (H * 1.7 / ty) * CH) * hs;
       const wPx = hPx * (spr._aspect || 0.72);
@@ -422,6 +449,15 @@ function renderPhoto(px, py, dir) {
         livePush(liveRandUser(), "7 correntes… uma pra cada alma presa na casa. liberta elas");
         live.viewers += 70;
       }
+    } else if (s.kind === "sinal") {
+      // o olho riscado: só sai com a LENTE NOVA (a rachada borra tudo)
+      const spr = world.flags.cam.lente ? sinalSprite() : smudgeSprite();
+      const hPx = Math.min(areaH * 0.6, wallHpx * 0.55);
+      blitOccluded(c, spr, zbuf, ty, centerX, floorPx - wallHpx * 0.82,
+                   hPx, hPx, Math.min(1, 0.35 + bright * 1.0), Wc, CWc, FR);
+      const zc = zbuf[Math.max(0, Math.min(Wc - 1, sxCol | 0))];
+      if (world.flags.cam.lente && bright > 0.25 && ty < zc + 0.6)
+        soulsOnSinal(world.cur);
     }
   }
 

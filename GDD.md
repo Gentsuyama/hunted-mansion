@@ -249,5 +249,11 @@ Categorias: parede falsa, marca, cofre, quadro, retrato visto, peça ✦.
 1. [FEITA] peças tampa/lente/obturador + filme pôr/tirar + HUD câmera +
    selo 7 correntes + Tomás completo + quarto escuro + insistência.
    CHAINS_NEEDED=1 (sobe conforme almas entram).
-2. Almas 2-6 + sinais de parede + ecos contados + dicas por alma.
+2. [FEITA] Almas 2-6: Cecília (espelho/reflexo, congela sob mira), Seu Bento
+   (chave geral, passos pesados, flash o enfurece), Olívia (7 ecos, ciclo
+   música-segura/silêncio-caça, sfxPiano), Hóspede (sinal na parede c/
+   lente, rosto liso SEU na foto), Aurora (3 resolvidas, teleporta perto,
+   nasce num andar já fotografado). CHAINS_NEEDED=6. Móveis-chave
+   garantidos na geração (ensureFurn); retratos: berço/espelho/poço/
+   piano/relógio/poltrona.
 3. Ateliê + Blackwood + lente do passado + 3 finais.

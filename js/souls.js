@@ -23,12 +23,67 @@ const SOUL_DEFS = {
     ],
     dicaRetrato: "procura o BERÇO. criança esconde tesouro onde dorme",
   },
-  cecilia:  { impl: false, nome: "CECÍLIA",  titulo: "a noiva" },
-  bento:    { impl: false, nome: "SEU BENTO", titulo: "o zelador" },
-  olivia:   { impl: false, nome: "OLÍVIA",   titulo: "a pianista" },
-  hospede:  { impl: false, nome: "O HÓSPEDE", titulo: "sem rosto" },
-  aurora:   { impl: false, nome: "MADAME AURORA", titulo: "a mãe" },
-  blackwood:{ impl: false, nome: "BLACKWOOD", titulo: "o fotógrafo" },
+  cecilia: {
+    impl: true, nome: "CECÍLIA", titulo: "a noiva",
+    artSeed: 0.311, escala: 0.95, dano: 0.8,
+    // desperta: fotografar O espelho — ela aparece primeiro no REFLEXO
+    hist: [
+      "CECÍLIA?? a noiva de 1948??",
+      "ela veio fazer o retrato de noivado. o noivo esperou na porta a noite inteira",
+      "o buquê dela ainda tava na mão quando acharam… só o buquê",
+      "ela não gosta de ser OLHADA. mas odeia ser esquecida",
+    ],
+    dicaRetrato: "atrás do ESPELHO onde você viu ela. onde mais seria?",
+  },
+  bento: {
+    impl: true, nome: "SEU BENTO", titulo: "o zelador",
+    artSeed: 0.473, escala: 1.08, dano: 1.0,
+    // desperta: ligar a chave geral (3/3 fusíveis)
+    hist: [
+      "SEU BENTO!! o zelador que mantinha o gerador da casa",
+      "ele caiu no poço do elevador em 53. o Blackwood só… fotografou",
+      "dizem que ele ainda faz a ronda quando a energia volta",
+      "ele anda PESADO. e vai atrás de luz de flash",
+    ],
+    dicaRetrato: "o retrato dele caiu JUNTO. procura no poço do elevador, no porão",
+  },
+  olivia: {
+    impl: true, nome: "OLÍVIA", titulo: "a pianista",
+    artSeed: 0.629, escala: 0.98, dano: 1.0,
+    // desperta: fotografar 7 ecos
+    hist: [
+      "OLÍVIA… a pianista que tocava nas 'sessões' dele",
+      "ela tocava mais alto pra abafar o que acontecia no estúdio",
+      "parou no meio de um compasso em 1952. o piano não",
+      "ENQUANTO ELA TOCA, você tá seguro. é no SILÊNCIO que ela vem",
+    ],
+    dicaRetrato: "DENTRO do piano, embaixo da tampa. ela guardava tudo ali",
+  },
+  hospede: {
+    impl: true, nome: "O HÓSPEDE", titulo: "sem rosto",
+    artSeed: 0.751, escala: 1.02, dano: 1.2,
+    // desperta: fotografar o SINAL na parede (olho riscado, só sai na foto)
+    hist: [
+      "gente… esse é O HÓSPEDE. o que COMPRAVA os retratos",
+      "ele exigia nunca aparecer em foto nenhuma. raspava o próprio rosto da emulsão",
+      "ninguém nunca soube o nome. só o símbolo que ele deixava nas paredes",
+      "NÃO deixa ele te tocar. e… não olha a foto dele por muito tempo",
+    ],
+    dicaRetrato: "ele escondia o que sobrou dele atrás do RELÓGIO parado",
+  },
+  aurora: {
+    impl: true, nome: "MADAME AURORA", titulo: "a mãe",
+    artSeed: 0.883, escala: 1.0, dano: 0.9,
+    // desperta: resolver 3 almas (ela vem perguntar POR QUÊ)
+    hist: [
+      "MADAME AURORA. a mãe do Blackwood. a PRIMEIRA",
+      "quando ela morreu em 1946, ele não suportou. 'guardou' ela num retrato",
+      "foi assim que tudo começou. ela foi o primeiro experimento",
+      "ela aparece nos lugares que a SUA câmera já olhou…",
+    ],
+    dicaRetrato: "a POLTRONA dela. ninguém mais podia sentar ali",
+  },
+  blackwood: { impl: false, nome: "BLACKWOOD", titulo: "o fotógrafo" },
 };
 const SOUL_IDS_ACTIVE = Object.keys(SOUL_DEFS).filter(k => SOUL_DEFS[k].impl);
 // quantas correntes precisam quebrar p/ abrir a porta (cresce a cada fatia)
@@ -73,12 +128,33 @@ function soulsInit() {
   }
 }
 
-function soulSpawnEnt(id, floorIdx) {
+function soulSpawnEnt(id, floorIdx, px, py) {
   const flo = world.floors[floorIdx];
-  const p = flo.freeSpot ? flo.freeSpot()
-    : { x: COLS / 2, y: ROWS / 2 };
+  // valida contra o grid do andar DELA (não o andar atual do jogador)
+  const solida = (x, y) => {
+    const t = flo.grid[(y | 0) * COLS + (x | 0)];
+    return t === T_WALL || t === T_FAKE || t === T_DOOR;
+  };
+  let p = { x: px, y: py };
+  if (px === undefined || solida(px, py))
+    p = flo.freeSpot ? flo.freeSpot() : { x: COLS / 2, y: ROWS / 2 };
   soulEnts.push({ id, floor: floorIdx, x: p.x, y: p.y,
                   wx: p.x, wy: p.y, bob: 0, giggleT: 3 });
+}
+// cada alma nasce no SEU lugar (a noiva sai do espelho, etc.)
+function soulSpawnPos(id, floorIdx) {
+  if (id === "cecilia" && world.espelhoCecilia &&
+      world.espelhoCecilia.floor === floorIdx) {
+    const f2 = world.espelhoCecilia.furn;
+    return { x: f2.x, y: f2.y + 1.5 };
+  }
+  if (id === "olivia" && world.pianoOlivia &&
+      world.pianoOlivia.floor === floorIdx)
+    return { x: world.pianoOlivia.x, y: world.pianoOlivia.y + 1.5 };
+  if (id === "bento") return { x: ELEV_ROOM.x + 3, y: ELEV_ROOM.y + 4 };
+  if (id === "hospede" && world.sinal && world.sinal.floor === floorIdx)
+    return { x: world.sinal.x, y: world.sinal.y + 3 };
+  return {};
 }
 
 // --- DESPERTAR -----------------------------------------------------
@@ -86,7 +162,8 @@ function soulAwaken(id, floorIdx) {
   const s = soulFlags()[id];
   if (!s || s.state !== "dormant") return;
   s.state = "awake"; s.floor = floorIdx;
-  soulSpawnEnt(id, floorIdx);
+  const sp = soulSpawnPos(id, floorIdx);
+  soulSpawnEnt(id, floorIdx, sp.x, sp.y);
   sfxSting(); shake = 1;
   const def = SOUL_DEFS[id];
   // a história chega em conta-gotas pelo chat
@@ -103,42 +180,173 @@ function soulAwaken(id, floorIdx) {
   saveRun();
 }
 
-// condição do Tomás: primeira sala secreta descoberta
+// --- CONDIÇÕES DE DESPERTAR -----------------------------------------
+function soulDormant(id) {
+  return soulFlags()[id] && soulFlags()[id].state === "dormant";
+}
+// Tomás: primeira sala secreta descoberta
 function soulsOnSecretFound(floorIdx) {
-  if (soulFlags().tomas && soulFlags().tomas.state === "dormant")
-    soulAwaken("tomas", floorIdx);
+  if (soulDormant("tomas")) soulAwaken("tomas", floorIdx);
+}
+// Cecília: fotografou O espelho (apareceu no reflexo)
+function soulsOnMirror(floorIdx) {
+  if (soulDormant("cecilia")) {
+    soulAwaken("cecilia", floorIdx);
+    livePush(liveRandUser(), "TINHA ALGUÉM NO REFLEXO DO ESPELHO!!!");
+    livePush(liveRandUser(), "um vestido de noiva. eu VI. olha a foto de novo");
+  }
+}
+// Cecília (reserva, se a casa nasceu sem espelho): abrir o cofre
+function soulsOnSafeOpened() {
+  if (!world.espelhoCecilia && soulDormant("cecilia"))
+    soulAwaken("cecilia", 3);
+}
+// Seu Bento: a chave geral ligou
+function soulsOnFusebox() {
+  if (soulDormant("bento")) soulAwaken("bento", 0);
+}
+// Olívia: 7 ecos fotografados
+function soulsOnEcoCaptured() {
+  world.flags.ecosFotografados = (world.flags.ecosFotografados || 0) + 1;
+  const n = world.flags.ecosFotografados;
+  if (n === 3 && soulDormant("olivia"))
+    livePush(liveRandUser(), "terceiro espírito no seu filme… alguém na casa tá CONTANDO");
+  if (n === 5 && soulDormant("olivia"))
+    livePush(liveRandUser(), "cinco. ela contava os acordes assim também. faltam dois…");
+  if (n >= 7 && soulDormant("olivia")) {
+    const pf = world.pianoOlivia ? world.pianoOlivia.floor : 2;
+    soulAwaken("olivia", pf);
+    livePush(liveRandUser(), "PERA. tem um PIANO tocando SOZINHO no " + FLOOR_NAMES[pf] + "!!");
+    if (world.cur === pf) sfxPiano();
+  }
+}
+// O Hóspede: o sinal na parede saiu na foto
+function soulsOnSinal(floorIdx) {
+  if (soulDormant("hospede")) {
+    soulAwaken("hospede", floorIdx);
+    livePush(liveRandUser(), "esse símbolo… EU JÁ VI ESSE SÍMBOLO. sai daí AGORA");
+  }
+}
+// Madame Aurora: 3 almas resolvidas — ela aparece num andar que você já fotografou
+function soulsCheckAurora() {
+  if (!soulDormant("aurora")) return;
+  let n = 0;
+  for (const id in soulFlags()) {
+    const s = soulFlags()[id];
+    if (s.state === "freed" || s.state === "burned") n++;
+  }
+  if (n < 3) return;
+  let pf = 2;
+  if (album.length) {
+    const cap = album[(Math.random() * album.length) | 0].caption || "";
+    const nome = cap.split("· ")[1];
+    const idx = FLOOR_NAMES.indexOf(nome);
+    if (idx > 0) pf = idx;                 // nunca no porão (ela odeia lá)
+  }
+  soulAwaken("aurora", pf);
+  livePush(liveRandUser(), "uma SENHORA apareceu no " + FLOOR_NAMES[pf] +
+           "… exatamente onde você tirou foto antes");
 }
 
 // --- UPDATE (só entes do andar atual) ------------------------------
+function soulMoveTo(e, tx2, ty2, sp, dt) {
+  const dd = Math.hypot(tx2 - e.x, ty2 - e.y) || 1;
+  e.x = Math.max(2, Math.min(COLS - 2, e.x + (tx2 - e.x) / dd * sp * dt));
+  e.y = Math.max(2, Math.min(ROWS - 2, e.y + (ty2 - e.y) / dd * sp * dt));
+}
+function soulWander(e, raio) {
+  if (Math.hypot(e.wx - e.x, e.wy - e.y) >= 2) return;
+  // destino nunca é parede, senão a alma estaciona invisível
+  for (let t = 0; t < 8; t++) {
+    const wx = player.x + (Math.random() - 0.5) * raio * 2;
+    const wy = player.y + (Math.random() - 0.5) * raio * 2;
+    if (!isOpaque(wx | 0, wy | 0)) { e.wx = wx; e.wy = wy; break; }
+  }
+}
+// o jogador está MIRANDO nela? (Cecília congela sob o olhar da câmera)
+function soulAimedAt(e) {
+  const dx = e.x - player.x, dy = e.y - player.y;
+  let da = Math.atan2(dy, dx) - aimAngle();
+  while (da > Math.PI) da -= 2 * Math.PI;
+  while (da < -Math.PI) da += 2 * Math.PI;
+  return Math.abs(da) < FLASH.halfAngle &&
+         hasLOS(player.x, player.y, e.x, e.y);
+}
+
 function soulsUpdate(dt) {
   for (const e of soulEnts) {
     if (e.floor !== world.cur) continue;
     e.bob += dt * 2.0;
     const d = Math.hypot(player.x - e.x, player.y - e.y);
+    const def = SOUL_DEFS[e.id];
+    let toca = false;                    // esta alma machuca por toque?
+
     if (e.id === "tomas") {
       // FOGE do jogador; nunca ataca; ri quando escapa
       if (d < 14) {
-        const ux = (e.x - player.x) / (d || 1), uy = (e.y - player.y) / (d || 1);
-        const nx = e.x + ux * GHOST_SPEED * 1.1 * dt;
-        const ny = e.y + uy * GHOST_SPEED * 1.1 * dt;
-        // fantasma atravessa paredes, mas não sai do mapa
-        e.x = Math.max(2, Math.min(COLS - 2, nx));
-        e.y = Math.max(2, Math.min(ROWS - 2, ny));
+        soulMoveTo(e, e.x + (e.x - player.x), e.y + (e.y - player.y),
+                   GHOST_SPEED * 1.1, dt);
         e.giggleT -= dt;
         if (e.giggleT <= 0) { e.giggleT = 4 + Math.random() * 5; sfxWhisper(); }
-      } else if (Math.hypot(e.wx - e.x, e.wy - e.y) < 2) {
-        // vagueia devagar perto do jogador (quer ser achado… de longe);
-        // destino nunca é parede, senão ele estaciona invisível
-        for (let t = 0; t < 8; t++) {
-          const wx = player.x + (Math.random() - 0.5) * 30;
-          const wy = player.y + (Math.random() - 0.5) * 30;
-          if (!isOpaque(wx | 0, wy | 0)) { e.wx = wx; e.wy = wy; break; }
-        }
-      } else {
-        const dd = Math.hypot(e.wx - e.x, e.wy - e.y) || 1;
-        e.x += (e.wx - e.x) / dd * GHOST_SPEED * 0.4 * dt;
-        e.y += (e.wy - e.y) / dd * GHOST_SPEED * 0.4 * dt;
+      } else { soulWander(e, 15); soulMoveTo(e, e.wx, e.wy, GHOST_SPEED * 0.4, dt); }
+
+    } else if (e.id === "cecilia") {
+      // congela quando ENQUADRADA; avança quando você desvia o olhar
+      if (!soulAimedAt(e)) {
+        soulMoveTo(e, player.x, player.y, GHOST_SPEED * 0.8, dt);
+        toca = true;
       }
+
+    } else if (e.id === "bento") {
+      // ronda pesada; flash recente o enfurece (vai atrás da luz)
+      if (e.rageT > 0) { e.rageT -= dt;
+        soulMoveTo(e, player.x, player.y, GHOST_SPEED * 0.95, dt); }
+      else if (d < 22) soulMoveTo(e, player.x, player.y, GHOST_SPEED * 0.5, dt);
+      else { soulWander(e, 18); soulMoveTo(e, e.wx, e.wy, GHOST_SPEED * 0.45, dt); }
+      e.stepT = (e.stepT || 0) - dt;
+      if (e.stepT <= 0 && d < 30) { e.stepT = 1.1; sfxStep(); }
+      toca = true;
+
+    } else if (e.id === "olivia") {
+      // ciclo: música (segura, volta ao piano) / silêncio (caça RÁPIDO)
+      e.musT = (e.musT === undefined ? 0 : e.musT) - dt;
+      if (e.musT <= 0) {
+        e.tocando = !e.tocando;
+        e.musT = e.tocando ? 5.5 : 3.5;
+        if (e.tocando && world.cur === e.floor) sfxPiano();
+      }
+      const p = world.pianoOlivia || { x: e.x, y: e.y };
+      if (e.tocando) soulMoveTo(e, p.x, p.y, GHOST_SPEED * 0.6, dt);
+      else { soulMoveTo(e, player.x, player.y, GHOST_SPEED * 1.15, dt); toca = true; }
+
+    } else if (e.id === "hospede") {
+      // deriva lenta e constante na sua direção; nunca para
+      soulMoveTo(e, player.x, player.y, GHOST_SPEED * 0.45, dt);
+      toca = true;
+
+    } else if (e.id === "aurora") {
+      // some e REAPARECE perto de você (onde a câmera já olhou)
+      e.teleT = (e.teleT === undefined ? 12 : e.teleT) - dt;
+      if (e.teleT <= 0) {
+        e.teleT = 14 + Math.random() * 8;
+        for (let t = 0; t < 12; t++) {
+          const a = Math.random() * 6.28, rr2 = 8 + Math.random() * 4;
+          const nx = player.x + Math.cos(a) * rr2, ny = player.y + Math.sin(a) * rr2;
+          if (!isOpaque(nx | 0, ny | 0)) {
+            e.x = nx; e.y = ny; sfxWhisper(); shake = Math.max(shake, 0.4);
+            break;
+          }
+        }
+      }
+      soulMoveTo(e, player.x, player.y, GHOST_SPEED * 0.35, dt);
+      toca = true;
+    }
+
+    // toque: drena sanidade (multiplicador por alma)
+    if (toca && d < 1.15) {
+      sanity -= GHOST_DMG * (def.dano || 1) * dt;
+      shake = 1;
+      if (dmgSfxT <= 0) { sfxDamage(); dmgSfxT = 0.5; }
     }
   }
 }
@@ -147,6 +355,9 @@ function soulsUpdate(dt) {
 // Retorna true se alguma alma estava no cone (p/ feedback).
 function soulsOnFlash(dir, fotoReal) {
   let hit = false;
+  // Seu Bento OUVE o flash no andar inteiro e vai atrás da luz
+  for (const e of soulEnts)
+    if (e.id === "bento" && e.floor === world.cur) e.rageT = 6;
   for (let i = soulEnts.length - 1; i >= 0; i--) {
     const e = soulEnts[i];
     if (e.floor !== world.cur) continue;
@@ -205,6 +416,7 @@ function soulFree(id) {
   if (def.dicaRetrato2) livePush(liveRandUser(), def.dicaRetrato2);
   live.viewers += 150;
   liveEvent("freed");
+  soulsCheckAurora();
   saveRun();
 }
 function soulBurn(id) {
@@ -215,6 +427,7 @@ function soulBurn(id) {
   livePush(liveRandUser(), "a corrente quebrou mas isso foi CRUEL demais");
   livePush(liveRandUser(), "os vultos daquele andar ficaram inquietos…");
   live.viewers -= 40;
+  soulsCheckAurora();
   saveRun();
 }
 

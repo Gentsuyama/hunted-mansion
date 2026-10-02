@@ -79,6 +79,7 @@ function safeHit(px2, py2) {
       sfxSting(); liveEvent("safe");
       livePush("CanalDoPavor", "tinha um FUSÍVEL, filme e uma LENTE nova!!");
       livePush(liveRandUser(), "troca a lente! agora dá pra LER o que a rachada borrava");
+      soulsOnSafeOpened();               // reserva da Cecília (casa sem espelho)
       saveRun();
       state = "play";
     } else {

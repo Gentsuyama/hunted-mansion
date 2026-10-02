@@ -62,6 +62,20 @@ const NAGS = {
      "sem essa peça a câmera não salva NADA, pega!!"],
     ["A PEÇA!!! ✦✦✦", "ELA TÁ BRILHANDO NA SUA CARA", "P E G A  A  P E Ç A"],
   ],
+  mirror: [
+    ["esse espelho… fotografa ele. minha avó dizia que espelho GUARDA gente"],
+    ["o ESPELHO!! tira uma foto do espelho, confia em mim",
+     "de novo esse espelho e NADA de foto??"],
+    ["FOTOGRAFA O ESPELHO", "O ESPELHO!!! A FOTO!!!",
+     "tem algo DENTRO desse espelho eu sinto daqui"],
+  ],
+  sinal: [
+    ["tem um rabisco nessa parede que seu olho não pega. a CÂMERA pega"],
+    ["essa parede tem um SÍMBOLO, fotografa com a lente nova!!",
+     "passou de novo pelo símbolo sem fotografar…"],
+    ["O SÍMBOLO NA PAREDE!!!", "FOTO! AQUI! AGORA!",
+     "isso é um AVISO de alguém, fotografa!!"],
+  ],
 };
 
 function liveNag(id, cat, dist, radius) {
@@ -201,6 +215,18 @@ function liveTick(dt) {
     if (!world.flags.retSeen.includes(r.id)) continue;
     liveNag(r.id, "ret", Math.hypot(r.x - player.x, r.y - player.y), 9);
   }
+  // o espelho da Cecília (enquanto ela dorme)
+  if (world.espelhoCecilia && world.espelhoCecilia.floor === world.cur &&
+      world.flags.souls.cecilia && world.flags.souls.cecilia.state === "dormant") {
+    const f2 = world.espelhoCecilia.furn;
+    liveNag("espCeci", "mirror",
+            Math.hypot(f2.x - player.x, f2.y - player.y), 8);
+  }
+  // o sinal do Hóspede (enquanto ele dorme; precisa ter a lente p/ valer)
+  if (world.sinal && world.sinal.floor === world.cur && world.flags.cam.lente &&
+      world.flags.souls.hospede && world.flags.souls.hospede.state === "dormant")
+    liveNag("sinalHosp", "sinal",
+            Math.hypot(world.sinal.x - player.x, world.sinal.y - player.y), 9);
   // peça da câmera brilhando no chão, ignorada (só se dá para VER)
   for (const it of world.items) {
     if (it.taken || it.floor !== world.cur || it.kind !== "campart") continue;

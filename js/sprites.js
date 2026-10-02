@@ -921,3 +921,71 @@ function chainsSprite(broken) {
   CHAIN_SPRS[broken] = cv;
   return cv;
 }
+
+// o SINAL do Hóspede: um olho riscado, rabiscado na parede
+let SINAL_SPR = null;
+function sinalSprite() {
+  if (SINAL_SPR) return SINAL_SPR;
+  const cv = document.createElement("canvas");
+  cv.width = 110; cv.height = 110;
+  const g = cv.getContext("2d");
+  const rr = mulberry32(666);
+  g.strokeStyle = "rgba(235,235,242,0.8)";
+  g.lineWidth = 3; g.lineCap = "round";
+  // amêndoa do olho (dois arcos tremidos)
+  for (const dir of [1, -1]) {
+    g.beginPath();
+    g.moveTo(12, 55);
+    for (let k = 1; k <= 8; k++)
+      g.lineTo(12 + k * 10.7,
+               55 + dir * Math.sin(k / 8 * Math.PI) * 26 + (rr() - 0.5) * 3);
+    g.stroke();
+  }
+  // íris vazia (aro rabiscado, centro NEGRO)
+  for (let k = 0; k < 3; k++) {
+    g.beginPath();
+    g.arc(55 + (rr() - 0.5) * 3, 55 + (rr() - 0.5) * 3,
+          13 + k * 2 + (rr() - 0.5) * 2, rr() * 2, rr() * 2 + 5.5);
+    g.stroke();
+  }
+  // o RISCO atravessado (fundo e raivoso, 3 passadas)
+  g.lineWidth = 5;
+  for (let k = 0; k < 3; k++) {
+    g.beginPath();
+    g.moveTo(18 + (rr() - 0.5) * 8, 14 + (rr() - 0.5) * 8);
+    g.lineTo(94 + (rr() - 0.5) * 8, 98 + (rr() - 0.5) * 8);
+    g.stroke();
+  }
+  return (SINAL_SPR = cv);
+}
+
+// o Hóspede NA FOTO: corpo de rabisco com um rosto humano LISO demais
+// (sem rosto no mundo; na foto, um rosto que não devia estar ali)
+let HOSPEDE_SPR = null;
+function hospedeSprite() {
+  if (HOSPEDE_SPR) return HOSPEDE_SPR;
+  const base = ghostSprite(0.751);
+  const cv = document.createElement("canvas");
+  cv.width = base.width; cv.height = base.height;
+  const g = cv.getContext("2d");
+  g.drawImage(base, 0, 0);
+  // rosto fotográfico suave sobre a cabeça rabiscada — errado de propósito
+  const fx = cv.width / 2, fy = cv.height * 0.16;
+  const fr = cv.width * 0.13;
+  const grad = g.createRadialGradient(fx, fy, fr * 0.2, fx, fy, fr);
+  grad.addColorStop(0, "rgba(225,210,195,0.95)");
+  grad.addColorStop(0.8, "rgba(180,165,150,0.85)");
+  grad.addColorStop(1, "rgba(120,105,95,0)");
+  g.fillStyle = grad;
+  g.beginPath(); g.ellipse(fx, fy, fr * 0.85, fr * 1.1, 0, 0, 7); g.fill();
+  // olhos escuros fixos + boca neutra (nenhuma expressão. nenhuma.)
+  g.fillStyle = "rgba(25,20,18,0.9)";
+  g.beginPath(); g.ellipse(fx - fr * 0.34, fy - fr * 0.12, fr * 0.11, fr * 0.14, 0, 0, 7); g.fill();
+  g.beginPath(); g.ellipse(fx + fr * 0.34, fy - fr * 0.12, fr * 0.11, fr * 0.14, 0, 0, 7); g.fill();
+  g.strokeStyle = "rgba(70,55,50,0.8)";
+  g.lineWidth = 2;
+  g.beginPath(); g.moveTo(fx - fr * 0.3, fy + fr * 0.5);
+  g.lineTo(fx + fr * 0.3, fy + fr * 0.5); g.stroke();
+  cv._aspect = base._aspect; cv._hscale = base._hscale;
+  return (HOSPEDE_SPR = cv);
+}

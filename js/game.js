@@ -157,7 +157,9 @@ function updatePrompt() {
       if (total >= 3)
         prompt = { text: "LIGAR A CHAVE GERAL", action: () => {
           world.flags.elevatorOn = true;
-          sfxSting(); liveEvent("elevator"); saveRun();
+          sfxSting(); liveEvent("elevator");
+          soulsOnFusebox();              // a energia voltou… e o zelador também
+          saveRun();
         }};
       else if (world.flags.fuses > 0)
         prompt = { text: `ENCAIXAR FUSÍVEL (${total}/3)`, action: () => {

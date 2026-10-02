@@ -81,35 +81,101 @@ function genWorld(seed) {
     floor: 0, x: kp.x + 1.5, y: kp.y + 1, taken: false });
   // (lente nova: dentro do cofre — ver puzzles.js)
 
-  // --- RETRATOS APRISIONADORES (fatia 1: Tomás, escondido num berço) ---
-  world.retratos = [];
-  {
-    let spot = null;
-    for (const tipo of ["berco", "cama"]) {
-      for (let f = 1; f < NFLOORS && !spot; f++) {
-        const flo = world.floors[f];
-        const p = flo.furn.find(q => q.type === tipo);
-        if (!p) continue;
-        // célula livre encostada no móvel
-        for (const [ci, cj] of p.cells) {
-          for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
-            const nx = ci + dx, ny = cj + dy, id = ny * COLS + nx;
-            if (flo.grid[id] === T_FLOOR && !flo.furnGrid[id] &&
-                (!flo.reach || flo.reach[id])) {
-              spot = { floor: f, x: nx + 0.5, y: ny + 0.5, movel: tipo };
-              break;
-            }
-          }
-          if (spot) break;
+  // --- MÓVEIS-CHAVE GARANTIDOS (gatilhos e esconderijos das almas) ---
+  // se a casa nasceu sem algum, planta um numa sala comum
+  function ensureFurn(tipo) {
+    for (let f = 1; f < NFLOORS; f++)
+      if (world.floors[f].furn.some(p => p.type === tipo)) return;
+    const ft = FURN_TYPES[tipo];
+    for (let tries = 0; tries < 80; tries++) {
+      const f = 1 + (rng() * (NFLOORS - 1) | 0);
+      const flo = world.floors[f];
+      const livres = flo.rooms.filter(r => !r.fixed);
+      const r = livres[rng() * livres.length | 0];
+      if (!r || r.w < ft.w + 5 || r.h < ft.h + 5) continue;
+      const fx = r.x + 2 + (rng() * (r.w - ft.w - 4) | 0);
+      const fy = r.y + 2 + (rng() * (r.h - ft.h - 4) | 0);
+      let ok = true;
+      for (let j = fy; j < fy + ft.h && ok; j++)
+        for (let i = fx; i < fx + ft.w && ok; i++) {
+          const id = j * COLS + i;
+          if (flo.furnGrid[id] || flo.grid[id] !== T_FLOOR ||
+              (flo.reach && !flo.reach[id])) ok = false;
         }
+      if (!ok) continue;
+      const cells = [];
+      for (let j = fy; j < fy + ft.h; j++)
+        for (let i = fx; i < fx + ft.w; i++) {
+          flo.furnGrid[j * COLS + i] = ft.id;
+          cells.push([i, j]);
+        }
+      flo.furn.push({ type: tipo, x: fx + ft.w / 2, y: fy + ft.h / 2, cells });
+      return;
+    }
+  }
+  for (const t of ["espelho", "piano", "berco", "relogio", "poltrona"]) ensureFurn(t);
+
+  // célula livre encostada num móvel (p/ esconder retrato)
+  function spotNearFurn(flo, p) {
+    for (const [ci, cj] of p.cells)
+      for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
+        const nx = ci + dx, ny = cj + dy, id = ny * COLS + nx;
+        if (flo.grid[id] === T_FLOOR && !flo.furnGrid[id] &&
+            (!flo.reach || flo.reach[id]))
+          return { x: nx + 0.5, y: ny + 0.5 };
       }
-      if (spot) break;
+    return null;
+  }
+  function findFurn(tipos) {
+    for (const t of tipos)
+      for (let f = 1; f < NFLOORS; f++) {
+        const p = world.floors[f].furn.find(q => q.type === t);
+        if (p) { const s = spotNearFurn(world.floors[f], p);
+                 if (s) return { floor: f, p, s, tipo: t }; }
+      }
+    return null;
+  }
+
+  // O ESPELHO da Cecília e o PIANO da Olívia (peças específicas)
+  const esp = findFurn(["espelho"]);
+  world.espelhoCecilia = esp ? { floor: esp.floor, furn: esp.p } : null;
+  const pia = findFurn(["piano"]);
+  world.pianoOlivia = pia ? { floor: pia.floor, x: pia.p.x, y: pia.p.y } : null;
+
+  // O SINAL do Hóspede: olho riscado numa parede, só sai na foto
+  { const sf2 = [2, 3, 5][rng() * 3 | 0];
+    const r = pickRoom(world.floors[sf2], rng);
+    world.sinal = { floor: sf2, x: r.x + 2 + rng() * (r.w - 4), y: r.y + 1.6 }; }
+
+  // --- RETRATOS APRISIONADORES (um por alma; a foto denuncia) ---
+  world.retratos = [];
+  function addRetrato(soul, spec) {
+    let spot = null;
+    if (spec.fixo) spot = { floor: spec.fixo.floor, x: spec.fixo.x,
+                            y: spec.fixo.y, movel: spec.fixo.movel };
+    else if (spec.peca) {
+      const flo = world.floors[spec.peca.floor];
+      const s = spotNearFurn(flo, spec.peca.furn);
+      if (s) spot = { floor: spec.peca.floor, x: s.x, y: s.y, movel: spec.peca.furn.type };
+    } else if (spec.tipos) {
+      const f2 = findFurn(spec.tipos);
+      if (f2) spot = { floor: f2.floor, x: f2.s.x, y: f2.s.y, movel: f2.tipo };
     }
     if (!spot) { const p = world.floors[2].freeSpot();
                  spot = { floor: 2, x: p.x, y: p.y, movel: "chão" }; }
-    world.retratos.push({ id: "ret_tomas", soul: "tomas",
+    world.retratos.push({ id: "ret_" + soul, soul,
       floor: spot.floor, x: spot.x, y: spot.y, movel: spot.movel });
   }
+  addRetrato("tomas",  { tipos: ["berco", "cama"] });
+  addRetrato("cecilia", world.espelhoCecilia
+    ? { peca: { floor: world.espelhoCecilia.floor, furn: world.espelhoCecilia.furn } }
+    : { tipos: ["cama"] });
+  addRetrato("bento",  { fixo: { floor: 0, x: ELEV_ROOM.x + 1.5,
+                                 y: ELEV_ROOM.y + ELEV_ROOM.h - 1.5, movel: "poço do elevador" } });
+  addRetrato("olivia", pia ? { peca: { floor: pia.floor, furn: pia.p } }
+                           : { tipos: ["cama"] });
+  addRetrato("hospede", { tipos: ["relogio", "escrivaninha", "espelho"] });
+  addRetrato("aurora",  { tipos: ["poltrona", "cadeira", "cama"] });
 
   soulsInit();
 
