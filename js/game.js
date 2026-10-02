@@ -91,16 +91,53 @@ function updatePrompt() {
       : { text: "ELEVADOR SEM ENERGIA", action: null };
     return;
   }
-  // porta da frente (térreo)
+  // porta da frente (térreo): chave + correntes espectrais quebradas
   if (world.cur === 1 && fl().door) {
     const d = fl().door;
     if (Math.hypot(d.x - player.x, d.y - player.y) < 2.4) {
-      if (world.flags.key)
+      if (world.flags.key && chainsBroken() >= CHAINS_NEEDED)
         prompt = { text: "ABRIR A PORTA COM A CHAVE", action: winGame };
-      else {
+      else if (world.flags.key) {
+        prompt = { text: "A CHAVE GIRA… MAS A PORTA NÃO SE MOVE", action: null };
+        if (!live.hinted.has("seal")) {
+          live.hinted.add("seal");
+          livePush(liveRandUser(), "a chave tá certa e não abre?? FOTOGRAFA a porta");
+        }
+      } else {
         prompt = { text: "TRANCADA. PRECISA DE UMA CHAVE", action: null };
         if (!live.hinted.has("door")) { live.hinted.add("door"); liveEvent("doorlock"); }
       }
+      return;
+    }
+  }
+  // retrato aprisionador (depois que a foto o revelou)
+  for (const r of world.retratos) {
+    if (r.floor !== world.cur || world.taken.has(r.id)) continue;
+    if (!world.flags.retSeen.includes(r.id)) continue;
+    if (Math.hypot(r.x - player.x, r.y - player.y) < 2) {
+      prompt = { text: "PEGAR O RETRATO ESCONDIDO", action: () => {
+        world.taken.add(r.id);
+        sfxSting(); shake = 0.6;
+        livePush(liveRandUser(), "pegou o retrato!! olha os OLHOS dele… tá vivo isso");
+        livePush(liveRandUser(), "agora acha o " + SOUL_DEFS[r.soul].nome +
+                 " e FOTOGRAFA ele segurando o retrato");
+        saveRun();
+      }};
+      return;
+    }
+  }
+  // bancada de revelação (quarto escuro do porão)
+  if (world.cur === 0 && fl().bench) {
+    const b = fl().bench;
+    if (Math.hypot(b.x - player.x, b.y - player.y) < 2.2) {
+      if (soulCaptured())
+        prompt = { text: "BANCADA — REVELAR O NEGATIVO", action: () => {
+          darkUI.alvo = soulCaptured();
+          darkUI.fase = -1; darkUI.msg = ""; darkUI.confirma = 0;
+          state = "darkroom";
+        }};
+      else
+        prompt = { text: "BANCADA DE REVELAÇÃO — sem negativos", action: null };
       return;
     }
   }
@@ -198,9 +235,11 @@ function update(dt) {
       }
       continue;
     }
+    if (g.stun > 0) { g.stun -= dt; continue; }   // arremessado pelo flash vazio
     const d = Math.hypot(player.x - g.x, player.y - g.y);
     nearest = Math.min(nearest, d);
-    g.chase = d < 18 || attractT > 0;
+    const pac = !!fl().pacified;        // alma do andar libertada: ecos mansos
+    g.chase = !pac && (d < 18 || attractT > 0);
     let tx, ty;
     if (g.chase) { tx = player.x; ty = player.y; }
     else {
@@ -222,16 +261,17 @@ function update(dt) {
     g.bob += dt * 2.2;
     g.x += (tx - g.x) / dd * sp * dt + Math.cos(g.bob) * 0.6 * dt;
     g.y += (ty - g.y) / dd * sp * dt + Math.sin(g.bob * 1.3) * 0.6 * dt;
-    if (!g.chase) {
+    if (!g.chase && !pac) {
       g.x += (player.x - g.x) / d * GHOST_SPEED * 0.30 * dt;
       g.y += (player.y - g.y) / d * GHOST_SPEED * 0.30 * dt;
     }
-    if (d < 1.15) {
+    if (d < 1.15 && !pac) {
       sanity -= GHOST_DMG * dt;
       shake = 1;
       if (dmgSfxT <= 0) { sfxDamage(); dmgSfxT = 0.5; }
     }
   }
+  soulsUpdate(dt);   // almas nomeadas (Tomás foge, etc.)
   if (nearest > 10 && sanity < 100) sanity = Math.min(100, sanity + 3.5 * dt);
   if (sanity <= 0) { state = "dead"; sfxDeath(); clearRun(); return; }
 
@@ -248,7 +288,7 @@ function update(dt) {
     if (Math.hypot(f.x - player.x, f.y - player.y) < 1.1) {
       f.taken = true;
       world.taken.add(f.id);
-      film = Math.min(FILM_MAX, film + FILM_REFILL);
+      film = Math.min(filmMax(), film + FILM_REFILL);
       sfxPickup();
       saveRun();
     }
@@ -262,6 +302,14 @@ function update(dt) {
       world.taken.add(it.id);
       if (it.kind === "fuse") { world.flags.fuses++; liveEvent("fuse"); }
       else if (it.kind === "key") { world.flags.key = true; liveEvent("key"); }
+      else if (it.kind === "campart") {
+        world.flags.cam[it.part] = true;
+        if (it.part === "tampa") {
+          film = Math.min(filmMax(), film + 6);   // a tampa vem com rolos
+          world.flags.filmLoaded = true;
+          liveEvent("tampa");
+        } else if (it.part === "obturador") liveEvent("obturador");
+      }
       sfxSting();
       saveRun();
     }
@@ -274,6 +322,7 @@ function update(dt) {
         player.y > sr.y && player.y < sr.y + sr.h) {
       world.flags.secretsFound.push(sr.id);
       sfxSting(); liveEvent("secret");
+      soulsOnSecretFound(world.cur);   // 1ª sala secreta DESPERTA o Tomás
       saveRun();
     }
   }
@@ -455,15 +504,36 @@ function render() {
     ctx.fillStyle = `rgba(180,220,180,${L})`;
     ctx.fillText("¤", f.x * CELL, f.y * CELL);
   }
-  // itens especiais (fusível F, chave K)
+  // itens especiais (fusível F, chave K, peças da câmera ✦)
   ctx.font = "bold 14px 'Courier New', monospace";
   for (const it of world.items) {
     if (it.taken || it.floor !== world.cur) continue;
     const L = Math.min(1, lightAt(it.x, it.y) * 1.8);
     if (L <= 0.03) continue;
-    ctx.fillStyle = it.kind === "key"
-      ? `rgba(240,210,110,${L})` : `rgba(255,170,90,${L})`;
-    ctx.fillText(it.kind === "key" ? "K" : "F", it.x * CELL, it.y * CELL);
+    ctx.fillStyle = it.kind === "key" ? `rgba(240,210,110,${L})`
+      : it.kind === "campart" ? `rgba(150,220,235,${L})`
+      : `rgba(255,170,90,${L})`;
+    ctx.fillText(it.kind === "key" ? "K" : it.kind === "campart" ? "✦" : "F",
+                 it.x * CELL, it.y * CELL);
+  }
+  // retrato aprisionador: só ganha um brilho no mundo DEPOIS da foto denunciar
+  for (const r of world.retratos) {
+    if (r.floor !== world.cur || world.taken.has(r.id)) continue;
+    if (!world.flags.retSeen.includes(r.id)) continue;
+    const L = Math.min(1, lightAt(r.x, r.y) * 1.8);
+    if (L <= 0.03) continue;
+    const tw = 0.5 + 0.5 * Math.sin(time * 5);
+    ctx.fillStyle = `rgba(230,220,180,${L * (0.5 + tw * 0.5)})`;
+    ctx.fillText("▧", r.x * CELL, r.y * CELL);
+  }
+  // bancada de revelação (quarto escuro)
+  if (fl().bench) {
+    const b = fl().bench;
+    const L = Math.min(1, lightAt(b.x, b.y) * 1.8);
+    if (L > 0.03) {
+      ctx.fillStyle = `rgba(210,120,120,${L})`;   // luz vermelha de revelação
+      ctx.fillText("◱", b.x * CELL, b.y * CELL);
+    }
   }
   // cofre e quadro de fusíveis (visíveis sob luz)
   if (fl().safe) {
@@ -502,6 +572,16 @@ function render() {
       ctx.fillRect(g.x * CELL - 4, gy - 4, 2, 2);
       ctx.fillRect(g.x * CELL + 2, gy - 4, 2, 2);
     }
+  }
+  // almas nomeadas (menores, tom pálido — o Tomás foge da luz)
+  for (const e of soulEnts) {
+    if (e.floor !== world.cur) continue;
+    const L = Math.min(1, lightAt(e.x, e.y) * 1.9);
+    if (L <= 0.04) continue;
+    const ey = e.y * CELL + Math.sin(e.bob) * 2.5;
+    ctx.font = "bold 15px 'Courier New', monospace";
+    ctx.fillStyle = `rgba(200,225,235,${0.3 + 0.6 * L})`;
+    ctx.fillText("ψ", e.x * CELL, ey);
   }
 
   // partículas
@@ -562,6 +642,7 @@ function render() {
   if (state === "chat") drawChat();
   if (state === "safe") drawSafe();
   if (state === "elevator") drawElevator();
+  if (state === "darkroom") drawDarkroom();
   if (state === "win") drawWin();
   if (state !== "play") drawCursor();   // overlays: cursor sempre visível
 }
@@ -585,6 +666,109 @@ const ALB_CLOSE = { x: 1040, y: 20, w: 140, h: 56 };
 const touchUI = { seen: IS_TOUCH, joyId: null, jx: 0, jy: 0, jkx: 0, jky: 0,
                   aimId: null, akx: 0, aky: 0 };
 
+// --- A CÂMERA NO CANTO: silhueta que se completa com as peças ---
+function camHudRect() {
+  // touch: coluna esquerda (direita está cheia de botões); desktop: canto inf-dir
+  return touchUI.seen
+    ? { x: 12, y: 150, w: 172, h: 104 }
+    : { x: canvas.width - 184, y: canvas.height - 122, w: 172, h: 104 };
+}
+function camHudHit(px2, py2) {
+  const r = camHudRect();
+  return px2 > r.x && px2 < r.x + r.w && py2 > r.y && py2 < r.y + r.h;
+}
+function toggleFilm() {
+  if (!world.flags.cam.tampa) return;
+  world.flags.filmLoaded = !world.flags.filmLoaded;
+  sfxPickup();
+  if (!live.hinted.has("filmtoggle")) {
+    live.hinted.add("filmtoggle");
+    livePush(liveRandUser(), world.flags.filmLoaded
+      ? "filme DENTRO: a foto registra e captura (e gasta rolo)"
+      : "tirou o filme: o flash vira espanta-fantasma de graça, mas não salva NADA");
+  }
+  saveRun();
+}
+function drawCamHUD() {
+  const r = camHudRect(), cm = world.flags.cam;
+  ctx.save();
+  ctx.fillStyle = "rgba(10,10,12,0.55)";
+  ctx.fillRect(r.x, r.y, r.w, r.h);
+  ctx.strokeStyle = "rgba(160,160,170,0.45)";
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(r.x, r.y, r.w, r.h);
+
+  ctx.font = "bold 11px 'Courier New', monospace";
+  ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  ctx.fillStyle = "rgba(200,200,205,0.85)";
+  ctx.fillText("CÂMERA", r.x + 10, r.y + 13);
+  if (cm.tampa) {
+    ctx.textAlign = "right";
+    ctx.font = "bold 9px 'Courier New', monospace";
+    ctx.fillStyle = "rgba(150,150,160,0.7)";
+    ctx.fillText(touchUI.seen ? "toque: pôr/tirar filme" : "R: pôr/tirar filme",
+                 r.x + r.w - 8, r.y + 13);
+  }
+
+  // corpo
+  const bx = r.x + 12, by = r.y + 34, bw = r.w - 24, bh = 46;
+  ctx.strokeStyle = "rgba(210,210,220,0.8)";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(bx, by, bw, bh);
+  // flash (aceso quando pronto)
+  ctx.strokeRect(bx + 6, by - 10, 22, 10);
+  ctx.fillStyle = flashCd <= 0 ? "rgba(255,255,200,0.85)" : "rgba(120,95,80,0.55)";
+  ctx.fillRect(bx + 8, by - 8, 18, 6);
+  // obturador de prata (botão de disparo)
+  ctx.fillStyle = cm.obturador ? "rgba(205,215,255,0.9)" : "rgba(90,90,95,0.45)";
+  ctx.beginPath(); ctx.arc(bx + bw - 12, by - 5, 4.5, 0, 7); ctx.fill();
+  // lente
+  const lx = bx + bw * 0.36, ly = by + bh / 2;
+  ctx.beginPath(); ctx.arc(lx, ly, 15, 0, 7); ctx.stroke();
+  ctx.beginPath(); ctx.arc(lx, ly, 8, 0, 7); ctx.stroke();
+  if (!cm.lente) {
+    ctx.strokeStyle = "rgba(255,120,110,0.85)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(lx - 12, ly - 8); ctx.lineTo(lx - 2, ly + 2);
+    ctx.lineTo(lx + 6, ly - 4); ctx.lineTo(lx + 12, ly + 9);
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(210,210,220,0.8)";
+    ctx.lineWidth = 2;
+  }
+  // compartimento do filme (direita)
+  const fx = bx + bw - 46, fw = 38;
+  ctx.font = "bold 9px 'Courier New', monospace";
+  ctx.textAlign = "center";
+  if (!cm.tampa) {
+    ctx.setLineDash([4, 4]);
+    ctx.strokeRect(fx, by + 6, fw, bh - 12);
+    ctx.setLineDash([]);
+    ctx.fillStyle = "rgba(255,140,120,0.85)";
+    ctx.fillText("SEM", fx + fw / 2, by + bh / 2 - 5);
+    ctx.fillText("TAMPA", fx + fw / 2, by + bh / 2 + 6);
+  } else {
+    ctx.strokeRect(fx, by + 6, fw, bh - 12);
+    if (world.flags.filmLoaded && film > 0) {
+      ctx.fillStyle = "rgba(185,215,185,0.8)";
+      ctx.fillRect(fx + 6, by + 12, fw - 12, bh - 24);
+      ctx.fillStyle = "rgba(20,25,20,0.9)";
+      ctx.fillText("" + film, fx + fw / 2, by + bh / 2 + 1);
+    } else {
+      ctx.fillStyle = "rgba(130,130,135,0.6)";
+      ctx.fillText(film > 0 ? "VAZIA" : "S/ROLO", fx + fw / 2, by + bh / 2 + 1);
+    }
+  }
+  // reserva de rolos
+  ctx.textAlign = "left";
+  ctx.font = "bold 11px 'Courier New', monospace";
+  ctx.fillStyle = film > 0 ? "rgba(185,215,185,0.9)" : "rgba(230,90,80,0.9)";
+  ctx.fillText("ROLOS " + "▮".repeat(film) +
+               "▯".repeat(Math.max(0, filmMax() - film)), r.x + 10, r.y + r.h - 10);
+  ctx.restore();
+  ctx.textAlign = "left";
+}
+
 function drawHUD() {
   const M = touchUI.seen;
   ctx.font = M ? "bold 19px 'Courier New', monospace" : "bold 13px 'Courier New', monospace";
@@ -593,9 +777,11 @@ function drawHUD() {
   const y1 = M ? 30 : 20;
   ctx.fillStyle = "rgba(190,190,190,0.8)";
   ctx.fillText(FLOOR_NAMES[world.cur], 12, y1);
-  ctx.fillStyle = film > 0 ? "rgba(190,190,190,0.8)" : "rgba(230,80,70,0.9)";
-  ctx.fillText(`FILME ${"▮".repeat(film)}${"▯".repeat(Math.max(0, FILM_MAX - film))}`,
-               M ? 180 : 130, y1);
+  // correntes da porta (aparece depois que o chat explicou)
+  if (live.hinted.has("chainsSeen")) {
+    ctx.fillStyle = "rgba(170,195,230,0.85)";
+    ctx.fillText(`CORRENTES ${chainsBroken()}/${CHAINS_TOTAL}`, M ? 180 : 130, y1);
+  }
 
   const sc = sanity > 40 ? "rgba(200,200,200,0.7)" : "rgba(230,70,60,0.85)";
   if (M) {
@@ -616,10 +802,17 @@ function drawHUD() {
     ctx.fillText("WASD mover · mouse lanterna · botão direito FOTO · F álbum · E usar",
                  12, canvas.height - 14);
   }
-  ctx.fillStyle = flashCd <= 0 && film > 0 ? "rgba(120,255,120,0.7)" : "rgba(255,120,120,0.7)";
-  ctx.fillText(film <= 0 ? "CAMERA [ SEM FILME ]" :
-               flashCd <= 0 ? "CAMERA [ PRONTA ]" : "CAMERA [ RECARREGANDO ]",
-               M ? 400 : 12, M ? 64 : canvas.height - 30);
+  const cm = world.flags.cam;
+  const fotoOk = cm.tampa && world.flags.filmLoaded && film > 0;
+  ctx.fillStyle = flashCd > 0 ? "rgba(255,120,120,0.7)"
+    : fotoOk ? "rgba(120,255,120,0.7)" : "rgba(230,200,120,0.75)";
+  ctx.fillText(
+    flashCd > 0        ? "CÂMERA [ RECARREGANDO ]" :
+    !cm.tampa          ? "CÂMERA [ SEM TAMPA — SÓ FLASH ]" :
+    !world.flags.filmLoaded ? "CÂMERA [ FILME FORA — SÓ ESPANTA ]" :
+    film <= 0          ? "CÂMERA [ ROLOS ACABARAM ]" :
+                         "CÂMERA [ PRONTA ]",
+    M ? 400 : 12, M ? 64 : canvas.height - 30);
 
   // inventário especial
   let invY = M ? 96 : 44;
@@ -634,6 +827,9 @@ function drawHUD() {
     ctx.fillStyle = "rgba(240,210,110,0.9)";
     ctx.fillText("CHAVE DA PORTA ✓ — vá até o hall de entrada", 12, invY);
   }
+
+  // a câmera no canto (peças coletadas + filme dentro/fora)
+  if (state === "play") drawCamHUD();
 
   // painel da live (clicar/tocar PAUSA e abre o chat)
   if (state === "play") drawLivePanel();
@@ -844,7 +1040,8 @@ window.addEventListener("keydown", e => {
 
   if (state === "cine")  { cineAdvance(); return; }
   if (state === "title") { titleKey(e.code); return; }
-  if (state === "chat" || state === "safe" || state === "elevator") {
+  if (state === "chat" || state === "safe" || state === "elevator" ||
+      state === "darkroom") {
     if (e.code === "Escape") { state = "play"; live.scroll = 0; }
     return;
   }
@@ -880,6 +1077,7 @@ window.addEventListener("keydown", e => {
   if (e.code === "KeyE" && state === "play" && prompt && prompt.action) {
     prompt.action(); return;
   }
+  if (e.code === "KeyR" && state === "play") { toggleFilm(); return; }
   keys.add(e.code);
 });
 window.addEventListener("keyup", e => keys.delete(e.code));
@@ -902,9 +1100,11 @@ canvas.addEventListener("mousedown", e => {
   if (state === "chat")  { chatHit(mx, my); return; }
   if (state === "safe")  { safeHit(mx, my); return; }
   if (state === "elevator") { elevatorHit(mx, my); return; }
+  if (state === "darkroom") { darkroomHit(mx, my); return; }
   if (state === "win")   { winHit(mx, my); return; }
   if (state !== "play") return;
   if (e.button === 0 && liveInPanel(mx, my)) { state = "chat"; live.scroll = 0; return; }
+  if (e.button === 0 && camHudHit(mx, my)) { toggleFilm(); return; }
   if (e.button === 2) takePhoto();
 });
 
@@ -955,8 +1155,10 @@ canvas.addEventListener("touchstart", e => {
     }
     if (state === "safe")  { safeHit(p.x, p.y); return; }
     if (state === "elevator") { elevatorHit(p.x, p.y); return; }
+    if (state === "darkroom") { darkroomHit(p.x, p.y); return; }
     if (state === "win")   { winHit(p.x, p.y); return; }
     if (liveInPanel(p.x, p.y)) { state = "chat"; live.scroll = 0; return; }
+    if (camHudHit(p.x, p.y)) { toggleFilm(); continue; }
     if (Math.hypot(p.x - BTN_PHOTO.x, p.y - BTN_PHOTO.y) < BTN_PHOTO.r + 16) {
       takePhoto(); continue;
     }

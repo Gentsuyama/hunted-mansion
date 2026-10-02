@@ -19,7 +19,8 @@ const FLASH    = { halfAngle: 0.85, range: 58, rays: 320, power: 2.6,
 
 const PLAYER_SPEED  = 10;
 const PLAYER_RADIUS = 0.42;
-const FILM_START = 8, FILM_MAX = 12, FILM_REFILL = 3;
+// a câmera é achada SEM TAMPA: filme só depois de encontrar a peça
+const FILM_START = 0, FILM_MAX = 12, FILM_REFILL = 3;
 const ALBUM_MAX  = 24;
 const GHOST_SPEED = 3.6, GHOST_DMG = 40;
 

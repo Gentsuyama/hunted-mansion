@@ -184,3 +184,70 @@ Prompts prontos em `intro-prompts.md` (bloco de gradiente por painel).
 3. 2 puzzles (cofre de dial + quadro de fusíveis) com overlay;
 4. Chat da live básico (dicas + lore em 1 linha);
 5. 1 entidade (o Fotógrafo) + estátuas congeláveis.
+
+## 11. AS 7 CORRENTES (sistema central — decidido 2026-10-02)
+A porta da frente tem, além da fechadura, um SELO: 7 correntes espectrais
+visíveis SÓ NA FOTO (uma por alma presa). Chave + todas as correntes
+quebradas = saída. Cada alma resolvida (libertada OU queimada) quebra uma.
+
+### A câmera por PEÇAS (HUD no canto, silhueta que se completa)
+- Início: corpo + flash. Flash ESPANTA (arremessa/atordoa) mas nada salva.
+- TAMPA (hall de entrada, minutos iniciais): fotos salvam/revelam/capturam.
+- LENTE NOVA (dentro do cofre): antes dela a foto sai RACHADA — vê-se que
+  há algo escrito, não O QUÊ. Destrava dígitos e sinais.
+- OBTURADOR DE PRATA (junto da chave, secreta do porão): capturar ALMAS.
+- LENTE DO PASSADO (fatia 3, ateliê): foto mostra o cômodo décadas atrás.
+- FILME É ESCOLHA: R (ou toque na câmera) põe/tira o rolo. SEM filme =
+  flash de graça que só espanta; COM filme = registra/captura e gasta 1.
+  Fantasma forte sem filme no clique: só é jogado para trás.
+
+### O loop de resgate (ensina o tema "a câmera aprisiona")
+1. CONDIÇÃO desperta a alma (ela passa a vagar);
+2. achar o RETRATO aprisionador (invisível; a foto denuncia; chat insiste);
+3. com retrato na mão + obturador + filme: FOTOGRAFAR a alma = sugá-la
+   para o retrato (você faz o MESMO que o Blackwood; o chat nota);
+4. QUARTO ESCURO (porão, sala fixa ao lado do poço): REVELAR (minigame
+   3 banhos com agulha/zona; liberta, +1 filme máx, apazigua o andar da
+   alma, quebra corrente) ou QUEIMAR (atalho sem puzzle; quebra corrente,
+   destrói a alma, chat horrorizado, andar NÃO apazigua) ou GUARDAR
+   (não revelar nada = caminho do final secreto).
+
+### As 7 almas (nome · despertar · nota)
+1. TOMÁS, menino do esconde-esconde · entrar na 1ª sala secreta · FOGE,
+   nunca ataca; retrato no berço. [IMPLEMENTADO fatia 1]
+2. CECÍLIA, a noiva · fotografar um espelho específico (aparece primeiro
+   no REFLEXO da foto) · só se aproxima quando não enquadrada.
+3. SEU BENTO, o zelador · ligar o quadro (3/3) · passos pesados, atraído
+   pelo som do flash; retrato no poço do elevador.
+4. OLÍVIA, a pianista · fotografar 7 ECOS · um piano toca sozinho — siga
+   o som; segura enquanto a música toca, ataca no silêncio.
+5. O HÓSPEDE SEM ROSTO · fotografar o SINAL na parede (olho riscado, só
+   sai na foto) · na foto ele tem o SEU rosto.
+6. MADAME AURORA, a mãe · libertar 3 almas · aparece onde você já
+   fotografou; a primeira presa, origem de tudo.
+7. BLACKWOOD, o fotógrafo · quebrar as outras 6 · boss no ATELIÊ (5º
+   andar, escada selada, SÓ elevador) — elevador vira obrigatório; cada
+   alma livre reduz as fotos necessárias para encurralá-lo.
+
+### Fantasmas comuns = ECOS
+Vultos sem história (os atuais). Flash sem filme: empurrão+stun. Com
+filme: capturados (somem e respawnam). Andar de alma LIBERTADA fica
+apaziguado: ecos não perseguem nem machucam.
+
+### Chat com INSISTÊNCIA (decidido 2026-10-02)
+Dica de proximidade não é mais única: a cada nova passada pelo segredo
+ignorado o tom sobe — 1ª dica normal, 2ª com ênfase ("ALI! ALI!!"),
+3ª+ rajada de 2-3 viewers GRITANDO. Rearma quando o jogador se afasta.
+Categorias: parede falsa, marca, cofre, quadro, retrato visto, peça ✦.
+
+### Finais (fatia 3)
+- REVELAR todos → "Alvorada": as almas abrem a porta com você.
+- QUEIMAR (qualquer) → mancha a rota; todos queimados = "Cinzas".
+- GUARDAR tudo e aceitar a câmera de Blackwood → "O Novo Fotógrafo".
+
+### Fatias
+1. [FEITA] peças tampa/lente/obturador + filme pôr/tirar + HUD câmera +
+   selo 7 correntes + Tomás completo + quarto escuro + insistência.
+   CHAINS_NEEDED=1 (sobe conforme almas entram).
+2. Almas 2-6 + sinais de parede + ecos contados + dicas por alma.
+3. Ateliê + Blackwood + lente do passado + 3 finais.

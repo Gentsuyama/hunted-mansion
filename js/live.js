@@ -6,14 +6,90 @@ const LIVE_PANEL = { x: 600, y: 8, w: 440, h: 84 };
 
 const live = {
   viewers: 37, msgs: [], msgT: 4, loreIdx: 0, loreT: 40,
-  hinted: new Set(), scroll: 0,
+  hinted: new Set(), nag: new Map(), scroll: 0,
 };
 
 // cada run nova recomeça a live (dicas, lore e viewers zerados)
 function liveReset() {
   live.viewers = 30 + (Math.random() * 20 | 0);
   live.msgs = []; live.msgT = 4; live.loreIdx = 0; live.loreT = 40;
-  live.hinted = new Set(); live.scroll = 0;
+  live.hinted = new Set(); live.nag = new Map(); live.scroll = 0;
+}
+
+// ------------------------------------------------------------------
+// INSISTÊNCIA: se o jogador passa de novo por um segredo ignorado, o
+// chat sobe o tom — 1ª vez dica, 2ª ênfase, 3ª+ vários GRITANDO
+// ------------------------------------------------------------------
+const NAGS = {
+  wall: [
+    ["essa parede aí perto tá ESTRANHA. tira uma foto dela"],
+    ["ALI! ALI!! aquela parede de novo!! FOTOGRAFA ela",
+     "cê passou DE NOVO reto na parede esquisita, foto nela!!"],
+    ["VOCÊ TÁ CEGO?? A PAREDE!!!", "F O T O  N A  P A R E D E",
+     "A PAREDEEEEE", "juro que saio da live se não fotografar essa parede",
+     "TODO MUNDO VIU MENOS VOCÊ, A PAREDE!!"],
+  ],
+  mark: [
+    ["fotografa essa parede!! juro que vi algo escrito"],
+    ["tem ALGO ESCRITO aí nessa parede!! tira foto AGORA",
+     "de novo essa sala… FOTOGRAFA a parede escrita!!"],
+    ["A PAREDE COM O NÚMERO!!!", "FOTO!!! NA!!! PAREDE!!!",
+     "eu NÃO acredito que passou reto DE NOVO", "O NÚMERO, PELO AMOR"],
+  ],
+  safe: [
+    ["UM COFRE! os números com pontinhos das fotos, tenta aí"],
+    ["o COFRE!! volta lá, os dígitos que saíram nas FOTOS!!",
+     "passou direto pelo COFRE de novo???"],
+    ["O COFREEEEE", "3 dígitos!! pontinhos = ordem!! VAI!!",
+     "ABRE LOGO ESSE COFRE pelo amor de tudo"],
+  ],
+  fbox: [
+    ["quadro de força! acho que precisa de 3 fusíveis"],
+    ["o QUADRO DE FUSÍVEIS, de novo ele!! cadê os 3 fusíveis?",
+     "sem luz no elevador até encaixar os fusíveis aí!!"],
+    ["O QUADROOOO", "FUSÍVEL! QUADRO! ELEVADOR! nessa ordem!!",
+     "ele passou reto DE NOVO eu desisto kkkkk (não desisto, VOLTA LÁ)"],
+  ],
+  ret: [
+    ["o RETRATO!! tava escondido aí perto, pega ele"],
+    ["VOLTA! o retrato escondido tá AÍ nessa sala!!",
+     "cê vai deixar o retrato pra trás DE NOVO??"],
+    ["O RETRATOOOO", "PEGA O RETRATO!!!", "A ALMA TÁ PRESA AÍ DO SEU LADO!!"],
+  ],
+  tampa: [
+    ["tem algo brilhando ✦ aí perto, vai ver"],
+    ["a PEÇA da câmera!! tá brilhando do seu lado!!",
+     "sem essa peça a câmera não salva NADA, pega!!"],
+    ["A PEÇA!!! ✦✦✦", "ELA TÁ BRILHANDO NA SUA CARA", "P E G A  A  P E Ç A"],
+  ],
+};
+
+function liveNag(id, cat, dist, radius) {
+  let n = live.nag.get(id);
+  if (!n) { n = { lvl: 0, armed: true }; live.nag.set(id, n); }
+  if (dist > radius + 5) { n.armed = true; return; }
+  if (dist >= radius || !n.armed) return;
+  n.armed = false;
+  const lvl = Math.min(n.lvl, 2);
+  const pool = NAGS[cat][lvl];
+  if (lvl < 2) {
+    livePush(liveRandUser(), pool[Math.random() * pool.length | 0]);
+  } else {
+    // GRITARIA: 2-3 viewers diferentes em rajada
+    const burst = 2 + (Math.random() * 2 | 0);
+    let d = 0;
+    const usados = new Set();
+    for (let i = 0; i < burst; i++) {
+      let m = pool[Math.random() * pool.length | 0];
+      while (usados.has(m) && usados.size < pool.length)
+        m = pool[Math.random() * pool.length | 0];
+      usados.add(m);
+      setTimeout(((msg) => () => { if (world) livePush(liveRandUser(), msg); })(m),
+                 d += 650);
+    }
+    live.viewers += 8;
+  }
+  n.lvl++;
 }
 
 const CHAT_USERS = ["ana_clips", "Dudu77", "spooky_fan", "Lari_br", "CanalDoPavor",
@@ -43,6 +119,12 @@ const CHAT_REACT = {
   fuse:     ["fusível! o quadro de força deve ser no porão", "guarda isso"],
   elevator: ["ELEVADOR LIGADO, chique", "agora ficou fácil andar na casa"],
   safe:     ["ABRIU O COFRE!!", "o que tinha dentro?? mostra"],
+  tampa:    ["ACHOU A TAMPA DA CÂMERA!!", "agora dá pra pôr FILME e salvar foto",
+             "aperta R pra pôr/tirar o rolo (no celular toca na câmera)"],
+  obturador:["o OBTURADOR DE PRATA…", "é com ISSO que a câmera prende espírito forte",
+             "igual ao do Blackwood. arrepiei"],
+  freed:    ["salvou uma ALMA ao vivo, esse canal é HISTÓRICO",
+             "o chat inteiro chorando junto", "FAZ O L DE LIBERTADO"],
 };
 
 const CHAT_LORE = [
@@ -67,7 +149,8 @@ function liveEvent(type) {
     livePush(liveRandUser(), m);
   }
   const bump = { photo: 8, dissolve: 22, damage: 30, ghost: 15, floor: 6,
-                 secret: 45, doorlock: 10, key: 35, fuse: 12, elevator: 18, safe: 40 }[type] || 5;
+                 secret: 45, doorlock: 10, key: 35, fuse: 12, elevator: 18,
+                 safe: 40, tampa: 20, obturador: 35, freed: 90 }[type] || 5;
   live.viewers += bump + (Math.random() * bump | 0);
 }
 
@@ -90,46 +173,50 @@ function liveTick(dt) {
     live.loreT = 75 + Math.random() * 40;
   }
 
-  // dicas contextuais (uma vez por alvo)
+  // dicas contextuais com INSISTÊNCIA: passou reto, o chat sobe o tom
   // parede falsa por perto
   for (const sr of fl().secretRooms) {
+    if (world.flags.secretsFound.includes(sr.id)) continue;
     const cx2 = sr.x + sr.w / 2, cy2 = sr.y + sr.h / 2;
-    const dd = Math.hypot(cx2 - player.x, cy2 - player.y);
-    const hid = "w" + world.cur + sr.id;
-    if (dd < 11 && !live.hinted.has(hid) &&
-        !world.flags.secretsFound.includes(sr.id)) {
-      live.hinted.add(hid);
-      livePush(liveRandUser(), "essa parede aí perto tá ESTRANHA. tira uma foto dela");
-    }
+    liveNag("w" + world.cur + sr.id, "wall",
+            Math.hypot(cx2 - player.x, cy2 - player.y), 11);
   }
   // marca de dígito por perto
   for (const mk of fl().marks) {
-    const dd = Math.hypot(mk.x - player.x, mk.y - player.y);
-    const hid = "m" + world.cur + mk.ord;
-    if (dd < 9 && !mk.seen && !live.hinted.has(hid)) {
-      live.hinted.add(hid);
-      livePush(liveRandUser(), "fotografa essa parede!! juro que vi algo escrito");
-    }
+    if (mk.seen) continue;
+    liveNag("m" + world.cur + mk.ord, "mark",
+            Math.hypot(mk.x - player.x, mk.y - player.y), 9);
   }
   // cofre
-  if (fl().safe && !world.flags.safeOpen) {
-    const dd = Math.hypot(fl().safe.x - player.x, fl().safe.y - player.y);
-    if (dd < 8 && !live.hinted.has("safe")) {
-      live.hinted.add("safe");
-      livePush(liveRandUser(), "UM COFRE! os números com pontinhos das fotos, tenta aí");
-    }
-  }
+  if (fl().safe && !world.flags.safeOpen)
+    liveNag("safe", "safe",
+            Math.hypot(fl().safe.x - player.x, fl().safe.y - player.y), 8);
   // quadro de fusíveis
-  if (fl().fusebox && !world.flags.elevatorOn) {
-    const dd = Math.hypot(fl().fusebox.x - player.x, fl().fusebox.y - player.y);
-    if (dd < 8 && !live.hinted.has("fbox")) {
-      live.hinted.add("fbox");
-      livePush(liveRandUser(), "quadro de força! acho que precisa de 3 fusíveis");
-    }
+  if (fl().fusebox && !world.flags.elevatorOn)
+    liveNag("fbox", "fbox",
+            Math.hypot(fl().fusebox.x - player.x, fl().fusebox.y - player.y), 8);
+  // retrato já revelado pela foto mas deixado para trás
+  for (const r of world.retratos) {
+    if (r.floor !== world.cur || world.taken.has(r.id)) continue;
+    if (!world.flags.retSeen.includes(r.id)) continue;
+    liveNag(r.id, "ret", Math.hypot(r.x - player.x, r.y - player.y), 9);
   }
-  if (film <= 0 && !live.hinted.has("film0")) {
+  // peça da câmera brilhando no chão, ignorada (só se dá para VER)
+  for (const it of world.items) {
+    if (it.taken || it.floor !== world.cur || it.kind !== "campart") continue;
+    if (!hasLOS(player.x, player.y, it.x, it.y)) continue;
+    liveNag("pc" + it.id, "tampa",
+            Math.hypot(it.x - player.x, it.y - player.y), 9);
+  }
+  if (world.flags.cam.tampa && film <= 0 && !live.hinted.has("film0")) {
     live.hinted.add("film0");
     livePush(liveRandUser(), "SEM FILME?? procura os rolos ¤ pelas salas");
+  }
+  // começo de run: a câmera veio sem tampa — aponta a peça no hall
+  if (!world.flags.cam.tampa && world.timeSec > 6 && !live.hinted.has("tampa0")) {
+    live.hinted.add("tampa0");
+    livePush(liveRandUser(), "essa câmera tá SEM A TAMPA de trás, não salva nada assim");
+    livePush(liveRandUser(), "tem algo brilhando ✦ aí no hall, olha a lanterna aí");
   }
 }
 

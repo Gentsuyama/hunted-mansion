@@ -17,34 +17,66 @@ function inFlashCone(ex, ey, dir) {
 
 function takePhoto() {
   if (flashCd > 0) return;
-  if (film <= 0) { sfxDry(); return; }
-  film--;
+  const cam = world.flags.cam;
+  // FOTO REAL exige: tampa na câmera + filme CARREGADO (R põe/tira) + rolos
+  const fotoReal = cam.tampa && world.flags.filmLoaded && film > 0;
+
   flashT = 1; flashCd = FLASH.cooldown;
   flashDir = aimAngle();
-  attractT = 7;
+  attractT = 7;                        // o flash SEMPRE atrai — mesmo vazio
   sfxCamera();
 
-  photoCount++;
-  const cv = renderPhoto(player.x, player.y, flashDir);
-  album.push({ cv, caption: `FOTO ${photoCount} · ${FLOOR_NAMES[world.cur]}` });
-  if (album.length > ALBUM_MAX) album.shift();
+  if (fotoReal) {
+    film--;
+    photoCount++;
+    const cv = renderPhoto(player.x, player.y, flashDir);
+    album.push({ cv, caption: `FOTO ${photoCount} · ${FLOOR_NAMES[world.cur]}` });
+    if (album.length > ALBUM_MAX) album.shift();
 
-  // dissolve fantasmas no cone
-  for (const g of fl().ghosts) {
-    if (g.respawn > 0) continue;
-    if (inFlashCone(g.x, g.y, flashDir)) {
-      g.respawn = 10 + Math.random() * 6;
-      g.chase = false;
-      sfxDissolve();
-      for (let i = 0; i < 26; i++) {
-        const a = Math.random() * 6.28, s = 4 + Math.random() * 14;
-        particles.push({
-          x: g.x, y: g.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
-          life: 0.7, ch: "Ψ*·:"[Math.random() * 4 | 0],
-        });
+    // CAPTURA ecos no cone (com filme, o eco vai para o filme)
+    for (const g of fl().ghosts) {
+      if (g.respawn > 0) continue;
+      if (inFlashCone(g.x, g.y, flashDir)) {
+        g.respawn = 10 + Math.random() * 6;
+        g.chase = false;
+        sfxDissolve();
+        for (let i = 0; i < 26; i++) {
+          const a = Math.random() * 6.28, s = 4 + Math.random() * 14;
+          particles.push({
+            x: g.x, y: g.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+            life: 0.7, ch: "Ψ*·:"[Math.random() * 4 | 0],
+          });
+        }
       }
     }
+  } else {
+    // FLASH VAZIO: nada é registrado — os ecos são só ARREMESSADOS
+    sfxDry();
+    let bateu = false;
+    for (const g of fl().ghosts) {
+      if (g.respawn > 0) continue;
+      if (inFlashCone(g.x, g.y, flashDir)) {
+        bateu = true;
+        const d = Math.hypot(g.x - player.x, g.y - player.y) || 1;
+        g.x = Math.max(2, Math.min(COLS - 2, g.x + (g.x - player.x) / d * 8));
+        g.y = Math.max(2, Math.min(ROWS - 2, g.y + (g.y - player.y) / d * 8));
+        g.wx = g.x; g.wy = g.y;
+        g.chase = false; g.stun = 1.3;
+        for (let i = 0; i < 10; i++) {
+          const a = Math.random() * 6.28, s = 3 + Math.random() * 8;
+          particles.push({ x: g.x, y: g.y, vx: Math.cos(a) * s,
+                           vy: Math.sin(a) * s, life: 0.4, ch: "·:" [Math.random() * 2 | 0] });
+        }
+      }
+    }
+    if (bateu && cam.tampa && !live.hinted.has("flashvazio")) {
+      live.hinted.add("flashvazio");
+      livePush(liveRandUser(), "o flash EMPURROU mas não prendeu — sem filme não registra nada");
+    }
   }
+
+  // almas nomeadas: captura (com retrato+obturador+filme) ou repelão
+  soulsOnFlash(flashDir, fotoReal);
   saveRun();
 }
 
@@ -270,6 +302,17 @@ function renderPhoto(px, py, dir) {
   // marcas com dígitos do cofre: SÓ a foto enxerga
   for (const mk of fl().marks)
     sprites.push({ x: mk.x, y: mk.y, kind: "mark", mk });
+  // retratos aprisionadores escondidos: SÓ a foto denuncia
+  for (const r of world.retratos)
+    if (r.floor === world.cur && !world.taken.has(r.id))
+      sprites.push({ x: r.x, y: r.y, kind: "ret", ret: r });
+  // almas nomeadas vagando
+  for (const e of soulEnts)
+    if (e.floor === world.cur)
+      sprites.push({ x: e.x, y: e.y, kind: "soul", ent: e });
+  // as 7 correntes espectrais da porta da frente
+  if (world.cur === 1 && fl().door)
+    sprites.push({ x: fl().door.x, y: fl().door.y - 0.6, kind: "chains" });
 
   const invDet = 1 / (planeX * dirY - dirX * planeY);
   sprites.sort((a, b) =>
@@ -322,18 +365,62 @@ function renderPhoto(px, py, dir) {
       blitOccluded(c, spr, zbuf, ty, centerX, floorPx - hPx, wPx, hPx,
                    Math.min(1, 0.35 + bright * 1.0), Wc, CWc, FR);
     } else if (s.kind === "mark") {
-      const spr = digitSprite(s.mk.digit, s.mk.ord);
+      // sem a LENTE NOVA a foto sai rachada: dá pra ver QUE tem algo, não O QUÊ
+      const nitida = world.flags.cam.lente;
+      const spr = nitida ? digitSprite(s.mk.digit, s.mk.ord) : smudgeSprite();
       const hPx = Math.min(areaH * 0.8, wallHpx * 0.75);
       const wPx = hPx * 0.73;
       blitOccluded(c, spr, zbuf, ty, centerX, floorPx - wallHpx * 0.9, wPx, hPx,
                    Math.min(1, 0.35 + bright * 1.0), Wc, CWc, FR);
       const zc = zbuf[Math.max(0, Math.min(Wc - 1, sxCol | 0))];
-      if (bright > 0.25 && Math.abs(sxCol - Wc / 2) < Wc * 0.45 &&
+      if (nitida && bright > 0.25 && Math.abs(sxCol - Wc / 2) < Wc * 0.45 &&
           ty < zc + 0.6 && !s.mk.seen) {         // só conta se a marca saiu na foto
-
         s.mk.seen = true;                        // o chat para de dar essa dica
         if (!world.flags.marksSeen.includes(s.mk.ord))
           world.flags.marksSeen.push(s.mk.ord);
+      } else if (!nitida && bright > 0.25 && !live.hinted.has("lenteruim")) {
+        live.hinted.add("lenteruim");
+        livePush(liveRandUser(), "tem ALGO escrito aí mas a lente tá RACHADA… precisa de outra");
+      }
+    } else if (s.kind === "ret") {
+      const spr = retratoSprite(s.ret.soul);
+      const hPx = Math.min(areaH * 0.7, wallHpx * 0.55);
+      const wPx = hPx * 0.78;
+      blitOccluded(c, spr, zbuf, ty, centerX, floorPx - hPx * 1.05, wPx, hPx,
+                   Math.min(1, 0.4 + bright * 1.0), Wc, CWc, FR);
+      const zc = zbuf[Math.max(0, Math.min(Wc - 1, sxCol | 0))];
+      if (bright > 0.2 && ty < zc + 0.6 &&
+          !world.flags.retSeen.includes(s.ret.id)) {
+        world.flags.retSeen.push(s.ret.id);
+        livePush(liveRandUser(), "PERA. tem um RETRATO escondido perto do " +
+                 s.ret.movel + "!! volta lá e pega");
+        live.viewers += 40;
+      }
+    } else if (s.kind === "soul") {
+      const def = SOUL_DEFS[s.ent.id];
+      const spr = ghostSprite(def.artSeed);
+      const hs = (spr._hscale || 1) * (def.escala || 1);
+      const hPx = Math.min(areaH * 1.3, (H * 1.7 / ty) * CH) * hs;
+      const wPx = hPx * (spr._aspect || 0.72);
+      const topY = floorPx - hPx * 0.97;
+      const glow = GLOW_SPR || (GLOW_SPR = makeGlowSprite());
+      blitOccluded(c, glow, zbuf, ty, centerX, topY - hPx * 0.04,
+                   wPx * 1.25, hPx * 1.05, 0.16 + bright * 0.2, Wc, CWc, FR);
+      blitOccluded(c, spr, zbuf, ty, centerX, topY, wPx, hPx,
+                   Math.min(1, 0.35 + bright * 1.1), Wc, CWc, FR);
+    } else if (s.kind === "chains") {
+      const spr = chainsSprite(chainsBroken());
+      const pxPerCell = (Wc * CWc) / (2 * tanF * ty);
+      const wPx = pxPerCell * 3.4;
+      const hPx = wallHpx * 0.95;
+      blitOccluded(c, spr, zbuf, ty, centerX, floorPx - hPx, wPx, hPx,
+                   Math.min(1, 0.4 + bright * 0.9), Wc, CWc, FR);
+      const zc = zbuf[Math.max(0, Math.min(Wc - 1, sxCol | 0))];
+      if (bright > 0.2 && ty < zc + 1.2 && !live.hinted.has("chainsSeen")) {
+        live.hinted.add("chainsSeen");
+        livePush(liveRandUser(), "A PORTA TÁ ACORRENTADA NA FOTO?!?!");
+        livePush(liveRandUser(), "7 correntes… uma pra cada alma presa na casa. liberta elas");
+        live.viewers += 70;
       }
     }
   }

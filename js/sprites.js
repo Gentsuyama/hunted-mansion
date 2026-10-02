@@ -796,3 +796,128 @@ function furnSprite(name) {
   FURN_SPRS[name] = cv;
   return cv;
 }
+
+// ==================================================================
+// AS 7 CORRENTES — sprites: borrão de lente rachada, retratos
+// aprisionadores (Gemini com fallback procedural) e correntes da porta
+// ==================================================================
+
+// marca ilegível (lente rachada): riscos que sugerem escrita sem revelar
+let SMUDGE_SPR = null;
+function smudgeSprite() {
+  if (SMUDGE_SPR) return SMUDGE_SPR;
+  const cv = document.createElement("canvas");
+  cv.width = 90; cv.height = 120;
+  const g = cv.getContext("2d");
+  g.strokeStyle = "rgba(235,235,242,0.55)";
+  g.lineWidth = 3; g.lineCap = "round";
+  const rr = mulberry32(777);
+  for (let i = 0; i < 9; i++) {
+    g.beginPath();
+    let x = 14 + rr() * 60, y = 16 + rr() * 80;
+    g.moveTo(x, y);
+    for (let k = 0; k < 3; k++)
+      g.lineTo(x += (rr() - 0.4) * 26, y += (rr() - 0.3) * 20);
+    g.stroke();
+  }
+  // rachadura da lente por cima
+  g.strokeStyle = "rgba(255,255,255,0.35)";
+  g.lineWidth = 1.5;
+  g.beginPath(); g.moveTo(8, 30);
+  for (let k = 1; k <= 5; k++) g.lineTo(8 + k * 16, 30 + (rr() - 0.5) * 50);
+  g.stroke();
+  return (SMUDGE_SPR = cv);
+}
+
+// retratos: Assets/Retratos/<alma>.jpg (Gemini, fundo preto) ou fallback
+const RET_IMGS = {}, RET_SPRS = {};
+// (lista fixa: sprites.js carrega antes de souls.js)
+const RET_SOUL_IDS = ["tomas", "cecilia", "bento", "olivia",
+                      "hospede", "aurora", "blackwood"];
+(function loadRetImgs() {
+  for (const k of RET_SOUL_IDS) {
+    const im = new Image();
+    im.onload = () => { RET_IMGS[k] = keyBlackToAlpha(im); };
+    im.onerror = () => {};
+    im.src = "Assets/Retratos/" + k + ".jpg";
+  }
+})();
+function retratoSprite(soulId) {
+  if (RET_IMGS[soulId]) return RET_IMGS[soulId];
+  if (RET_SPRS[soulId]) return RET_SPRS[soulId];
+  const cv = document.createElement("canvas");
+  cv.width = 110; cv.height = 140;
+  const g = cv.getContext("2d");
+  // moldura oval antiga
+  g.strokeStyle = "rgba(220,215,200,0.85)";
+  g.lineWidth = 5;
+  g.strokeRect(6, 6, 98, 128);
+  g.lineWidth = 2;
+  g.beginPath(); g.ellipse(55, 70, 38, 52, 0, 0, 7); g.stroke();
+  // vulto sépia dentro (cabeça + ombros de criança)
+  const sep = g.createRadialGradient(55, 58, 4, 55, 70, 48);
+  sep.addColorStop(0, "rgba(190,170,130,0.5)");
+  sep.addColorStop(1, "rgba(60,50,35,0.25)");
+  g.fillStyle = sep;
+  g.beginPath(); g.ellipse(55, 70, 36, 50, 0, 0, 7); g.fill();
+  g.fillStyle = "rgba(30,26,20,0.75)";
+  g.beginPath(); g.arc(55, 55, 14, 0, 7); g.fill();          // cabeça
+  g.beginPath(); g.ellipse(55, 92, 24, 18, 0, 0, 7); g.fill(); // ombros
+  // olhos claros (a alma olha para fora)
+  g.fillStyle = "rgba(240,240,235,0.8)";
+  g.fillRect(49, 52, 3, 3); g.fillRect(60, 52, 3, 3);
+  RET_SPRS[soulId] = cv;
+  return cv;
+}
+
+// correntes espectrais da porta: 7 no total, as quebradas pendem soltas
+const CHAIN_SPRS = {};
+function chainsSprite(broken) {
+  if (CHAIN_SPRS[broken]) return CHAIN_SPRS[broken];
+  const cv = document.createElement("canvas");
+  cv.width = 150; cv.height = 190;
+  const g = cv.getContext("2d");
+  const rr = mulberry32(1234 + broken);
+  const elo = (x1, y1, x2, y2, alpha) => {
+    const d = Math.hypot(x2 - x1, y2 - y1), n = Math.max(2, d / 15 | 0);
+    for (let k = 0; k < n; k++) {
+      const t = k / n, t2 = (k + 0.85) / n;
+      const mx = x1 + (x2 - x1) * t, my = y1 + (y2 - y1) * t;
+      const mx2 = x1 + (x2 - x1) * t2, my2 = y1 + (y2 - y1) * t2;
+      const ex = (mx + mx2) / 2, ey = (my + my2) / 2;
+      const ang = Math.atan2(my2 - my, mx2 - mx);
+      // sombra + elo claro espectral (lê como corrente, não como grade)
+      g.strokeStyle = `rgba(20,30,55,${alpha})`;
+      g.lineWidth = 5;
+      g.beginPath(); g.ellipse(ex, ey, 7.5, 4.5, ang, 0, 7); g.stroke();
+      g.strokeStyle = `rgba(185,210,255,${alpha})`;
+      g.lineWidth = 2.5;
+      g.beginPath(); g.ellipse(ex, ey, 7.5, 4.5, ang, 0, 7); g.stroke();
+    }
+  };
+  const passo = 150 / CHAINS_TOTAL;
+  for (let i = 0; i < CHAINS_TOTAL; i++) {
+    const y = 18 + i * passo + (rr() - 0.5) * 6;
+    if (i < broken) {
+      // corrente quebrada: duas pontas caídas, apagadas
+      elo(4, y, 36 + rr() * 12, y + 30 + rr() * 18, 0.25);
+      elo(146, y, 114 - rr() * 12, y + 30 + rr() * 18, 0.25);
+    } else {
+      elo(4, y, 146, y + (rr() - 0.5) * 14, 0.8);
+    }
+  }
+  // cadeado central fantasmagórico
+  if (broken < CHAINS_TOTAL) {
+    g.strokeStyle = "rgba(20,30,55,0.8)";
+    g.lineWidth = 6;
+    g.strokeRect(58, 84, 34, 28);
+    g.strokeStyle = "rgba(195,220,255,0.9)";
+    g.lineWidth = 3;
+    g.strokeRect(58, 84, 34, 28);
+    g.beginPath(); g.arc(75, 84, 12, Math.PI, 0); g.stroke();
+    g.fillStyle = "rgba(195,220,255,0.9)";
+    g.beginPath(); g.arc(75, 97, 3.5, 0, 7); g.fill();
+  }
+  CHAIN_SPRS[broken] = cv;
+  return cv;
+}

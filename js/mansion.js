@@ -7,6 +7,7 @@
 const STAIR_ROOM = { x: 68, y: 40, w: 14, h: 12 };   // hall da escadaria
 const ELEV_ROOM  = { x: 86, y: 42, w: 6,  h: 8 };    // poço do elevador
 const ENTRY_HALL = { x: 60, y: 74, w: 28, h: 16 };   // hall de entrada (térreo)
+const DARKROOM   = { x: 94, y: 42, w: 9,  h: 8 };    // quarto escuro (só porão)
 
 // escadas como NICHOS ABERTOS NA PAREDE do hall: o vão fica na borda da sala
 // e os degraus atravessam a parede para fora — nada obstrui a passagem.
@@ -71,6 +72,47 @@ function genWorld(seed) {
   const kp = sk ? { x: sk.x + sk.w / 2, y: sk.y + sk.h / 2 } : world.floors[0].freeSpot();
   world.items.push({ id: "key", kind: "key", floor: 0, x: kp.x, y: kp.y, taken: false });
 
+  // --- PEÇAS DA CÂMERA ---
+  // tampa do filme: no hall de entrada, primeiros passos (o chat guia)
+  world.items.push({ id: "tampa", kind: "campart", part: "tampa", floor: 1,
+    x: ENTRY_HALL.x + 4.5, y: ENTRY_HALL.y + 3.5, taken: false });
+  // obturador de prata: junto da chave — sem ele a câmera não PRENDE almas
+  world.items.push({ id: "obturador", kind: "campart", part: "obturador",
+    floor: 0, x: kp.x + 1.5, y: kp.y + 1, taken: false });
+  // (lente nova: dentro do cofre — ver puzzles.js)
+
+  // --- RETRATOS APRISIONADORES (fatia 1: Tomás, escondido num berço) ---
+  world.retratos = [];
+  {
+    let spot = null;
+    for (const tipo of ["berco", "cama"]) {
+      for (let f = 1; f < NFLOORS && !spot; f++) {
+        const flo = world.floors[f];
+        const p = flo.furn.find(q => q.type === tipo);
+        if (!p) continue;
+        // célula livre encostada no móvel
+        for (const [ci, cj] of p.cells) {
+          for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
+            const nx = ci + dx, ny = cj + dy, id = ny * COLS + nx;
+            if (flo.grid[id] === T_FLOOR && !flo.furnGrid[id] &&
+                (!flo.reach || flo.reach[id])) {
+              spot = { floor: f, x: nx + 0.5, y: ny + 0.5, movel: tipo };
+              break;
+            }
+          }
+          if (spot) break;
+        }
+      }
+      if (spot) break;
+    }
+    if (!spot) { const p = world.floors[2].freeSpot();
+                 spot = { floor: 2, x: p.x, y: p.y, movel: "chão" }; }
+    world.retratos.push({ id: "ret_tomas", soul: "tomas",
+      floor: spot.floor, x: spot.x, y: spot.y, movel: spot.movel });
+  }
+
+  soulsInit();
+
   setFloor(1);
   const c = roomCenter(ENTRY_HALL);
   player.x = c.x; player.y = ENTRY_HALL.y + ENTRY_HALL.h - 3;
@@ -121,6 +163,10 @@ function genFloor(seed, f) {
   rooms.push({ ...ELEV_ROOM, fixed: "elev" });
   if (f === 1) { carve(ENTRY_HALL.x, ENTRY_HALL.y, ENTRY_HALL.w, ENTRY_HALL.h);
                  rooms.push({ ...ENTRY_HALL, fixed: "entry" }); }
+  if (f === 0) { carve(DARKROOM.x, DARKROOM.y, DARKROOM.w, DARKROOM.h);
+                 rooms.push({ ...DARKROOM, fixed: "dark" });
+                 floor.bench = { x: DARKROOM.x + DARKROOM.w / 2,
+                                 y: DARKROOM.y + 1.6 }; }
 
   // --- salas procedurais GRANDES ---
   const target = 11 + (rng() * 4 | 0);
@@ -364,6 +410,7 @@ function continueRun() {
   if (s.flags) world.flags = Object.assign(world.flags, s.flags);  // save antigo não quebra
   world.timeSec = s.timeSec || 0;
   applyTaken();
+  soulsInit();   // reaplica estado das almas (entes, andares apaziguados)
   // marcas já fotografadas não geram dica de novo
   for (const flo of world.floors)
     for (const mk of flo.marks)
