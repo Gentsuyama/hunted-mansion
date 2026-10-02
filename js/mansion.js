@@ -193,6 +193,21 @@ function genWorld(seed) {
   addRetrato("blackwood", { fixo: { floor: NFLOORS - 1,
     x: ATELIER_CAVALETE.x, y: ATELIER_CAVALETE.y, movel: "cavalete do ateliê" } });
 
+  // --- TODA SALA SECRETA GUARDA ALGO (no mínimo um rolo de filme) ---
+  for (let f2 = 0; f2 < NFLOORS; f2++) {
+    const flo = world.floors[f2];
+    for (const sr2 of flo.secretRooms) {
+      const dentro = (x, y) => x > sr2.x && x < sr2.x + sr2.w &&
+                               y > sr2.y && y < sr2.y + sr2.h;
+      const tem = world.items.some(i => i.floor === f2 && !i.taken && dentro(i.x, i.y)) ||
+                  world.retratos.some(r2 => r2.floor === f2 && dentro(r2.x, r2.y)) ||
+                  flo.films.some(fm => dentro(fm.x, fm.y));
+      if (!tem)
+        flo.films.push({ id: `${f2}:${flo.films.length}`,
+          x: sr2.x + sr2.w / 2, y: sr2.y + sr2.h / 2, taken: false });
+    }
+  }
+
   soulsInit();
 
   setFloor(1);
@@ -204,6 +219,14 @@ function genWorld(seed) {
 function pickRoom(flo, rng) {
   const free = flo.rooms.filter(r => !r.fixed);
   return free[rng() * free.length | 0];
+}
+
+// a casa repõe filme: nasce um rolo novo num ponto aleatório do andar
+function spawnFilm(f) {
+  const flo = world.floors[f];
+  if (!flo || !flo.freeSpot) return;
+  const p = flo.freeSpot();
+  flo.films.push({ id: `${f}:${flo.films.length}`, x: p.x, y: p.y, taken: false });
 }
 
 // remove peças de mobília num raio (p/ garantir acesso a pontos de interação)
@@ -221,15 +244,22 @@ function genFloor(seed, f) {
   const g = new Uint8Array(COLS * ROWS).fill(T_WALL);
   const furnGrid = new Uint8Array(COLS * ROWS);
   const floor = { grid: g, furnGrid, rooms: [], furn: [], films: [], ghosts: [],
-                  secretRooms: [], marks: [], safe: null, fusebox: null, idx: f };
+                  secretRooms: [], marks: [], safe: null, fusebox: null, idx: f,
+                  corrSegs: [], banheiros: [], rugGrid: null };
 
   function carve(x, y, w, h) {
     for (let j = y; j < y + h; j++)
       for (let i = x; i < x + w; i++)
         if (i > 0 && j > 0 && i < COLS - 1 && j < ROWS - 1) g[j * COLS + i] = T_FLOOR;
   }
-  function corridorH(x1, x2, y) { carve(Math.min(x1, x2) - 1, y - 1, Math.abs(x2 - x1) + 3, 3); }
-  function corridorV(y1, y2, x) { carve(x - 1, Math.min(y1, y2) - 1, 3, Math.abs(y2 - y1) + 3); }
+  function corridorH(x1, x2, y) {
+    carve(Math.min(x1, x2) - 1, y - 1, Math.abs(x2 - x1) + 3, 3);
+    floor.corrSegs.push({ h: true, a: Math.min(x1, x2), b: Math.max(x1, x2), c: y });
+  }
+  function corridorV(y1, y2, x) {
+    carve(x - 1, Math.min(y1, y2) - 1, 3, Math.abs(y2 - y1) + 3);
+    floor.corrSegs.push({ h: false, a: Math.min(y1, y2), b: Math.max(y1, y2), c: x });
+  }
   function connect(a, b) {
     const ca = roomCenter(a), cb = roomCenter(b);
     const ax = ca.x | 0, ay = ca.y | 0, bx = cb.x | 0, by = cb.y | 0;
@@ -427,6 +457,37 @@ function genFloor(seed, f) {
     }
   }
 
+  // --- BANHEIROS (as 2 menores salas comuns) e TAPETES (saem na FOTO) ---
+  {
+    const comuns = rooms.filter(r => !r.fixed);
+    floor.banheiros = comuns.slice()
+      .sort((a, b) => a.w * a.h - b.w * b.h).slice(0, 2);
+    const rug = new Uint8Array(COLS * ROWS);
+    const pinta = (x, y, v) => {
+      if (x < 1 || y < 1 || x >= COLS - 1 || y >= ROWS - 1) return;
+      const id = y * COLS + x;
+      if (g[id] === T_FLOOR && !rug[id]) rug[id] = v;
+    };
+    // piso de ladrilho xadrez nos banheiros (pinta primeiro: tem prioridade)
+    for (const r of floor.banheiros)
+      for (let j = r.y; j < r.y + r.h; j++)
+        for (let i = r.x; i < r.x + r.w; i++) pinta(i, j, 3);
+    // passadeiras compridas no meio dos corredores longos
+    for (const s of floor.corrSegs) {
+      if (Math.abs(s.b - s.a) < 10 || rng() >= 0.6) continue;
+      if (s.h) for (let i = s.a; i <= s.b; i++) pinta(i, s.c, 1);
+      else     for (let j = s.a; j <= s.b; j++) pinta(s.c, j, 1);
+    }
+    // tapetes grandes no centro das salas espaçosas
+    for (const r of comuns) {
+      if (floor.banheiros.includes(r)) continue;
+      if (r.w < 11 || r.h < 8 || rng() >= 0.55) continue;
+      for (let j = r.y + 3; j < r.y + r.h - 3; j++)
+        for (let i = r.x + 3; i < r.x + r.w - 3; i++) pinta(i, j, 2);
+    }
+    floor.rugGrid = rug;
+  }
+
   // célula válida para item/fantasma: chão, sem móvel, alcançável
   const freeRooms = rooms.filter(r => !r.fixed);
   function freeSpot() {
@@ -498,6 +559,10 @@ function continueRun() {
   if (s.flags) world.flags = Object.assign(world.flags, s.flags);  // save antigo não quebra
   world.timeSec = s.timeSec || 0;
   applyTaken();
+  // garantia: NENHUM andar fica sem refil de filme (os repostos não
+  // regeneram da seed — se faltou, nasce um agora)
+  for (let f2 = 0; f2 < NFLOORS; f2++)
+    if (!world.floors[f2].films.some(fm => !fm.taken)) spawnFilm(f2);
   soulsInit();   // reaplica estado das almas (entes, andares apaziguados)
   // marcas já fotografadas não geram dica de novo
   for (const flo of world.floors)

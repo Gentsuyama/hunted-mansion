@@ -125,6 +125,11 @@ function renderRealisticScene(c, px, py, FR, PW, PH, dirX, dirY, planeX, planeY,
          + 0.11 * vn(x * 4.3 + 31.1, y * 4.3 + 17.9);
   }
 
+  // décor do andar atual: papel de parede, banheiros (azulejo) e tapetes
+  const FL = world.cur;
+  const RG = fl().rugGrid;
+  const BANH = fl().banheiros || [];
+
   for (let col = 0; col < W2; col++) {
     const camX = 2 * col / W2 - 1;
     const rdx = dirX + planeX * camX, rdy = dirY + planeY * camX;
@@ -157,24 +162,88 @@ function renderRealisticScene(c, px, py, FR, PW, PH, dirX, dirY, planeX, planeY,
     const s1 = Math.min(H2 - 1, Math.round(start + wallH));
     const centerFall = 1 - 0.42 * camX * camX;
 
-    let wallX = side === 0 ? py + perp * rdy : px + perp * rdx;
-    wallX -= Math.floor(wallX);
+    const uw = side === 0 ? py + perp * rdy : px + perp * rdx;  // contínuo
+    // esta parede é de um BANHEIRO? (célula atingida encosta na sala)
+    let azulejo = false;
+    if (hit)
+      for (const br of BANH)
+        if (mapX >= br.x - 1 && mapX <= br.x + br.w &&
+            mapY >= br.y - 1 && mapY <= br.y + br.h) { azulejo = true; break; }
 
     for (let yy = 0; yy < H2; yy++) {
       let rr = 0, gg = 0, bb = 0;
       if (hit && yy >= s0 && yy <= s1) {
         const texY = (yy - start) / wallH;
-        const t = fbm((mapX + wallX) * 5.1, texY * 5.1 + mapY * 2.7);
-        let L = Math.max(0, 1 - perp / 28) * centerFall * (0.5 + 0.8 * t);
+        const t = fbm(uw * 5.1, texY * 5.1 + mapY * 2.7);
+        let L = Math.max(0, 1 - perp / 28) * centerFall;
         if (side === 1) L *= 0.72;
-        if (texY > 0.88) L *= 0.55;
-        rr = 208 * L; gg = 194 * L; bb = 166 * L;
+        // papel de parede POR ANDAR (e azulejo nos banheiros)
+        let r3 = 208, g3 = 194, b3 = 166, pat;
+        if (azulejo) {                 // azulejo claro com rejunte
+          const gx = ((uw * 3) % 1 + 1) % 1, gy = ((texY * 4) % 1 + 1) % 1;
+          r3 = 184; g3 = 200; b3 = 196;
+          pat = (gx < 0.07 || gx > 0.93 || gy < 0.08 || gy > 0.92)
+            ? 0.5 : 1.02 + t * 0.3;
+        } else if (FL === 1) {         // térreo: listras verde-musgo
+          const sx2 = ((uw * 2) % 1 + 1) % 1;
+          r3 = 168; g3 = 178; b3 = 150;
+          pat = (sx2 < 0.5 ? 1.04 : 0.82) * (0.6 + 0.55 * t);
+        } else if (FL === 2) {         // 1º andar: damasco vinho (losangos)
+          const dd2 = Math.abs(((uw * 1.5) % 1 + 1) % 1 - 0.5) +
+                      Math.abs(((texY * 1.5) % 1 + 1) % 1 - 0.5);
+          r3 = 186; g3 = 150; b3 = 148;
+          pat = (dd2 < 0.4 ? 1.07 : 0.82) * (0.6 + 0.5 * t);
+        } else if (FL === 3) {         // 2º andar: florais ocre (pontinhos)
+          const fl3 = h2(Math.floor(uw * 3), Math.floor(texY * 4));
+          r3 = 198; g3 = 182; b3 = 142;
+          pat = (fl3 > 0.86 ? 1.32 : 0.88) * (0.6 + 0.5 * t);
+        } else if (FL === 4) {         // 3º andar: listras finas frias
+          const sx3 = ((uw * 4) % 1 + 1) % 1;
+          r3 = 162; g3 = 168; b3 = 182;
+          pat = ((sx3 < 0.14 || (sx3 > 0.3 && sx3 < 0.38)) ? 0.76 : 1.02) *
+                (0.62 + 0.48 * t);
+        } else if (FL === NFLOORS - 1) { // ateliê: painéis de madeira escura
+          r3 = 142; g3 = 112; b3 = 84;
+          pat = (0.72 + 0.45 * vn(uw * 1.3, texY * 7 + mapY)) *
+                (((texY * 2) % 1 + 1) % 1 < 0.06 ? 0.68 : 1);
+        } else {                       // porão: pedra crua e fria
+          r3 = 172; g3 = 168; b3 = 156;
+          pat = 0.45 + 0.8 * t;
+        }
+        L *= pat;
+        if (texY > 0.88) L *= 0.55;    // rodapé
+        rr = r3 * L; gg = g3 * L; bb = b3 * L;
       } else if (yy > H2 / 2) {
         const rowDist = posZ / (yy - H2 / 2);
         const wx2 = px + rdx * rowDist, wy2 = py + rdy * rowDist;
         const t = fbm(wx2 * 1.6, wy2 * 1.6);
-        const L = Math.max(0, 1 - rowDist / 24) * centerFall * (0.45 + 0.85 * t);
-        rr = 138 * L; gg = 124 * L; bb = 104 * L;
+        const L = Math.max(0, 1 - rowDist / 24) * centerFall;
+        const cx4 = wx2 | 0, cy4 = wy2 | 0;
+        const rg = (RG && cx4 >= 0 && cy4 >= 0 && cx4 < COLS && cy4 < ROWS)
+          ? RG[cy4 * COLS + cx4] : 0;
+        if (rg === 1) {                // PASSADEIRA vinho com barra dourada
+          const fx4 = wx2 - cx4, fy4 = wy2 - cy4;
+          const id4 = cy4 * COLS + cx4;
+          // barra SÓ no perímetro do tapete (não a cada célula)
+          const borda =
+            (RG[id4 - 1] !== 1 && fx4 < 0.2) || (RG[id4 + 1] !== 1 && fx4 > 0.8) ||
+            (RG[id4 - COLS] !== 1 && fy4 < 0.2) || (RG[id4 + COLS] !== 1 && fy4 > 0.8);
+          const k = L * (0.55 + 0.38 * t);
+          rr = (borda ? 126 : 96) * k;
+          gg = (borda ? 102 : 36) * k;
+          bb = (borda ? 46 : 33) * k;
+        } else if (rg === 2) {         // TAPETE grande azul-petróleo
+          const wv = vn(wx2 * 2.4, wy2 * 2.4);
+          const k = L * (0.7 + 0.6 * wv);
+          rr = 64 * k; gg = 78 * k; bb = 94 * k;
+        } else if (rg === 3) {         // banheiro: ladrilho xadrez
+          const ck = ((cx4 + cy4) & 1) ? 1.0 : 0.55;
+          const v2 = 150 * L * ck * (0.75 + 0.3 * t);
+          rr = v2; gg = v2 * 1.05; bb = v2;
+        } else {                       // assoalho manchado
+          const L2 = L * (0.45 + 0.85 * t);
+          rr = 138 * L2; gg = 124 * L2; bb = 104 * L2;
+        }
       } else {
         const t = fbm(col * 0.06 + 99, yy * 0.06);
         const v = 6 + 12 * t * centerFall;
@@ -348,6 +417,14 @@ function renderPhoto(px, py, dir) {
   // o SINAL do Hóspede (olho riscado): só a foto — e só com a lente nova
   if (world.sinal && world.sinal.floor === world.cur)
     sprites.push({ x: world.sinal.x, y: world.sinal.y, kind: "sinal" });
+  // as ESCADAS nos nichos: a foto as mostra (e as DENUNCIA se escondidas)
+  if (world.cur < NFLOORS - 2)
+    sprites.push({ x: STAIR_UP_RECT.x + 1,
+                   y: STAIR_UP_RECT.y + STAIR_UP_RECT.h - 0.4,
+                   kind: "stair", up: true, key: world.cur + ":up" });
+  if (world.cur > 0 && world.cur < NFLOORS - 1)
+    sprites.push({ x: STAIR_DOWN_RECT.x + 1, y: STAIR_DOWN_RECT.y + 0.4,
+                   kind: "stair", up: false, key: world.cur + ":down" });
 
   const invDet = 1 / (planeX * dirY - dirX * planeY);
   sprites.sort((a, b) =>
@@ -483,6 +560,22 @@ function renderPhoto(px, py, dir) {
         livePush(liveRandUser(), "A PORTA TÁ ACORRENTADA NA FOTO?!?!");
         livePush(liveRandUser(), "7 correntes… uma pra cada alma presa na casa. liberta elas");
         live.viewers += 70;
+      }
+    } else if (s.kind === "stair") {
+      const spr = stairSprite(s.up);
+      const pxPerCell = (Wc * CWc) / (2 * tanF * ty);
+      const wPx = pxPerCell * 2.1;
+      const hPx = wallHpx * 0.94;
+      blitOccluded(c, spr, zbuf, ty, centerX, floorPx - hPx, wPx, hPx,
+                   Math.min(1, 0.4 + bright * 0.9), Wc, CWc, FR);
+      const zc = zbuf[Math.max(0, Math.min(Wc - 1, sxCol | 0))];
+      if (bright > 0.2 && ty < zc + 0.8) {
+        if (!world.flags.stairsSeen) world.flags.stairsSeen = [];
+        if (!world.flags.stairsSeen.includes(s.key)) {
+          world.flags.stairsSeen.push(s.key);   // a FOTO denunciou a escada
+          livePush(liveRandUser(), "TEM UMA ESCADA NA FOTO!! dentro da parede!!");
+          live.viewers += 30;
+        }
       }
     } else if (s.kind === "sinal") {
       // o olho riscado: só sai com a LENTE NOVA (a rachada borra tudo)

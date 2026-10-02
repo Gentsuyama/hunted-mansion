@@ -241,3 +241,73 @@ function titleKey(code) {
     loadRunData() ? continueRun() : startCinematic(() => newRun());
   }
 }
+
+// ==================================================================
+// VINHETAS — painéis de quadrinho em momentos-chave da história
+// (Assets/Vinhetas/<id>.jpg; sem a arte, o momento segue só com toast)
+// ==================================================================
+const VIN_DEFS = {
+  tampa:     { legenda: "A tampa ainda estava onde a câmera caiu. Como se esperasse por você." },
+  lente:     { legenda: "Uma lente nova, embrulhada em pano. Alguém a escondeu com muito cuidado." },
+  obturador: { legenda: "O obturador de prata. Frio como as mãos de quem o apertava." },
+  passado:   { legenda: "Através do vidro âmbar, a casa mostra o que nunca conseguiu esquecer." },
+  retrato:   { legenda: "O retrato pesa mais do que deveria. Há alguém olhando de dentro." },
+  captura:   { legenda: "O flash disparou — e a moldura respirou fundo." },
+  atelie:    { legenda: "A grade se abriu. O estúdio esperou setenta anos por esta visita." },
+};
+const VIN_IMGS = {};
+(function loadVinImgs() {
+  for (const k in VIN_DEFS) {
+    const im = new Image();
+    im.onload = () => { VIN_IMGS[k] = im; };
+    im.onerror = () => {};
+    im.src = "Assets/Vinhetas/" + k + ".jpg";
+  }
+})();
+
+let vinAtual = null, vinReturn = "play";
+function showVinheta(id) {
+  if (!VIN_IMGS[id]) return false;               // sem arte ainda: segue o jogo
+  if (!world.flags.vinhetasVistas) world.flags.vinhetasVistas = [];
+  if (world.flags.vinhetasVistas.includes(id)) return false;
+  world.flags.vinhetasVistas.push(id);
+  vinAtual = id;
+  vinReturn = state === "vinheta" ? vinReturn : state;
+  state = "vinheta";
+  sfxPage();
+  saveRun();
+  return true;
+}
+function vinhetaAdvance() {
+  vinAtual = null;
+  state = vinReturn && vinReturn !== "vinheta" ? vinReturn : "play";
+}
+function drawVinheta() {
+  if (!vinAtual) { vinhetaAdvance(); return; }
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const im = VIN_IMGS[vinAtual];
+  const maxH = canvas.height * 0.72, maxW = canvas.width * 0.78;
+  const s = Math.min(maxH / im.naturalHeight, maxW / im.naturalWidth);
+  const w = im.naturalWidth * s, h = im.naturalHeight * s;
+  const x = canvas.width / 2 - w / 2, y = 44;
+  // moldura de requadro de quadrinho
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 30;
+  ctx.fillStyle = "#e9e4d6";
+  ctx.fillRect(x - 7, y - 7, w + 14, h + 14);
+  ctx.restore();
+  ctx.drawImage(im, x, y, w, h);
+  // legenda como caixa de narração
+  const leg = VIN_DEFS[vinAtual].legenda;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "italic 19px 'Segoe Script', 'Comic Sans MS', cursive";
+  const tw2 = ctx.measureText(leg).width;
+  ctx.fillStyle = "#e9e4d6";
+  ctx.fillRect(canvas.width / 2 - tw2 / 2 - 22, y + h + 20, tw2 + 44, 46);
+  ctx.fillStyle = "rgba(45,38,32,0.95)";
+  ctx.fillText(leg, canvas.width / 2, y + h + 43);
+  ctx.font = "bold 13px 'Courier New', monospace";
+  ctx.fillStyle = `rgba(200,200,200,${0.4 + 0.3 * Math.sin(time * 3)})`;
+  ctx.fillText("clique para continuar", canvas.width / 2, canvas.height - 22);
+}

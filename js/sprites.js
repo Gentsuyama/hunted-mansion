@@ -961,6 +961,42 @@ function drawCover(c2, im, x, y, w, h) {
   c2.drawImage(im, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
 }
 
+// ESCADA no nicho (para a FOTO): degraus em perspectiva, estilo nanquim
+const STAIR_SPRS = {};
+function stairSprite(up) {
+  const k = up ? "u" : "d";
+  if (STAIR_SPRS[k]) return STAIR_SPRS[k];
+  const cv = document.createElement("canvas");
+  cv.width = 120; cv.height = 150;
+  const g = cv.getContext("2d");
+  // breu do vão
+  const bgg = g.createLinearGradient(0, up ? 150 : 0, 0, up ? 0 : 150);
+  bgg.addColorStop(0, "rgba(30,28,24,0.95)");
+  bgg.addColorStop(1, "rgba(5,5,6,0.98)");
+  g.fillStyle = bgg;
+  g.fillRect(6, 0, 108, 150);
+  // 6 degraus afunilando para o fundo
+  for (let i = 0; i < 6; i++) {
+    const t = i / 6;
+    const w = 104 - t * 52;
+    const x0 = 60 - w / 2;
+    const y = up ? 138 - i * 21 : 24 + i * 21;
+    const lum = up ? 0.75 - t * 0.5 : 0.65 - t * 0.45;
+    g.fillStyle = `rgba(${200 * lum | 0},${186 * lum | 0},${150 * lum | 0},0.9)`;
+    g.fillRect(x0, y, w, 7);
+    g.strokeStyle = `rgba(235,230,215,${0.5 - t * 0.3})`;
+    g.lineWidth = 1.6;
+    g.strokeRect(x0, y, w, 7);
+  }
+  // batentes laterais do vão
+  g.strokeStyle = "rgba(220,212,190,0.7)";
+  g.lineWidth = 3;
+  g.beginPath(); g.moveTo(7, 0); g.lineTo(7, 150); g.stroke();
+  g.beginPath(); g.moveTo(113, 0); g.lineTo(113, 150); g.stroke();
+  STAIR_SPRS[k] = cv;
+  return cv;
+}
+
 // o SINAL do Hóspede: um olho riscado, rabiscado na parede
 let SINAL_SPR = null;
 function sinalSprite() {

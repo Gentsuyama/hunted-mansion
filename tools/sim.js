@@ -61,6 +61,7 @@ function simWalk(path, st, maxSteps) {
 }
 
 function simTick(st, dt) {
+  if (state === "vinheta") vinhetaAdvance();   // o robô "clica" nos quadrinhos
   if (world.cur !== st.lastFloor) {
     st.trace.push("f" + st.lastFloor + ">" + world.cur);
     st.lastFloor = world.cur;
@@ -148,6 +149,7 @@ function simElevatorTo(st, target) {
   if (state !== "elevator") { st.trace.push("overlayElevNaoAbriu"); return false; }
   const bp = elevBtnPos(target);
   elevatorHit(bp.x, bp.y);                // aperta o botão do andar
+  if (state === "vinheta") vinhetaAdvance();
   for (let i = 0; i < 40 && state === "play"; i++) simTick(st, 1 / 30);
   return world.cur === target;
 }
@@ -188,6 +190,7 @@ function simPhotoAt(st, tx, ty2, pronto) {
     if (film <= 0) film = 1;            // reposição anotada nas métricas
     if (!world.flags.filmLoaded) toggleFilm();
     takePhoto();
+    if (state === "vinheta") vinhetaAdvance();
   }
   return pronto ? !!pronto() : true;
 }
@@ -254,6 +257,7 @@ function simCaca(st, id) {
         if (film <= 0) film = 1;        // reposição anotada nas métricas
         if (!world.flags.filmLoaded) toggleFilm();
         takePhoto(); st.fotosDeAlma++;
+        if (state === "vinheta") vinhetaAdvance();
       } else simTick(st, 1 / 30);
       guard--;
       continue;
@@ -284,6 +288,7 @@ function simResolveAlma(st, id, modo) {
         updatePrompt();
         if (prompt && prompt.action && prompt.text.includes("RETRATO"))
           prompt.action();
+        if (state === "vinheta") vinhetaAdvance();
       }
       if (!world.taken.has(r.id)) { st.trace.push(id + ":semRetrato"); return false; }
     }
@@ -441,6 +446,7 @@ function simRun(policy, useNoGhosts) {
           simGotoPoint(st, r.x, r.y, 4000);
           updatePrompt();
           if (prompt && prompt.action && prompt.text.includes("RETRATO")) prompt.action();
+          if (state === "vinheta") vinhetaAdvance();
           simCaca(st, "blackwood");
           if (world.flags.souls.blackwood.state === "captured") {
             simGotoPoint(st, ATELIER_CADEIRA.x, ATELIER_CADEIRA.y + 0.5, 4000);

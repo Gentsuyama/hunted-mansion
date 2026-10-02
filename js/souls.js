@@ -323,12 +323,29 @@ function soulsUpdate(dt) {
 
     if (e.id === "tomas") {
       // FOGE do jogador; nunca ataca; ri quando escapa — mas é uma
-      // CRIANÇA: depois de ~12s de correria ele CANSA e para ofegante
+      // CRIANÇA: depois de ~12s de correria ele CANSA e para ofegante.
+      // Ele NÃO atravessa paredes ao fugir (desliza nelas): se escondesse
+      // dentro da pedra, ficaria incapturável para sempre
+      if (isOpaque(e.x | 0, e.y | 0)) {
+        // saiu do mapa jogável por qualquer motivo: reaparece rindo
+        for (let t2 = 0; t2 < 12; t2++) {
+          const a = Math.random() * 6.28, rr3 = 3 + Math.random() * 4;
+          const nx2 = e.x + Math.cos(a) * rr3, ny2 = e.y + Math.sin(a) * rr3;
+          if (!isOpaque(nx2 | 0, ny2 | 0)) { e.x = nx2; e.y = ny2; break; }
+        }
+      }
       if (e.cansadoT > 0) {
         e.cansadoT -= dt;               // parado: a janela de captura
       } else if (d < 14) {
-        soulMoveTo(e, e.x + (e.x - player.x), e.y + (e.y - player.y),
-                   GHOST_SPEED * 1.1, dt);
+        const ux3 = (e.x - player.x) / (d || 1), uy3 = (e.y - player.y) / (d || 1);
+        const sp3 = GHOST_SPEED * 1.1 * dt;
+        const nx3 = e.x + ux3 * sp3, ny3 = e.y + uy3 * sp3;
+        if (!isOpaque(nx3 | 0, ny3 | 0)) { e.x = nx3; e.y = ny3; }
+        else if (!isOpaque(nx3 | 0, e.y | 0)) e.x = nx3;   // desliza na parede
+        else if (!isOpaque(e.x | 0, ny3 | 0)) e.y = ny3;
+        else e.fugaT = (e.fugaT || 0) + dt * 3;            // encurralado: cansa rápido
+        e.x = Math.max(2, Math.min(COLS - 2, e.x));
+        e.y = Math.max(2, Math.min(ROWS - 2, e.y));
         e.fugaT = (e.fugaT || 0) + dt;
         if (e.fugaT > 12) {
           e.fugaT = 0; e.cansadoT = 3.5;
@@ -476,6 +493,7 @@ function soulsOnFlash(dir, fotoReal) {
       // CAPTURA: a alma é sugada para o próprio retrato
       soulFlags()[e.id].state = "captured";
       soulEnts.splice(i, 1);
+      showVinheta("captura");          // quadrinho da 1ª alma presa
       sfxDissolve(); shake = 1.2;
       livePush(liveRandUser(), "VOCÊ PRENDEU " + SOUL_DEFS[e.id].nome + " NO RETRATO??");
       livePush(liveRandUser(), "mano… isso é o que o BLACKWOOD fazia");

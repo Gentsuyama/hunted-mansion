@@ -289,6 +289,7 @@ function elevGo(f) {
   liveEvent("floor");
   saveRun();
   state = "play";
+  if (f === NFLOORS - 1) showVinheta("atelie");   // a chegada ao estúdio
 }
 
 function drawElevator() {

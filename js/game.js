@@ -117,6 +117,7 @@ function updatePrompt() {
     if (Math.hypot(r.x - player.x, r.y - player.y) < 2) {
       prompt = { text: "PEGAR O RETRATO ESCONDIDO", action: () => {
         world.taken.add(r.id);
+        showVinheta("retrato");         // só na primeira vez (flag interna)
         sfxSting(); shake = 0.6;
         livePush(liveRandUser(), "pegou o retrato!! olha os OLHOS dele… tá vivo isso");
         livePush(liveRandUser(), "agora acha o " + SOUL_DEFS[r.soul].nome +
@@ -211,6 +212,26 @@ function update(dt) {
 
   updatePrompt();
 
+  // descoberta de escadas: o nicho só entra no MAPA depois de visto de perto
+  if (!world.flags.stairsSeen) world.flags.stairsSeen = [];
+  const vejaEscada = (key, cx3, cy3) => {
+    if (world.flags.stairsSeen.includes(key)) return;
+    if (Math.hypot(cx3 - player.x, cy3 - player.y) < 7.5) {
+      world.flags.stairsSeen.push(key);
+      if (!live.hinted.has("escada1")) {
+        live.hinted.add("escada1");
+        livePush(liveRandUser(), "PERA, tem DEGRAUS dentro da parede!! escada escondida");
+      }
+      saveRun();
+    }
+  };
+  if (world.cur < NFLOORS - 2)
+    vejaEscada(world.cur + ":up", STAIR_UP_RECT.x + 1,
+               STAIR_UP_RECT.y + STAIR_UP_RECT.h + 0.5);
+  if (world.cur > 0 && world.cur < NFLOORS - 1)
+    vejaEscada(world.cur + ":down", STAIR_DOWN_RECT.x + 1,
+               STAIR_DOWN_RECT.y - 0.5);
+
   // escadas automáticas: pisou, foi (com cooldown para não ricochetear)
   if (stairCd > 0) stairCd -= dt;
   else {
@@ -300,7 +321,7 @@ function update(dt) {
     sfxHeart(0.22 * (1 - nearest / 22));
   }
 
-  // refis de filme
+  // refis de filme — a casa SEMPRE repõe: pegou um, outro nasce no andar
   for (const f of fl().films) {
     if (f.taken) continue;
     if (Math.hypot(f.x - player.x, f.y - player.y) < 1.1) {
@@ -308,6 +329,7 @@ function update(dt) {
       world.taken.add(f.id);
       film = Math.min(filmMax(), film + FILM_REFILL);
       sfxPickup();
+      spawnFilm(world.cur);
       saveRun();
     }
   }
@@ -323,7 +345,7 @@ function update(dt) {
       else if (it.kind === "campart") {
         world.flags.cam[it.part] = true;
         if (it.part === "tampa") {
-          film = Math.min(filmMax(), film + 6);   // a tampa vem com rolos
+          film = Math.min(filmMax(), film + 4);   // a tampa vem com rolos
           world.flags.filmLoaded = true;
           liveEvent("tampa");
           toast(touchUI.seen
@@ -335,6 +357,7 @@ function update(dt) {
           livePush(liveRandUser(), "essa lente é DIFERENTE… o vidro é mais velho que a casa");
           livePush(liveRandUser(), "A LENTE DO PASSADO!! fotografa os lugares deles e OLHA a legenda");
         }
+        showVinheta(it.part);           // quadrinho do achado (se a arte existe)
       }
       sfxSting();
       saveRun();
@@ -382,9 +405,13 @@ function update(dt) {
 function drawStairsTopDown() {
   const defs = [];
   // SOBE: nicho na parede norte (o penúltimo andar NÃO sobe — ateliê emparedado)
-  if (world.cur < NFLOORS - 2) defs.push({ r: STAIR_UP_RECT, up: true, north: true });
+  // …e só aparece no mapa DEPOIS de descoberto de perto
+  const vistas = world.flags.stairsSeen || [];
+  if (world.cur < NFLOORS - 2 && vistas.includes(world.cur + ":up"))
+    defs.push({ r: STAIR_UP_RECT, up: true, north: true });
   // DESCE: nicho na parede sul (o último andar só sai de elevador)
-  if (world.cur > 0 && world.cur < NFLOORS - 1)
+  if (world.cur > 0 && world.cur < NFLOORS - 1 &&
+      vistas.includes(world.cur + ":down"))
     defs.push({ r: STAIR_DOWN_RECT, up: false, north: false });
   for (const d of defs) {
     // luz medida na boca do nicho (dentro da sala) e dentro dele
@@ -705,6 +732,7 @@ function render() {
   if (state === "elevator") drawElevator();
   if (state === "fusebox") drawFusebox();
   if (state === "darkroom") drawDarkroom();
+  if (state === "vinheta") drawVinheta();
   if (state === "win") drawWin();
   if (state !== "play") drawCursor();   // overlays: cursor sempre visível
 }
@@ -1280,6 +1308,7 @@ window.addEventListener("keydown", e => {
     e.preventDefault();
 
   if (state === "cine")  { cineAdvance(); return; }
+  if (state === "vinheta") { vinhetaAdvance(); return; }
   if (state === "title") { titleKey(e.code); return; }
   if (state === "chat" || state === "safe" || state === "elevator" ||
       state === "darkroom" || state === "fusebox") {
@@ -1349,6 +1378,7 @@ canvas.addEventListener("mousedown", e => {
   const mx = (e.clientX - rct.left) * (canvas.width / rct.width);
   const my = (e.clientY - rct.top) * (canvas.height / rct.height);
   if (state === "cine")  { cineAdvance(mx, my); return; }
+  if (state === "vinheta") { vinhetaAdvance(); return; }
   if (state === "title") { titleHit(mx, my); return; }
   if (state === "dead")  { deadHit(mx, my); return; }
   if (state === "album") { albumHit(mx, my); return; }
@@ -1401,6 +1431,7 @@ canvas.addEventListener("touchstart", e => {
   for (const t of e.changedTouches) {
     const p = tcoord(t);
     if (state === "cine")  { cineAdvance(p.x, p.y); return; }
+    if (state === "vinheta") { vinhetaAdvance(); return; }
     if (state === "title") { enterFullscreen(); titleHit(p.x, p.y); return; }
     if (state === "dead")  { deadHit(p.x, p.y); return; }
     if (state === "album") { albumHit(p.x, p.y); return; }
