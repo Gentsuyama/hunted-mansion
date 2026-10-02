@@ -72,6 +72,9 @@ Gere no Gemini/Nano Banana, 1 passo por vez, <b>conversa nova a cada passo</b>.<
 saiu com cabelo enrolado curto e sem mochila porque o prompt descreveu um personagem
 imaginado — o certo é abrir a imagem canônica (intro1), extrair as âncoras DELA e
 anexá-la como “the same character as in the attached image”.<br>
+· <b>“Reflexo do rosto” em objeto pequeno vira um rosto LITERAL dentro do objeto:</b>
+no close de um item, peça “star-shaped glint” e nunca “his face reflected”; e diga
+“one single open palm / only one hand in frame” para não ganhar mão extra.<br>
 · <b>Gerador não sabe contar nem adivinhar quem são:</b> “seven silhouettes” virou
 6 pessoas de roupa moderna de mãos dadas — quando o número e a identidade importam,
 ENUMERE cada figura com um traje distinto (“a small boy, a bride with a veil, …”) e
@@ -160,9 +163,10 @@ const ETAPAS = [
     ctx:"Painel ao pegar o OBTURADOR na secreta do porão · 16:9",
     anexos:[["Protagonista", "Assets/Refs/protagonista.jpg"],
             ["Formato do botão", "Assets/UI/cam_obturador.jpg"]],
-    prompt:`Single horror comic panel, horizontal 16:9, extreme close-up. The open palm of the young streamer from the first image (messy chin-length dark hair, dark red hoodie, small black backpack) holding the small knurled silver shutter button from the second image; his own face reflects distorted on the polished silver dome. Rough stone basement wall behind, lit by a single flashlight beam from the right side of the picture. The silver has a cold metallic sheen as the stated color accent. ${BLOCO_Q}`,
-    qc:["palma aberta com o botão de prata","reflexo distorcido do rosto no metal","fundo de pedra de porão","brilho metálico frio como único destaque"],
-    salvar:"Assets\\Vinhetas\\obturador.jpg" },
+    prompt:`Single horror comic panel, horizontal 16:9, extreme close-up seen from directly above. One single open palm of the young streamer from the first image, the ribbed cuff of his dark red hoodie sleeve visible at the wrist, holding at the centre of the palm the small knurled silver shutter button from the second image, drawn small enough to sit between the fingers; one cold star-shaped glint on the mirror-polished silver dome. Rough stone basement floor fills the background, a flashlight beam cutting across from the right side of the picture. The silver sheen is the stated color accent. ${BLOCO_Q}`,
+    qc:["UMA mão só, aberta, vista de CIMA (5 dedos!)","botão PEQUENO no centro da palma","brilho em ESTRELA no metal — nenhum rosto no botão","punho da manga vinho aparecendo","chão de pedra + feixe de lanterna da direita"],
+    salvar:"Assets\\Vinhetas\\obturador.jpg",
+    nota:"Se aparecer um rosto/figura no metal: troque o trecho do brilho por 'plain mirror-polished silver with a single star-shaped glint'. Se vier segunda mão: comece com 'Only one hand in frame.'" },
   { id:"VIN-004", titulo:"A lente do passado",
     ctx:"Painel ao pegar a LENTE DO PASSADO no ateliê · 16:9",
     anexos:[["Protagonista", "Assets/Refs/protagonista.jpg"],
