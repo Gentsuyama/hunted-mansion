@@ -728,9 +728,11 @@ const touchUI = { seen: IS_TOUCH, joyId: null, jx: 0, jy: 0, jkx: 0, jky: 0,
 
 // --- A CÂMERA NO CANTO: silhueta que se completa com as peças ---
 function camHudRect() {
-  // touch: coluna esquerda (direita está cheia de botões); desktop: canto inf-dir
-  return touchUI.seen
-    ? { x: 12, y: 140, w: 172, h: 104 }
+  // touch: coluna esquerda (direita está cheia de botões); desktop: canto
+  // inf-dir — maior quando a arte do Gemini está montada
+  if (touchUI.seen) return { x: 12, y: 140, w: 172, h: 104 };
+  return CAM_IMGS.corpo
+    ? { x: canvas.width - 226, y: canvas.height - 170, w: 214, h: 152 }
     : { x: canvas.width - 184, y: canvas.height - 122, w: 172, h: 104 };
 }
 function camHudHit(px2, py2) {
@@ -768,16 +770,20 @@ function drawCamHUD() {
   ctx.font = "bold 11px 'Courier New', monospace";
   ctx.textAlign = "left"; ctx.textBaseline = "middle";
   ctx.fillStyle = "rgba(200,200,205,0.85)";
-  ctx.fillText("CÂMERA", r.x + 10, r.y + 13);
+  ctx.fillText(cm.tampa ? (touchUI.seen ? "CÂMERA · toque: filme"
+                                        : "CÂMERA · [R] filme")
+                        : "CÂMERA", r.x + 10, r.y + 13);
   if (cm.tampa) {
     ctx.textAlign = "right";
     ctx.font = "bold 10px 'Courier New', monospace";
+    const curto = touchUI.seen;          // no celular o cartão é menor
     if (world.flags.filmLoaded && film > 0) {
       ctx.fillStyle = "rgba(150,230,150,0.95)";
-      ctx.fillText("FILME DENTRO", r.x + r.w - 8, r.y + 13);
+      ctx.fillText(curto ? "DENTRO" : "FILME DENTRO", r.x + r.w - 8, r.y + 13);
     } else {
       ctx.fillStyle = "rgba(235,195,110,0.95)";
-      ctx.fillText(film <= 0 ? "SEM ROLOS" : "FILME FORA — SÓ ESPANTA",
+      ctx.fillText(film <= 0 ? (curto ? "S/ROLOS" : "SEM ROLOS")
+                 : (curto ? "FORA" : "FILME FORA — SÓ ESPANTA"),
                    r.x + r.w - 8, r.y + 13);
     }
   }
@@ -785,25 +791,29 @@ function drawCamHUD() {
   if (CAM_IMGS.corpo) {
     // MONTAGEM com a arte do Gemini: cada peça encaixa no corpo; a que
     // falta aparece como fantasma apagado (o jogador vê o que procurar)
-    const area = { x: r.x + 10, y: r.y + 20, w: r.w - 20, h: r.h - 44 };
+    const area = { x: r.x + 10, y: r.y + 22, w: r.w - 20, h: r.h - 48 };
     const slots = [
-      ["corpo",     0.52, 0.56, 0.92, true],
-      ["tampa",     0.82, 0.58, 0.34, cm.tampa],
-      ["lente",     0.40, 0.60, 0.40, cm.lente],
-      ["flash",     0.20, 0.12, 0.30, true],
-      ["obturador", 0.80, 0.08, 0.17, cm.obturador],
-      ["passado",   0.14, 0.86, 0.20, cm.passado],
+      ["corpo",     0.50, 0.56, 0.66, true],
+      ["lente",     0.40, 0.66, 0.25, cm.lente],
+      ["tampa",     0.80, 0.62, 0.21, cm.tampa],
+      ["flash",     0.19, 0.22, 0.19, true],
+      ["obturador", 0.78, 0.17, 0.13, cm.obturador],
+      ["passado",   0.15, 0.84, 0.14, cm.passado],
     ];
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(r.x + 1, r.y + 16, r.w - 2, r.h - 32);
+    ctx.clip();                          // nada vaza do cartão
     for (const [k, fx, fy, fw, tem] of slots) {
       const im = CAM_IMGS[k];
       if (!im) continue;
       const w2 = area.w * fw, h2 = w2 * im.height / im.width;
-      ctx.save();
-      ctx.globalAlpha = tem ? 1 : 0.15;
+      ctx.globalAlpha = tem ? 1 : 0.22;  // peça que falta: fantasma visível
       ctx.drawImage(im, area.x + area.w * fx - w2 / 2,
                     area.y + area.h * fy - h2 / 2, w2, h2);
-      ctx.restore();
+      ctx.globalAlpha = 1;
     }
+    ctx.restore();
   } else {
   // corpo
   const bx = r.x + 12, by = r.y + 34, bw = r.w - 24, bh = 46;
@@ -868,13 +878,6 @@ function drawCamHUD() {
   ctx.fillStyle = film > 0 ? "rgba(185,215,185,0.9)" : "rgba(230,90,80,0.9)";
   ctx.fillText("ROLOS " + "▮".repeat(film) +
                "▯".repeat(Math.max(0, filmMax() - film)), r.x + 10, r.y + r.h - 10);
-  if (cm.tampa) {
-    ctx.textAlign = "right";
-    ctx.font = "bold 9px 'Courier New', monospace";
-    ctx.fillStyle = "rgba(170,170,180,0.85)";
-    ctx.fillText(touchUI.seen ? "toque aqui: pôr/tirar" : "[R] pôr/tirar",
-                 r.x + r.w - 8, r.y + r.h - 10);
-  }
   ctx.restore();
   ctx.textAlign = "left";
 }
@@ -1072,7 +1075,8 @@ function drawAlbum() {
   if (albumZoom < 0) {
     // o livro aberto
     if (ALBUM_IMG) {
-      ctx.drawImage(ALBUM_IMG, b.x - 26, b.y - 16, b.w + 52, b.h + 36);
+      // a foto do livro de couro cobre a área com uma sangria generosa
+      ctx.drawImage(ALBUM_IMG, b.x - 56, b.y - 42, b.w + 112, b.h + 84);
     } else {
       // capa de couro + páginas creme + vinco central
       ctx.fillStyle = "#241b13";
