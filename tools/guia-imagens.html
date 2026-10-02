@@ -72,6 +72,10 @@ Gere no Gemini/Nano Banana, 1 passo por vez, <b>conversa nova a cada passo</b>.<
 saiu com cabelo enrolado curto e sem mochila porque o prompt descreveu um personagem
 imaginado — o certo é abrir a imagem canônica (intro1), extrair as âncoras DELA e
 anexá-la como “the same character as in the attached image”.<br>
+· <b>Gerador não sabe contar nem adivinhar quem são:</b> “seven silhouettes” virou
+6 pessoas de roupa moderna de mãos dadas — quando o número e a identidade importam,
+ENUMERE cada figura com um traje distinto (“a small boy, a bride with a veil, …”) e
+exija translucidez explícita (“light visible through their bodies”).<br>
 · <b>Sem referência, a locação muda:</b> a 1ª “alvorada” saiu de outra casa — toda
 imagem de um lugar já aprovado ANEXA a imagem aprovada e pede “the same … as the attached image”.<br>
 · <b>Sem folha de personagem, o protagonista muda de rosto a cada painel:</b> a folha
@@ -194,10 +198,10 @@ const ETAPAS = [
   { id:"TELA-001", titulo:"Final ALVORADA (refazer)",
     ctx:"Fundo da tela do final bom · 16:9 · substitui o banho dourado provisório",
     anexos:[["A locação (hall e portas — MESMO lugar)", "Assets/UI/final_cinzas.jpg"]],
-    prompt:`Wide interior shot, horizontal 16:9. The same decayed Victorian entrance hall, double doors and camera position as the attached image, now at golden dawn: warm low sunlight floods in through the open doorway, long golden light rays across the dusty floor. Seven translucent human silhouettes of different heights walk away through the doorway into the light, mid-stride, their edges dissolving into drifting bright motes. ${BLOCO_F}`,
-    qc:["MESMO hall e portas do anexo (comparar lado a lado)","luz dourada baixa entrando pela porta","7 silhuetas translúcidas saindo","bordas delas virando partículas de luz"],
+    prompt:`Wide interior shot, horizontal 16:9. The same decayed Victorian entrance hall, double doors and camera position as the attached image, at golden dawn: warm low sunlight floods through the open doorway across the dusty floor. Walking away into the light, seven SEMI-TRANSPARENT glowing ghost silhouettes in 1950s clothing, the doorway light clearly visible THROUGH their pale bodies, their outlines breaking apart into drifting bright embers: a small boy, a bride with a long veil, a broad workman in overalls, a slender woman in a long evening dress, a man in a suit and brimmed hat, a hunched elderly lady, and last a thin man carrying an old bellows camera. ${BLOCO_F}`,
+    qc:["CONTE: 7 figuras — menino · noiva de véu · zelador de macacão · pianista de vestido longo · homem de terno e chapéu · senhora curvada · homem magro com câmera de fole","TRANSLÚCIDAS: a luz da porta aparece ATRAVÉS dos corpos","bordas se desfazendo em fagulhas/partículas","MESMO hall e portas do anexo (comparar lado a lado)","roupas de época (nada de jeans/roupa moderna)"],
     salvar:"Assets\\UI\\final_alvorada.jpg",
-    nota:"Se vier outra casa: reforce no começo do prompt 'the same room as the attached image, keep the architecture identical'." },
+    nota:"Se vierem sólidas: acrescente no fim 'make the seven figures 50% transparent, like a double exposure on film'. Se vier outra casa: 'keep the architecture identical to the attached image'." },
 ]},
 ];
 // ============================================================================
