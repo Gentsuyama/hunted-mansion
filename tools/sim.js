@@ -146,8 +146,8 @@ function simElevatorTo(st, target) {
   if (!prompt || !prompt.action) { st.trace.push("semPromptElev"); return false; }
   prompt.action();                        // abre o overlay
   if (state !== "elevator") { st.trace.push("overlayElevNaoAbriu"); return false; }
-  const y = 160 + (NFLOORS - 1 - target) * 72;
-  elevatorHit(canvas.width / 2, y + 28);  // clica no andar
+  const bp = elevBtnPos(target);
+  elevatorHit(bp.x, bp.y);                // aperta o botão do andar
   for (let i = 0; i < 40 && state === "play"; i++) simTick(st, 1 / 30);
   return world.cur === target;
 }
@@ -364,7 +364,9 @@ function simRun(policy, useNoGhosts) {
         if (prompt && prompt.action) {
           prompt.action();
           safeUI.guess = [...world.code];
-          safeHit(600, canvas.height - 120);
+          const sg = (typeof safeGeom === "function") ? safeGeom() : null;
+          if (sg) safeHit(sg.alav.x, sg.alav.y);
+          else safeHit(600, canvas.height - 120);
         }
       }
     }
@@ -378,8 +380,19 @@ function simRun(policy, useNoGhosts) {
       simPegaItem(st, "fuse1");
       const fb = fl().fusebox;
       if (fb && simGotoPoint(st, fb.x, fb.y + 1.2, B)) {
-        updatePrompt(); if (prompt && prompt.action) prompt.action(); // encaixa
-        updatePrompt(); if (prompt && prompt.action) prompt.action(); // liga
+        updatePrompt(); if (prompt && prompt.action) prompt.action();
+        if (state === "fusebox") {
+          // painel novo: clica nos soquetes vazios e puxa a alavanca
+          const fg = fbGeom();
+          if (fg) {
+            for (const s of fg.soq) fuseboxHit(s.x, s.y);
+            fuseboxHit(fg.alav.x, fg.alav.y);
+          }
+          if (state === "fusebox")
+            fuseboxHit(ALB_CLOSE.x + ALB_CLOSE.w / 2, ALB_CLOSE.y + ALB_CLOSE.h / 2);
+        } else {
+          updatePrompt(); if (prompt && prompt.action) prompt.action(); // liga (antigo)
+        }
       }
       simPegaItem(st, "obturador");
       simPegaItem(st, "key");

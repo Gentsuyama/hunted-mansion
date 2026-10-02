@@ -943,6 +943,23 @@ let ALBUM_IMG = null;
   im.onerror = () => {};
   im.src = "Assets/UI/album.jpg";
 })();
+// fundos de tela (imagem = cenário; o código desenha os controles por cima)
+const UI_IMGS = {};
+(function loadUiImgs() {
+  for (const k of ["titulo", "cofre", "fusebox", "quartoescuro", "elevador",
+                   "final_alvorada", "final_cinzas", "final_fotografo"]) {
+    const im = new Image();
+    im.onload = () => { UI_IMGS[k] = im; };
+    im.onerror = () => {};
+    im.src = "Assets/UI/" + k + ".jpg";
+  }
+})();
+// desenha cobrindo o retângulo (corta sobras, mantém proporção)
+function drawCover(c2, im, x, y, w, h) {
+  const s = Math.max(w / im.naturalWidth, h / im.naturalHeight);
+  const dw = im.naturalWidth * s, dh = im.naturalHeight * s;
+  c2.drawImage(im, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+}
 
 // o SINAL do Hóspede: um olho riscado, rabiscado na parede
 let SINAL_SPR = null;

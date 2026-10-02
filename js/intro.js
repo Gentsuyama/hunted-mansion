@@ -137,17 +137,26 @@ function titleButtons() {
 }
 
 function drawTitle() {
-  // fundo: painel 3 (porta aberta + câmera na soleira), escurecido com vinheta
-  const im = cineImgs[2];
-  if (im && im.complete && im.naturalWidth) {
-    ctx.globalAlpha = 0.5;
-    ctx.drawImage(im, 0, 0, canvas.width, canvas.height);
-    ctx.globalAlpha = 1;
+  // fundo: a FACHADA da mansão à noite (Gemini); reserva: painel 3 da intro
+  if (UI_IMGS.titulo) {
+    drawCover(ctx, UI_IMGS.titulo, 0, 0, canvas.width, canvas.height);
+    // flicker sutil da janela acesa: a casa "respira"
+    if (hash(Math.floor(time * 9), 5, 11) < 0.1) {
+      ctx.fillStyle = "rgba(0,0,0,0.12)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+  } else {
+    const im = cineImgs[2];
+    if (im && im.complete && im.naturalWidth) {
+      ctx.globalAlpha = 0.5;
+      ctx.drawImage(im, 0, 0, canvas.width, canvas.height);
+      ctx.globalAlpha = 1;
+    }
   }
   const vg = ctx.createRadialGradient(canvas.width / 2, 320, 180,
                                       canvas.width / 2, 320, 820);
   vg.addColorStop(0, "rgba(0,0,0,0.25)");
-  vg.addColorStop(1, "rgba(0,0,0,0.94)");
+  vg.addColorStop(1, UI_IMGS.titulo ? "rgba(0,0,0,0.78)" : "rgba(0,0,0,0.94)");
   ctx.fillStyle = vg;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 

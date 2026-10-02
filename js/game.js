@@ -161,12 +161,15 @@ function updatePrompt() {
       return;
     }
   }
-  // quadro de fusíveis (porão)
+  // quadro de fusíveis (porão): abre o PAINEL (foto + soquetes clicáveis)
   if (fl().fusebox && !world.flags.elevatorOn) {
     const fb = fl().fusebox;
     if (Math.hypot(fb.x - player.x, fb.y - player.y) < 2.4) {
       const total = world.flags.fusesIn;
-      if (total >= 3)
+      if (UI_IMGS.fusebox)
+        prompt = { text: `QUADRO DE FUSÍVEIS (${total}/3)`,
+                   action: () => { state = "fusebox"; } };
+      else if (total >= 3)
         prompt = { text: "LIGAR A CHAVE GERAL", action: () => {
           world.flags.elevatorOn = true;
           sfxSting(); liveEvent("elevator");
@@ -700,6 +703,7 @@ function render() {
   if (state === "chat") drawChat();
   if (state === "safe") drawSafe();
   if (state === "elevator") drawElevator();
+  if (state === "fusebox") drawFusebox();
   if (state === "darkroom") drawDarkroom();
   if (state === "win") drawWin();
   if (state !== "play") drawCursor();   // overlays: cursor sempre visível
@@ -1278,7 +1282,7 @@ window.addEventListener("keydown", e => {
   if (state === "cine")  { cineAdvance(); return; }
   if (state === "title") { titleKey(e.code); return; }
   if (state === "chat" || state === "safe" || state === "elevator" ||
-      state === "darkroom") {
+      state === "darkroom" || state === "fusebox") {
     if (e.code === "Escape") { state = "play"; live.scroll = 0; }
     return;
   }
@@ -1351,6 +1355,7 @@ canvas.addEventListener("mousedown", e => {
   if (state === "chat")  { chatHit(mx, my); return; }
   if (state === "safe")  { safeHit(mx, my); return; }
   if (state === "elevator") { elevatorHit(mx, my); return; }
+  if (state === "fusebox") { fuseboxHit(mx, my); return; }
   if (state === "darkroom") { darkroomHit(mx, my); return; }
   if (state === "win")   { winHit(mx, my); return; }
   if (state !== "play") return;
@@ -1406,6 +1411,7 @@ canvas.addEventListener("touchstart", e => {
     }
     if (state === "safe")  { safeHit(p.x, p.y); return; }
     if (state === "elevator") { elevatorHit(p.x, p.y); return; }
+    if (state === "fusebox") { fuseboxHit(p.x, p.y); return; }
     if (state === "darkroom") { darkroomHit(p.x, p.y); return; }
     if (state === "win")   { winHit(p.x, p.y); return; }
     if (liveInPanel(p.x, p.y)) { state = "chat"; live.scroll = 0; return; }
