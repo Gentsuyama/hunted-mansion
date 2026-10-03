@@ -266,3 +266,38 @@ Categorias: parede falsa, marca, cofre, quadro, retrato visto, peça ✦.
    de lugar de alma ganha lavagem sépia + legenda datada), 3 finais:
    ALVORADA (porta, todas livres) · CINZAS (porta, alguma queimada) ·
    O NOVO FOTÓGRAFO (sentar na cadeira com Blackwood no negativo).
+
+## 12. A CASA REAGE (leva de 2026-10-02 — vinda dos estudos de Fear & Hunger e Inscryption)
+
+Princípio: ameaça ANUNCIADA, rara e cara; perda que fica; refúgio que cobra; a morte vira
+conteúdo. Constantes em `js/core.js` (`BOTE`, `ECO`, `SAN_*`, `LAMP_*`); lógica nova em
+`js/ritual.js`.
+
+- **Bote dos ecos.** O eco não fere por encostar. A 4,8 células, com linha de visão, ele
+  INSPIRA 1,15 s (olhos acendem, um aro vermelho se fecha, o som vem do lado dele) e salta em
+  linha reta. Flash durante a inspiração corta o bote; sair da frente também. Um por vez — com
+  dois ecos, o segundo salta antes de o flash recarregar. Menos ecos (3 porão, 1 térreo, 2 nos
+  demais); fotografado, some por 50–80 s; ele só se arrasta até você se você faz barulho.
+- **Feridas e lamparina.** A sanidade só volta sozinha até um teto (60). Cada golpe baixa o
+  teto em 10 (marca âmbar na barra). A lamparina do hall de entrada cura tudo, tem 3 doses de
+  óleo e cada descanso acorda mais um eco na casa. Os ecos não entram na luz dela. Quando o
+  Blackwood acorda, ela apaga de vez.
+- **A queda e o ritual.** Primeira vez que a sanidade zera: o visor do Fotógrafo se fecha, vem
+  o clarão e o streamer acorda no hall com metade do filme — "ele já tem um negativo seu".
+  Segunda vez: morte. A polaroid dele revela devagar e o jogador escreve a legenda do próprio
+  retrato (uma de três frases).
+- **Arquivo do canal.** O título é a página da live: lista as lives arquivadas e como cada uma
+  terminou. Quem caiu vira quadro na parede do hall (só a foto mostra; atrás da moldura há um
+  rolo) e um vulto de moletom no andar onde a live caiu.
+- **O chat muda de tom.** Zoeira → inquieto → esvaziando → quase só ELE. `estudio54` é o
+  espectador que nunca sai: escreve pouco, em minúsculas, só sobre enquadramento ("boa luz.",
+  "essa ficou boa."). As almas acordadas escrevem com o próprio usuário. Com a sanidade no
+  chão o chat chega comido; de relance, o contador mostra "1 assistindo".
+- **Empurrão.** Quatro minutos sem progresso e um viewer que "pesquisou a casa" diz o ANDAR do
+  próximo passo. Nunca o lugar: isso é da foto.
+- **Únicos.** Cada alma tem corpo próprio na foto (o busto do retrato aprovado + corpo a
+  nanquim com o traço dela), um traço no mapa e um som. O Hóspede, sem rosto, usa na foto o
+  rosto do streamer. Cenários únicos: quarto escuro em vermelho, parede de sete molduras no
+  ateliê (o placar da casa), grade do elevador, hall de ladrilho xadrez, sala secreta de tijolo.
+- **Pistas no mundo.** Pegadas pequenas que entram na parede falsa; memória de planta (parede
+  já vista fica como fantasma e apodrece em minutos); olhos que não existem com sanidade < 28.

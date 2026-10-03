@@ -97,7 +97,7 @@ function drawSafe() {
   }
 
   if (safeUI.msg && safeUI.msgT > 0) {
-    safeUI.msgT -= 1 / 60;
+    safeUI.msgT -= frameDt;
     ctx.font = "bold 18px 'Courier New', monospace";
     ctx.fillStyle = "rgba(230,90,80,0.9)";
     ctx.fillStyle = "rgba(0,0,0,0.5)";
@@ -174,7 +174,7 @@ function drawFusebox() {
     ctx.fillStyle = "rgba(0,0,0,0.88)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = "#ddd";
-    ctx.fillText("QUADRO DE FUSÍVEIS — " + world.flags.fusesIn + "/3",
+    ctx.fillText(tf("QUADRO DE FUSÍVEIS ({0}/3)", world.flags.fusesIn),
                  canvas.width / 2, canvas.height / 2);
     drawOverlayClose();
     return;
@@ -187,7 +187,7 @@ function drawFusebox() {
   ctx.fillText("QUADRO DE FUSÍVEIS", canvas.width / 2, 54);
   ctx.font = "bold 13px 'Courier New', monospace";
   ctx.fillStyle = "rgba(180,170,150,0.9)";
-  ctx.fillText(`${world.flags.fusesIn}/3 encaixados · ${world.flags.fuses} na mão`,
+  ctx.fillText(tf("{0}/3 encaixados · {1} na mão", world.flags.fusesIn, world.flags.fuses),
                canvas.width / 2, 78);
 
   for (let i = 0; i < 3; i++) {
@@ -322,7 +322,7 @@ function drawElevator() {
       ctx.font = `bold ${hov ? 19 : 16}px 'Courier New', monospace`;
       ctx.fillStyle = cur2 ? "rgba(140,130,115,0.6)"
         : hov ? "rgba(255,235,180,0.98)" : "rgba(220,205,175,0.85)";
-      ctx.fillText(FLOOR_NAMES[b.floor] + (cur2 ? " ◂ você" : ""),
+      ctx.fillText(tr(FLOOR_NAMES[b.floor]) + (cur2 ? tr(" ◂ você") : ""),
                    b.x - b.r - 26, b.y);
       ctx.strokeStyle = "rgba(200,185,150,0.35)";
       ctx.lineWidth = 1;
@@ -355,7 +355,7 @@ function drawElevator() {
       ctx.strokeRect(canvas.width / 2 - 160, y, 320, 56);
       ctx.font = "bold 20px 'Courier New', monospace";
       ctx.fillStyle = cur2 ? "rgba(120,120,120,0.6)" : "rgba(235,235,235,0.9)";
-      ctx.fillText(FLOOR_NAMES[f] + (cur2 ? " (você está aqui)" : ""),
+      ctx.fillText(tr(FLOOR_NAMES[f]) + (cur2 ? tr(" ◂ você") : ""),
                    canvas.width / 2, y + 29);
     }
   }
@@ -417,11 +417,12 @@ function drawWin() {
   const ss = String((world.timeSec | 0) % 60).padStart(2, "0");
   ctx.font = "bold 15px 'Courier New', monospace";
   ctx.fillStyle = "rgba(160,160,160,0.85)";
-  ctx.fillText(`tempo na casa: ${mm}:${ss}   ·   fotos reveladas: ${photoCount}   ·   pico da live: ${fmtViewers(live.viewers)}`,
+  ctx.fillText(tf("tempo na casa: {0}:{1}   ·   fotos reveladas: {2}   ·   pico da live: {3}",
+                  mm, ss, photoCount, fmtViewers(Math.max(live.pico, live.viewers))),
                canvas.width / 2, 330);
 
   const btns = [
-    { id: "new", x: 330, y: 400, w: 240, h: 70, label: "NOVA RUN" },
+    { id: "new", x: 330, y: 400, w: 240, h: 70, label: "NOVA LIVE" },
     { id: "menu", x: 630, y: 400, w: 240, h: 70, label: "MENU" },
   ];
   for (const b of btns) {
@@ -447,8 +448,10 @@ function winHit(px2, py2) {
 // Minigame: 3 banhos químicos; pare a agulha dentro da zona de cada um
 // ==================================================================
 const darkUI = { alvo: null, fase: -1, msg: "", confirma: 0, zc: 0.5, zw: 0.26 };
-const DARK_VEL = [1.0, 1.35, 1.75];        // velocidade da agulha por banho
-const DARK_ZW  = [0.26, 0.20, 0.15];       // largura da zona por banho
+// (o terceiro banho era 1,75 com zona de 0,15: medido no robô humano, gente
+// errava de 3 a 16 vezes por run — difícil pelo reflexo, não pela tensão)
+const DARK_VEL = [1.0, 1.25, 1.45];        // velocidade da agulha por banho
+const DARK_ZW  = [0.26, 0.21, 0.19];       // largura da zona por banho
 const DARK_NOMES = ["REVELADOR", "INTERRUPTOR", "FIXADOR"];
 
 function darkNeedle() {
@@ -482,7 +485,7 @@ function drawDarkroom() {
   const def = SOUL_DEFS[darkUI.alvo] || {};
   ctx.font = "bold 14px 'Courier New', monospace";
   ctx.fillStyle = "rgba(230,195,185,0.9)";
-  ctx.fillText("negativo de " + (def.nome || "?") + " — " + (def.titulo || ""),
+  ctx.fillText(tf("negativo de {0} — {1}", tr(def.nome || "?"), tr(def.titulo || "")),
                canvas.width / 2, 78);
 
   // o retrato pendurado no VARAL (o da foto, quando presente)
@@ -545,7 +548,7 @@ function drawDarkroom() {
     ctx.fillRect(canvas.width / 2 - 230, 338, 460, 34);
     ctx.font = "bold 18px 'Courier New', monospace";
     ctx.fillStyle = "rgba(235,200,195,0.95)";
-    ctx.fillText(`BANHO ${darkUI.fase + 1}/3 — ${DARK_NOMES[darkUI.fase]}`,
+    ctx.fillText(tf("BANHO {0}/3 — {1}", darkUI.fase + 1, tr(DARK_NOMES[darkUI.fase])),
                  canvas.width / 2, 356);
     const bx = canvas.width / 2 - 260, bw = 520, by = 388, bh = 30;
     ctx.fillStyle = "rgba(60,18,14,0.8)";
@@ -615,7 +618,7 @@ function darkroomHit(px2, py2) {
         state = "play";
       } else darkNovaZona();
     } else {
-      sanity = Math.max(1, sanity - 8);   // o retrato estremece; aqui não mata
+      sanity = Math.max(1, sanity - 5);   // o retrato estremece; aqui não mata
       shake = 0.8; sfxDry();
       darkUI.msg = "o banho borrou… o retrato ESTREMECEU. tenta de novo";
     }
@@ -689,5 +692,6 @@ function winGame(tipo) {
   }
   state = "win";
   sfxSlam();
+  arquivoGrava(tipo);      // a live entra no arquivo do canal
   clearRun();
 }

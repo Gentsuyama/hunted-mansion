@@ -30,7 +30,10 @@ function genWorld(seed) {
   world = {
     seed, cur: 1, floors: [], taken: new Set(), timeSec: 0,
     flags: { elevatorOn: false, safeOpen: false, fuses: 0, fusesIn: 0,
-             key: false, secretsFound: [], marksSeen: [] },
+             key: false, secretsFound: [], marksSeen: [],
+             // a lamparina do hall, a primeira queda e os que vieram antes
+             lampOleo: LAMP_OLEO, lampApagada: false, ecosExtras: [],
+             quase: false, feridas: 0, anteriores: [], antVistos: [], liveN: 1 },
   };
   const rng = mulberry32(seed ^ 0x51f3a9);
   // código do cofre da run
@@ -104,7 +107,7 @@ function genWorld(seed) {
     for (let tries = 0; tries < 80; tries++) {
       const f = 1 + (rng() * (NFLOORS - 1) | 0);
       const flo = world.floors[f];
-      const livres = flo.rooms.filter(r => !r.fixed);
+      const livres = flo.rooms.filter(r => !r.fixed && !flo.banheiros.includes(r));
       const r = livres[rng() * livres.length | 0];
       if (!r || r.w < ft.w + 5 || r.h < ft.h + 5) continue;
       const fx = r.x + 2 + (rng() * (r.w - ft.w - 4) | 0);
@@ -140,20 +143,34 @@ function genWorld(seed) {
       }
     return null;
   }
-  function findFurn(tipos) {
+  // procura a peça seguindo uma ORDEM de andares (cada alma puxa para um
+  // andar diferente — a casa inteira vira o caminho, não só o térreo) e
+  // evita banheiro enquanto houver outra opção
+  function findFurn(tipos, ordem) {
+    ordem = ordem || [1, 2, 3, 4, 5];
+    let reserva = null;
     for (const t of tipos)
-      for (let f = 1; f < NFLOORS; f++) {
-        const p = world.floors[f].furn.find(q => q.type === t);
-        if (p) { const s = spotNearFurn(world.floors[f], p);
-                 if (s) return { floor: f, p, s, tipo: t }; }
+      for (const f of ordem) {
+        if (f < 1 || f >= NFLOORS) continue;
+        const flo = world.floors[f];
+        for (const p of flo.furn) {
+          if (p.type !== t) continue;
+          const s = spotNearFurn(flo, p);
+          if (!s) continue;
+          const achado = { floor: f, p, s, tipo: t };
+          const noBanho = flo.banheiros.some(b =>
+            p.x > b.x && p.x < b.x + b.w && p.y > b.y && p.y < b.y + b.h);
+          if (!noBanho) return achado;
+          if (!reserva) reserva = achado;
+        }
       }
-    return null;
+    return reserva;
   }
 
   // O ESPELHO da Cecília e o PIANO da Olívia (peças específicas)
-  const esp = findFurn(["espelho"]);
+  const esp = findFurn(["espelho"], [3, 2, 4, 1, 5]);
   world.espelhoCecilia = esp ? { floor: esp.floor, furn: esp.p } : null;
-  const pia = findFurn(["piano"]);
+  const pia = findFurn(["piano"], [4, 3, 2, 1, 5]);
   world.pianoOlivia = pia ? { floor: pia.floor, x: pia.p.x, y: pia.p.y } : null;
 
   // O SINAL do Hóspede: olho riscado numa parede, só sai na foto
@@ -172,7 +189,7 @@ function genWorld(seed) {
       const s = spotNearFurn(flo, spec.peca.furn);
       if (s) spot = { floor: spec.peca.floor, x: s.x, y: s.y, movel: spec.peca.furn.type };
     } else if (spec.tipos) {
-      const f2 = findFurn(spec.tipos);
+      const f2 = findFurn(spec.tipos, spec.ordem);
       if (f2) spot = { floor: f2.floor, x: f2.s.x, y: f2.s.y, movel: f2.tipo };
     }
     if (!spot) { const p = world.floors[2].freeSpot();
@@ -180,7 +197,7 @@ function genWorld(seed) {
     world.retratos.push({ id: "ret_" + soul, soul,
       floor: spot.floor, x: spot.x, y: spot.y, movel: spot.movel });
   }
-  addRetrato("tomas",  { tipos: ["berco", "cama"] });
+  addRetrato("tomas",  { tipos: ["berco", "cama"], ordem: [2, 1, 3, 4, 5] });
   addRetrato("cecilia", world.espelhoCecilia
     ? { peca: { floor: world.espelhoCecilia.floor, furn: world.espelhoCecilia.furn } }
     : { tipos: ["cama"] });
@@ -188,8 +205,10 @@ function genWorld(seed) {
                                  y: ELEV_ROOM.y + ELEV_ROOM.h - 1.5, movel: "poço do elevador" } });
   addRetrato("olivia", pia ? { peca: { floor: pia.floor, furn: pia.p } }
                            : { tipos: ["cama"] });
-  addRetrato("hospede", { tipos: ["relogio", "escrivaninha", "espelho"] });
-  addRetrato("aurora",  { tipos: ["poltrona", "cadeira", "cama"] });
+  addRetrato("hospede", { tipos: ["relogio", "escrivaninha", "espelho"],
+                          ordem: [2, 4, 3, 1, 5] });
+  addRetrato("aurora",  { tipos: ["poltrona", "cadeira", "cama"],
+                          ordem: [4, 2, 3, 1, 5] });
   addRetrato("blackwood", { fixo: { floor: NFLOORS - 1,
     x: ATELIER_CAVALETE.x, y: ATELIER_CAVALETE.y, movel: "cavalete do ateliê" } });
 
@@ -361,14 +380,20 @@ function genFloor(seed, f) {
       if (!solid) continue;
       carve(sx, sy, sw, sh);
       // 2 células de parede FALSA ligando host <-> secreta
+      // sr.frente = ponto de CHÃO do cômodo-anfitrião colado ao vão (o chat
+      // só insiste na parede quando o jogador consegue vê-la de onde está)
       if (side === 0) { const wy = Math.max(host.y + 1, Math.min(sy + (sh / 2 | 0), host.y + host.h - 2));
-        g[wy * COLS + (host.x + host.w)] = T_FAKE; g[(wy + 1) * COLS + (host.x + host.w)] = T_FAKE; }
+        g[wy * COLS + (host.x + host.w)] = T_FAKE; g[(wy + 1) * COLS + (host.x + host.w)] = T_FAKE;
+        sr.frente = { x: host.x + host.w - 0.5, y: wy + 1 }; sr.dn = [-1, 0]; }
       else if (side === 1) { const wy = Math.max(host.y + 1, Math.min(sy + (sh / 2 | 0), host.y + host.h - 2));
-        g[wy * COLS + (host.x - 1)] = T_FAKE; g[(wy + 1) * COLS + (host.x - 1)] = T_FAKE; }
+        g[wy * COLS + (host.x - 1)] = T_FAKE; g[(wy + 1) * COLS + (host.x - 1)] = T_FAKE;
+        sr.frente = { x: host.x + 0.5, y: wy + 1 }; sr.dn = [1, 0]; }
       else if (side === 2) { const wx = Math.max(host.x + 1, Math.min(sx + (sw / 2 | 0), host.x + host.w - 2));
-        g[(host.y + host.h) * COLS + wx] = T_FAKE; g[(host.y + host.h) * COLS + wx + 1] = T_FAKE; }
+        g[(host.y + host.h) * COLS + wx] = T_FAKE; g[(host.y + host.h) * COLS + wx + 1] = T_FAKE;
+        sr.frente = { x: wx + 1, y: host.y + host.h - 0.5 }; sr.dn = [0, -1]; }
       else { const wx = Math.max(host.x + 1, Math.min(sx + (sw / 2 | 0), host.x + host.w - 2));
-        g[(host.y - 1) * COLS + wx] = T_FAKE; g[(host.y - 1) * COLS + wx + 1] = T_FAKE; }
+        g[(host.y - 1) * COLS + wx] = T_FAKE; g[(host.y - 1) * COLS + wx + 1] = T_FAKE;
+        sr.frente = { x: wx + 1, y: host.y + 0.5 }; sr.dn = [0, 1]; }
       sr.id = `${f}:${s}`;
       floor.secretRooms.push(sr);
       break;
@@ -431,10 +456,24 @@ function genFloor(seed, f) {
     if (!floor.reach) floor.reach = flood();
   }
 
-  // --- móveis (não nas salas fixas) ---
-  const typeNames = Object.keys(FURN_TYPES);
+  // --- BANHEIROS: as 2 menores salas comuns (decidido ANTES de mobiliar) ---
+  floor.banheiros = rooms.filter(r => !r.fixed)
+    .sort((a, b) => a.w * a.h - b.w * b.h).slice(0, 2);
+
+  // --- móveis por TIPO DE CÔMODO (não nas salas fixas): cada sala é um
+  // quarto, uma sala de estar, um escritório ou um depósito — a foto de um
+  // cômodo precisa fazer sentido como cômodo ---
+  const COMODOS = [
+    ["cama", "berco", "poltrona", "espelho", "bau", "cadeira"],          // quarto
+    ["sofa", "mesa", "piano", "poltrona", "relogio", "estante"],         // sala
+    ["escrivaninha", "estante", "cadeira", "relogio", "bau", "mesa"],    // escritório
+    ["bau", "estante", "cadeira", "mesa", "espelho", "sofa"],            // depósito
+  ];
+  const BANHO = ["espelho", "cadeira", "bau"];
   for (const r of rooms) {
     if (r.fixed) continue;
+    const typeNames = floor.banheiros.includes(r)
+      ? BANHO : COMODOS[rng() * COMODOS.length | 0];
     const n = Math.min(5, 1 + (r.w * r.h / 70 | 0) + (rng() * 2 | 0));
     for (let k = 0; k < n; k++) {
       const tn = typeNames[rng() * typeNames.length | 0];
@@ -478,6 +517,14 @@ function genFloor(seed, f) {
       if (s.h) for (let i = s.a; i <= s.b; i++) pinta(i, s.c, 1);
       else     for (let j = s.a; j <= s.b; j++) pinta(s.c, j, 1);
     }
+    // HALL DE ENTRADA: ladrilho xadrez (some o som de madeira; a foto mostra o piso)
+    if (f === 1)
+      for (let j = ENTRY_HALL.y; j < ENTRY_HALL.y + ENTRY_HALL.h; j++)
+        for (let i = ENTRY_HALL.x; i < ENTRY_HALL.x + ENTRY_HALL.w; i++) pinta(i, j, 3);
+    // ATELIÊ: o tapete do cenário, onde ele punha os clientes
+    if (f === NFLOORS - 1)
+      for (let j = ATELIER.y + 3; j < ATELIER.y + ATELIER.h - 3; j++)
+        for (let i = ATELIER.x + 5; i < ATELIER.x + ATELIER.w - 5; i++) pinta(i, j, 2);
     // tapetes grandes no centro das salas espaçosas
     for (const r of comuns) {
       if (floor.banheiros.includes(r)) continue;
@@ -510,8 +557,9 @@ function genFloor(seed, f) {
     floor.films.push({ id: `${f}:${i}`, x: p.x, y: p.y, taken: false });
   }
 
-  // --- fantasmas (porão é o pior lugar; nunca no hall de entrada) ---
-  const nGhost = f === 0 ? 5 : f === 1 ? 2 : 3;
+  // --- ecos (porão é o pior lugar; nunca no hall de entrada). Poucos de
+  // propósito: cada encontro tem que ser um acontecimento, não um ruído ---
+  const nGhost = f === 0 ? 3 : f === 1 ? 1 : 2;
   for (let i = 0; i < nGhost; i++) {
     const p = freeSpot();
     floor.ghosts.push({
@@ -540,11 +588,13 @@ function newRun() {
   genWorld(seed);
   if (typeof noGhosts !== "undefined" && noGhosts)
     for (const flo of world.floors) flo.ghosts.length = 0;   // modo puzzle
+  casaNovaRun();           // lamparina, quadros e o vulto de quem veio antes
   film = FILM_START; sanity = 100;
   album = []; albumIdx = 0; photoCount = 0;
   albumReturn = "play";
   flashT = 0; flashCd = 0; attractT = 0; particles = [];
   if (typeof liveReset === "function") liveReset();
+  if (typeof corpoReset === "function") corpoReset();
   saveRun();
   state = "play";
 }
@@ -564,17 +614,23 @@ function continueRun() {
   for (let f2 = 0; f2 < NFLOORS; f2++)
     if (!world.floors[f2].films.some(fm => !fm.taken)) spawnFilm(f2);
   soulsInit();   // reaplica estado das almas (entes, andares apaziguados)
+  casaMonta();   // lamparina, quadros, vulto de moletom e ecos acordados
   // marcas já fotografadas não geram dica de novo
   for (const flo of world.floors)
     for (const mk of flo.marks)
       if (world.flags.marksSeen.includes(mk.ord)) mk.seen = true;
   setFloor(s.cur);
   player.x = s.px; player.y = s.py;
+  if (collides(player.x, player.y)) {          // nunca retomar dentro de parede ou móvel
+    const c0 = roomCenter(STAIR_ROOM);
+    player.x = c0.x; player.y = c0.y;
+  }
   cam.x = player.x * CELL; cam.y = player.y * CELL;
   film = s.film; sanity = s.sanity; photoCount = s.photoCount || 0;
   album = []; albumIdx = 0;
   flashT = 0; flashCd = 0; attractT = 0; particles = [];
   if (typeof liveReset === "function") liveReset();
+  if (typeof corpoReset === "function") corpoReset();
   state = "play";
 }
 

@@ -8,15 +8,18 @@ function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.05);
   last = now;
   time += dt;
+  frameDt = dt;
 
   if (state === "play") update(dt);
+  else if (state === "ritual") ritualUpdate(dt);
   render();
   requestAnimationFrame(frame);
 }
 
-// boot: carrega as imagens e vai para o TÍTULO;
-// a cinematic de abertura toca sempre que uma NOVA run começa
+// boot: carrega as imagens e abre na tela de IDIOMA (depois, o título);
+// a cinematic de abertura toca sempre que uma NOVA live começa
 loadCineImages();
-state = "title";
+langBoot();
+state = "lang";          // a primeira tela é sempre a do idioma
 
 requestAnimationFrame(frame);

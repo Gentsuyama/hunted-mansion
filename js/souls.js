@@ -200,7 +200,7 @@ function soulAwaken(id, floorIdx) {
   }
   if (def.dicaRetrato)
     setTimeout(() => { if (world) livePush(liveRandUser(),
-      "o RETRATO dele deve prender ele aqui… " + def.dicaRetrato); },
+      tf("o RETRATO dele deve prender ele aqui… {0}", tr(def.dicaRetrato))); },
       dly + 2600);
   live.viewers += 60;
   saveRun();
@@ -242,7 +242,7 @@ function soulsOnEcoCaptured() {
   if (n >= 7 && soulDormant("olivia")) {
     const pf = world.pianoOlivia ? world.pianoOlivia.floor : 2;
     soulAwaken("olivia", pf);
-    livePush(liveRandUser(), "PERA. tem um PIANO tocando SOZINHO no " + FLOOR_NAMES[pf] + "!!");
+    livePush(liveRandUser(), tf("PERA. tem um PIANO tocando SOZINHO no {0}!!", tr(FLOOR_NAMES[pf])));
     if (world.cur === pf) sfxPiano();
   }
 }
@@ -265,6 +265,7 @@ function soulsCheckBlackwood() {
   if (n < 6) return;
   soulAwaken("blackwood", NFLOORS - 1);
   shake = 1.6; sfxSlam();
+  lampApaga();             // o último ato não tem refúgio
 }
 // Madame Aurora: 3 almas resolvidas — ela aparece num andar que você já fotografou
 function soulsCheckAurora() {
@@ -283,8 +284,8 @@ function soulsCheckAurora() {
     if (idx > 0) pf = idx;                 // nunca no porão (ela odeia lá)
   }
   soulAwaken("aurora", pf);
-  livePush(liveRandUser(), "uma SENHORA apareceu no " + FLOOR_NAMES[pf] +
-           "… exatamente onde você tirou foto antes");
+  livePush(liveRandUser(), tf("uma SENHORA apareceu no {0}… exatamente onde você tirou foto antes",
+           tr(FLOOR_NAMES[pf])));
 }
 
 // --- UPDATE (só entes do andar atual) ------------------------------
@@ -320,6 +321,14 @@ function soulsUpdate(dt) {
     const d = Math.hypot(player.x - e.x, player.y - e.y);
     const def = SOUL_DEFS[e.id];
     let toca = false;                    // esta alma machuca por toque?
+    // cada alma se anuncia pelo SOM dela, vindo do lado em que está
+    if (d < 30) {
+      e.motT = (e.motT === undefined ? 3 + Math.random() * 5 : e.motT) - dt;
+      if (e.motT <= 0) {
+        e.motT = 9 + Math.random() * 8;
+        sfxMotivo(e.id, 1 - d / 34, Math.max(-1, Math.min(1, (e.x - player.x) / 12)));
+      }
+    }
 
     if (e.id === "tomas") {
       // FOGE do jogador; nunca ataca; ri quando escapa — mas é uma
@@ -409,12 +418,16 @@ function soulsUpdate(dt) {
       }
       e.frameT = (e.frameT === undefined ? 5 : e.frameT) - dt;
       if (e.frameT <= 1.2 && e.frameT > 0 &&
-          hasLOS(e.x, e.y, player.x, player.y)) bossWarnT = e.frameT;
+          hasLOS(e.x, e.y, player.x, player.y)) {
+        bossWarnT = e.frameT;
+        if (!e.avisou) { e.avisou = true; sfxCarga(); }      // o flash DELE carregando
+        if (!live.hinted.has("fixoPose")) { live.hinted.add("fixoPose"); liveFixo("não se mexa."); }
+      }
       if (e.frameT <= 0) {
-        e.frameT = 6 + Math.random() * 4;
+        e.frameT = 6 + Math.random() * 4; e.avisou = false;
         if (hasLOS(e.x, e.y, player.x, player.y) && d < 22) {
           // ele te fotografou: o flash DELE rouba sanidade
-          sanity -= 15; shake = 1.5;
+          sanity -= 15; shake = 1.5; ferida();
           flashT = Math.max(flashT, 0.7);
           sfxCamera(); sfxDamage();
           livePush(liveRandUser(), "ELE TE FOTOGRAFOU!!! quebra a linha de visão!!");
@@ -484,7 +497,7 @@ function soulsOnFlash(dir, fotoReal) {
         e.frameT = 4;
         sfxDissolve(); shake = 1;
         livePush(liveRandUser(),
-          "ACERTOU ELE!! " + e.hits + "/" + need + " — as almas livres tão SEGURANDO ele!");
+          tf("ACERTOU ELE!! {0}/{1} — as almas livres tão SEGURANDO ele!", e.hits, need));
         continue;
       }
       // último acerto cai na captura normal abaixo
@@ -495,9 +508,10 @@ function soulsOnFlash(dir, fotoReal) {
       soulEnts.splice(i, 1);
       showVinheta("captura");          // quadrinho da 1ª alma presa
       sfxDissolve(); shake = 1.2;
-      livePush(liveRandUser(), "VOCÊ PRENDEU " + SOUL_DEFS[e.id].nome + " NO RETRATO??");
+      livePush(liveRandUser(), tf("VOCÊ PRENDEU {0} NO RETRATO??", tr(SOUL_DEFS[e.id].nome)));
       livePush(liveRandUser(), "mano… isso é o que o BLACKWOOD fazia");
       livePush(liveRandUser(), "leva pro quarto escuro no porão. LIBERTA ele");
+      liveFixo("esse ficou bom.");
       live.viewers += 80;
       saveRun();
     } else {
@@ -537,9 +551,11 @@ function soulFree(id) {
   film = Math.min(filmMax(), film + 1);
   sfxSting(); shake = 0.8;
   const def = SOUL_DEFS[id];
-  livePush(liveRandUser(), def.nome + " TÁ LIVRE!! eu tô CHORANDO");
+  livePush(liveRandUser(), tf("{0} TÁ LIVRE!! eu tô CHORANDO", tr(def.nome)));
   livePush(liveRandUser(), "uma das correntes da porta QUEBROU, fotografa lá!");
   if (def.dicaRetrato2) livePush(liveRandUser(), def.dicaRetrato2);
+  liveAlmaFim(id, true);
+  liveFixo("esse era meu.");
   live.viewers += 150;
   liveEvent("freed");
   soulsCheckAurora();
@@ -550,9 +566,11 @@ function soulBurn(id) {
   soulFlags()[id].state = "burned";    // corrente quebra, mas sem bênção
   sfxSlam(); shake = 1.4;
   const def = SOUL_DEFS[id];
-  livePush(liveRandUser(), "VOCÊ QUEIMOU O RETRATO DE " + def.nome + "???");
+  livePush(liveRandUser(), tf("VOCÊ QUEIMOU O RETRATO DE {0}???", tr(def.nome)));
   livePush(liveRandUser(), "a corrente quebrou mas isso foi CRUEL demais");
   livePush(liveRandUser(), "os vultos daquele andar ficaram inquietos…");
+  liveAlmaFim(id, false);
+  liveFixo("negativo queimado eu não esqueço.");
   live.viewers -= 40;
   soulsCheckAurora();
   soulsCheckBlackwood();

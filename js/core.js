@@ -13,7 +13,10 @@ const T_FLOOR = 0, T_WALL = 1, T_STAIR_UP = 2, T_STAIR_DOWN = 3, T_ELEV = 4,
       T_FAKE = 5, T_DOOR = 6;
 // T_FAKE: parece parede e bloqueia LUZ, mas é atravessável — a FOTO denuncia
 
-const LANTERNA = { halfAngle: 0.42, range: 34, rays: 180, power: 1.0 };
+const LANTERNA = { halfAngle: 0.42, range: 34, rays: 180, power: 1.0,
+  // luz PERIFÉRICA: abre bem para os lados, mas alcança pouco — dá para
+  // perceber o que chega pelo flanco sem iluminar a sala inteira
+  lado: { halfAngle: 1.25, range: 12, rays: 130, power: 0.6 } };
 const FLASH    = { halfAngle: 0.85, range: 58, rays: 320, power: 2.6,
                    duration: 1.0, cooldown: 1.6 };
 
@@ -23,6 +26,28 @@ const PLAYER_RADIUS = 0.42;
 const FILM_START = 1, FILM_MAX = 12, FILM_REFILL = 3;
 const ALBUM_MAX  = 24;
 const GHOST_SPEED = 3.6, GHOST_DMG = 40;
+// pressão dos ecos (ajustável para testes de balanceamento):
+//   atraiFlash = segundos que TODO o andar persegue depois de qualquer flash
+//   deriva     = fração da velocidade com que o eco se arrasta até você enquanto
+//                você faz BARULHO (parado ou pé ante pé, ele não deriva)
+//   volta      = segundos [mín, extra] até um eco fotografado reaparecer
+//   atraiRaio  = até onde o clarão é visto (antes era o andar inteiro)
+//   ouve       = raio em que ele percebe você: parado/pé ante pé, andando, correndo
+const ECO = { atraiFlash: 4, atraiRaio: 34, deriva: 0.18, volta: [50, 30],
+              ouve: [6, 14, 22] };
+// O BOTE: o eco não fere por encostar. Ele chega perto, INSPIRA (os olhos
+// acendem, o som cresce) e salta em linha reta. Flash durante a inspiração
+// cancela; sair da frente também. Um de cada vez — os outros esperam a vez.
+// (pausa curta de propósito: com DOIS ecos, o segundo salta antes de o flash
+// recarregar — um você corta, do outro você tem que sair da frente)
+const BOTE = { dist: 4.8, inspira: 1.15, vel: 15, dur: 0.45, dano: 26,
+               gasto: 16, pausa: 0.25, desiste: 11 };
+// SANIDADE: sozinha ela só volta até o TETO; acima disso, só a lamparina do hall
+// …e cada GOLPE (bote de eco, flash do Blackwood) deixa uma ferida que baixa esse teto
+const SAN_TETO = 60, SAN_VOLTA = 2.5, SAN_FERIDA = 10, SAN_PISO = 20;
+const LAMP_OLEO = 3, LAMP_RAIO = 7.5;
+// robôs de teste ligam isto: nada de gravar mortes no arquivo do canal
+let SEM_ARQUIVO = false;
 
 // ------------------------------------------------------------------
 // RNG determinístico
@@ -49,7 +74,8 @@ const ctx = canvas.getContext("2d");
 
 const IS_TOUCH = ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
 
-let state = "boot";          // boot | cine | title | play | album | dead
+let state = "boot";          // lang | cine | title | play | album | chat | safe | elevator |
+                             // fusebox | darkroom | vinheta | ritual | dead | win
 let world = null;            // { seed, cur, floors[] }
 let grid  = null;            // alias: grade do andar ATUAL (código portado usa)
 
@@ -68,6 +94,7 @@ let album = [], albumIdx = 0, photoCount = 0;
 let albumReturn = "play";
 
 let time = 0;
+let frameDt = 1 / 60;        // duração do último quadro (telas que contam tempo no desenho)
 
 const light = new Float32Array(COLS * ROWS);
 
@@ -120,12 +147,15 @@ function hasLOS(x0, y0, x1, y1) {
 // Save da run (seed + diffs; os andares regeneram da seed)
 // ------------------------------------------------------------------
 const SAVE_KEY = "hm_run";
+// muda quando a GERAÇÃO da casa muda: a mesma seed passa a dar outra mobília,
+// então um save antigo recolocaria o jogador dentro de um móvel
+const SAVE_V = 3;
 
 function saveRun() {
   if (!world) return;
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify({
-      seed: world.seed, cur: world.cur,
+      v: SAVE_V, seed: world.seed, cur: world.cur,
       px: player.x, py: player.y,
       film, sanity, photoCount,
       taken: [...world.taken],
@@ -137,7 +167,8 @@ function saveRun() {
 function loadRunData() {
   try {
     const s = localStorage.getItem(SAVE_KEY);
-    return s ? JSON.parse(s) : null;
+    const d = s ? JSON.parse(s) : null;
+    return d && d.v === SAVE_V ? d : null;
   } catch (e) { return null; }
 }
 function clearRun() {

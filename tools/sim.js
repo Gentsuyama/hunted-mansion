@@ -44,18 +44,22 @@ function simWalk(path, st, maxSteps) {
   let pi = 0;
   const dt = 1 / 30;
   for (let s = 0; s < maxSteps; s++) {
+    // quadrinho de história no meio do caminho: o robô "clica" e segue andando
+    if (state === "vinheta") vinhetaAdvance();
     if (state !== "play") return "stateChange";
     if (pi >= path.length) return "arrived";
     const [tx, ty2] = path[pi];
     const dx = tx - player.x, dy = ty2 - player.y;
     const d = Math.hypot(dx, dy);
     if (d < 0.3) { pi++; continue; }
-    const step = Math.min(d, PLAYER_SPEED * dt);
+    const step = Math.min(d, MOV.andar * dt);
     const nx = player.x + dx / d * step, ny = player.y + dy / d * step;
     if (!collides(nx, player.y)) player.x = nx;
     if (!collides(player.x, ny)) player.y = ny;
     simTick(st, dt);
+    if (state === "vinheta") vinhetaAdvance();
     if (state !== "play") return "stateChange";
+    if (st.caiu) { st.caiu = false; return "caiu"; }   // acordou no hall: a rota morreu
   }
   return "timeout";
 }
@@ -83,6 +87,10 @@ function simTick(st, dt) {
   // capturada se o retrato+obturador já estiverem na mão)
   if (flashCd <= 0) {
     let alvo = null, melhor = 2.6;
+    // eco PUXANDO O AR: flash nele, onde estiver (é a contra-jogada do bote)
+    for (const g of gs)
+      if (g.respawn <= 0 && g.bote && g.bote.fase === "inspira" &&
+          hasLOS(player.x, player.y, g.x, g.y)) { alvo = g; melhor = 0; }
     if (typeof soulEnts !== "undefined")
       for (const e of soulEnts) {
         if (e.floor !== world.cur || e.id === "tomas") continue;
@@ -107,6 +115,20 @@ function simTick(st, dt) {
     }
   }
   update(dt);
+  if (state === "ritual") {              // a queda: o robô não assiste, só sofre o efeito
+    ritualPula();
+    st.quedas = (st.quedas || 0) + 1; st.caiu = true;
+  }
+}
+
+// descansa na lamparina quando a cabeça está baixa (ela cobra um eco a mais)
+function simDescansa(st) {
+  if (state !== "play" || (sanity >= 45 && sanTeto() > 36)) return;
+  if (world.flags.lampOleo <= 0 || world.flags.lampApagada) return;
+  if (!simGotoFloor(st, 1, 6000)) return;
+  if (!simGotoPoint(st, world.lamp.x, world.lamp.y + 1.2, 6000)) return;
+  updatePrompt();
+  if (prompt && prompt.action) { prompt.action(); st.descansos = (st.descansos || 0) + 1; }
 }
 
 function simGotoFloor(st, target, budget) {
@@ -125,11 +147,20 @@ function simGotoFloor(st, target, budget) {
     if (state !== "play") return false;
     const before = world.cur;
     for (let i = 0; i < 300 && world.cur === before && state === "play"; i++) {
-      const ny = player.y + (up ? -1 : 1) * PLAYER_SPEED / 30;
+      // centra no vão antes de entrar (chegando de lado, o ombro batia no batente)
+      const cxN = r.x + 1;
+      const nx = player.x + Math.max(-0.2, Math.min(0.2, cxN - player.x));
+      if (!collides(nx, player.y)) player.x = nx;
+      const ny = player.y + (up ? -1 : 1) * MOV.andar / 30;
       if (!collides(player.x, ny)) player.y = ny;
       simTick(st, 1 / 30);
     }
-    if (world.cur === before) { st.trace.push("nichoFalhou f" + before); return false; }
+    if (world.cur === before) {
+      st.trace.push("nichoFalhou f" + before + "@" + player.x.toFixed(1) + "," + player.y.toFixed(1) +
+        " cd" + stairCd.toFixed(1) + " t" + tileAt(player.x | 0, player.y | 0) + " " + state +
+        " boca" + (r.x + 1) + "," + mouthY);
+      return false;
+    }
     for (let i = 0; i < 45 && state === "play"; i++) simTick(st, 1 / 30);
   }
   return world.cur === target;
@@ -321,11 +352,21 @@ function simCacaEcos(st) {
     gs.sort((a, b) => Math.hypot(a.x - player.x, a.y - player.y) -
                       Math.hypot(b.x - player.x, b.y - player.y));
     const g = gs[0];
-    simGotoPoint(st, g.x, g.y - 0 + 3, 2500);
+    // o eco atravessa parede: procura um ponto de CHÃO alcançável perto dele
+    let foi = false;
+    for (const [ox, oy] of [[0, 3], [3, 0], [-3, 0], [0, -3], [0, 0], [0, 6], [6, 0], [-6, 0]]) {
+      const tx = g.x + ox, ty2 = g.y + oy;
+      if (isSolid(tx | 0, ty2 | 0) || !simBFS(player.x, player.y, tx, ty2)) continue;
+      simGotoPoint(st, tx, ty2, 2500); foi = true; break;
+    }
     if (state !== "play") return false;
+    if (!foi) { for (let i = 0; i < 45 && state === "play"; i++) simTick(st, 1 / 30); continue; }
+    if (g.respawn > 0 || Math.hypot(g.x - player.x, g.y - player.y) > 22 ||
+        !hasLOS(player.x, player.y, g.x, g.y)) continue;
     aimSource = "stick";
     aimDirStick = Math.atan2(g.y - player.y, g.x - player.x);
     flashCd = 0; if (film <= 0) film = 1;
+    if (!world.flags.filmLoaded) toggleFilm();
     takePhoto();
   }
   return (world.flags.ecosFotografados || 0) >= 7;
@@ -335,16 +376,112 @@ function simCacaEcos(st) {
 function simRun(policy, useNoGhosts) {
   const prevNo = (typeof noGhosts !== "undefined") ? noGhosts : false;
   noGhosts = !!useNoGhosts;
+  SEM_ARQUIVO = true;                    // as mortes do robô não entram no arquivo do canal
   newRun();
   noGhosts = prevNo;
+  simAnda = "andar";                     // o robô move o jogador por fora: ele FAZ barulho de passo
 
   const st = {
     policy, encounters: 0, damageTicks: 0, fotosDeAlma: 0,
     inEnc: false, lastSanity: 100, sanityMin: 100, lastFloor: 1,
-    trace: [], deadline: 2400,            // teto: 40 min de jogo
+    trace: [], deadline: 3000,            // teto: 50 min de jogo
   };
   const B = 6000;
   const modo = policy === "CRUEL" ? "queimar" : "revelar";
+
+  // cada passo confere o que já foi feito: dá para chamar de novo sem estragar nada
+  const marcasECofre = () => {
+    for (const mf of [1, 2, 4]) {
+      if (state !== "play") return;
+      const mk = world.floors[mf].marks[0];
+      if (!mk || mk.seen) continue;
+      if (!simGotoFloor(st, mf, B)) continue;
+      simCollectFilms(st);
+      simPhotoAt(st, mk.x, mk.y, () => mk.seen);
+    }
+    if (state !== "play" || world.flags.safeOpen || world.flags.marksSeen.length < 3) return;
+    if (!simGotoFloor(st, 3, B)) return;
+    const s = fl().safe;
+    if (!s) return;
+    for (const [ox, oy] of [[0, 1.5], [1.5, 0], [-1.5, 0], [0, -1.5]]) {
+      if (world.flags.safeOpen || state !== "play") break;
+      if (!simGotoPoint(st, s.x + ox, s.y + oy, B)) continue;
+      updatePrompt();
+      if (!prompt || !prompt.action || !prompt.text.includes("COFRE")) continue;
+      prompt.action();
+      safeUI.guess = [...world.code];
+      const sg = (typeof safeGeom === "function") ? safeGeom() : null;
+      if (sg) safeHit(sg.alav.x, sg.alav.y);
+      else safeHit(600, canvas.height - 120);
+      if (state === "safe") state = "play";
+    }
+  };
+  const energia = () => {
+    if (world.flags.elevatorOn) return;
+    if (state === "play" && world.items.find(i => i.id === "fuse0" && !i.taken)) simPegaItem(st, "fuse0");
+    if (state !== "play" || !simGotoFloor(st, 0, B)) return;
+    simCollectFilms(st);
+    simPegaItem(st, "fuse1");
+    const fb = fl().fusebox;
+    if (fb && simGotoPoint(st, fb.x, fb.y + 1.2, B)) {
+      updatePrompt(); if (prompt && prompt.action) prompt.action();
+      if (state === "fusebox") {
+        // painel novo: clica nos soquetes vazios e puxa a alavanca
+        const fg = fbGeom();
+        if (fg) {
+          for (const s of fg.soq) fuseboxHit(s.x, s.y);
+          fuseboxHit(fg.alav.x, fg.alav.y);
+        }
+        if (state === "fusebox")
+          fuseboxHit(ALB_CLOSE.x + ALB_CLOSE.w / 2, ALB_CLOSE.y + ALB_CLOSE.h / 2);
+      } else {
+        updatePrompt(); if (prompt && prompt.action) prompt.action(); // liga (antigo)
+      }
+    }
+  };
+  const aberta = (id) => {
+    const e = world.flags.souls[id].state;
+    return e === "freed" || e === "burned";
+  };
+  const almas = () => {
+    const aurora = () => {   // a Aurora acorda sozinha no meio; resolve já
+      if (state === "play" && world.flags.souls.aurora.state === "awake")
+        simResolveAlma(st, "aurora", modo);
+    };
+    for (const id of ["tomas", "bento"]) {
+      if (state === "play" && !aberta(id)) simResolveAlma(st, id, modo);
+      simDescansa(st);
+    }
+    if (state === "play" && !aberta("cecilia") && world.espelhoCecilia) {
+      const em = world.espelhoCecilia;
+      if (world.flags.souls.cecilia.state === "dormant" && simGotoFloor(st, em.floor, B))
+        simPhotoAt(st, em.furn.x, em.furn.y,
+          () => world.flags.souls.cecilia.state !== "dormant");
+      simResolveAlma(st, "cecilia", modo);
+    }
+    aurora();
+    simDescansa(st);
+    if (state === "play" && !aberta("olivia")) {
+      if (world.flags.souls.olivia.state === "dormant") {
+        if (useNoGhosts) {
+          const p = world.pianoOlivia;
+          if (p && simGotoFloor(st, p.floor, B))
+            simPhotoAt(st, p.x, p.y,
+              () => world.flags.souls.olivia.state !== "dormant");
+        } else simCacaEcos(st);
+      }
+      simResolveAlma(st, "olivia", modo);
+    }
+    aurora();
+    simDescansa(st);
+    if (state === "play" && !aberta("hospede") && world.sinal && world.flags.cam.lente) {
+      if (world.flags.souls.hospede.state === "dormant" && simGotoFloor(st, world.sinal.floor, B))
+        simPhotoAt(st, world.sinal.x, world.sinal.y,
+          () => world.flags.souls.hospede.state !== "dormant");
+      simResolveAlma(st, "hospede", modo);
+    }
+    aurora();
+  };
 
   try {
     // ATO 1: tampa, sala secreta do térreo (Tomás + lente), marcas, cofre
@@ -354,87 +491,25 @@ function simRun(policy, useNoGhosts) {
       simGotoPoint(st, ss1.x + ss1.w / 2, ss1.y + ss1.h / 2, B);
       simPegaItem(st, "lente");
     }
-    for (const mf of [1, 2, 4]) {
-      if (state !== "play") break;
-      if (!simGotoFloor(st, mf, B)) break;
-      simCollectFilms(st);
-      const mk = fl().marks[0];
-      if (mk && !mk.seen) simPhotoAt(st, mk.x, mk.y, () => mk.seen);
-    }
-    if (state === "play" && world.flags.marksSeen.length === 3 &&
-        simGotoFloor(st, 3, B)) {
-      const s = fl().safe;
-      if (s && simGotoPoint(st, s.x, s.y + 1.5, B)) {
-        updatePrompt();
-        if (prompt && prompt.action) {
-          prompt.action();
-          safeUI.guess = [...world.code];
-          const sg = (typeof safeGeom === "function") ? safeGeom() : null;
-          if (sg) safeHit(sg.alav.x, sg.alav.y);
-          else safeHit(600, canvas.height - 120);
-        }
-      }
-    }
-
+    marcasECofre();
     // ATO 2: porão (fusíveis, Bento, obturador, chave) — ANTES de acordar
     // mais almas, para já poder capturar cada uma assim que despertar
-    const f0 = world.items.find(i => i.id === "fuse0" && !i.taken);
-    if (state === "play" && f0) simPegaItem(st, "fuse0");
-    if (state === "play" && simGotoFloor(st, 0, B)) {
-      simCollectFilms(st);
-      simPegaItem(st, "fuse1");
-      const fb = fl().fusebox;
-      if (fb && simGotoPoint(st, fb.x, fb.y + 1.2, B)) {
-        updatePrompt(); if (prompt && prompt.action) prompt.action();
-        if (state === "fusebox") {
-          // painel novo: clica nos soquetes vazios e puxa a alavanca
-          const fg = fbGeom();
-          if (fg) {
-            for (const s of fg.soq) fuseboxHit(s.x, s.y);
-            fuseboxHit(fg.alav.x, fg.alav.y);
-          }
-          if (state === "fusebox")
-            fuseboxHit(ALB_CLOSE.x + ALB_CLOSE.w / 2, ALB_CLOSE.y + ALB_CLOSE.h / 2);
-        } else {
-          updatePrompt(); if (prompt && prompt.action) prompt.action(); // liga (antigo)
-        }
-      }
-      simPegaItem(st, "obturador");
-      simPegaItem(st, "key");
-    }
-
+    energia();
+    if (state === "play") { simPegaItem(st, "obturador"); simPegaItem(st, "key"); }
     // ATO 3: uma alma de cada vez — desperta, captura, revela/queima
-    const aurora = () => {   // a Aurora acorda sozinha no meio; resolve já
-      if (state === "play" && world.flags.souls.aurora.state === "awake")
-        simResolveAlma(st, "aurora", modo);
-    };
-    if (state === "play") simResolveAlma(st, "tomas", modo);   // já desperto
-    if (state === "play") simResolveAlma(st, "bento", modo);   // acordou no quadro
-    if (state === "play" && world.espelhoCecilia) {
-      const em = world.espelhoCecilia;
-      if (simGotoFloor(st, em.floor, B))
-        simPhotoAt(st, em.furn.x, em.furn.y,
-          () => world.flags.souls.cecilia.state !== "dormant");
-      simResolveAlma(st, "cecilia", modo);
+    almas();
+    // REPESCAGEM: o que falhou na primeira passada (uma marca que só saiu numa
+    // foto posterior, o 7º eco que veio tarde…) ganha mais duas chances
+    for (let rep = 0; rep < 2 && state === "play"; rep++) {
+      const falta = ["tomas", "cecilia", "bento", "olivia", "hospede", "aurora"].some(id => !aberta(id));
+      if (!falta && world.flags.elevatorOn) break;
+      st.trace.push("repescagem" + (rep + 1));
+      if (!world.flags.cam.lente) simPegaItem(st, "lente");
+      marcasECofre();
+      energia();
+      if (state === "play") { simPegaItem(st, "obturador"); simPegaItem(st, "key"); }
+      almas();
     }
-    aurora();
-    if (state === "play") {
-      if (useNoGhosts) {
-        const p = world.pianoOlivia;
-        if (p && simGotoFloor(st, p.floor, B))
-          simPhotoAt(st, p.x, p.y,
-            () => world.flags.souls.olivia.state !== "dormant");
-      } else simCacaEcos(st);
-      simResolveAlma(st, "olivia", modo);
-    }
-    aurora();
-    if (state === "play" && world.sinal && world.flags.cam.lente) {
-      if (simGotoFloor(st, world.sinal.floor, B))
-        simPhotoAt(st, world.sinal.x, world.sinal.y,
-          () => world.flags.souls.hospede.state !== "dormant");
-      simResolveAlma(st, "hospede", modo);
-    }
-    aurora();
 
     if (state === "play" &&
         world.flags.souls.blackwood.state !== "dormant") {
@@ -469,6 +544,7 @@ function simRun(policy, useNoGhosts) {
   } catch (e) {
     st.error = String(e).slice(0, 140);
   }
+  simAnda = "";
 
   let livres = 0, queimadas = 0;
   for (const id in world.flags.souls) {
@@ -486,11 +562,18 @@ function simRun(policy, useNoGhosts) {
     ecos: world.flags.ecosFotografados || 0,
     fotos: photoCount, fotosDeAlma: st.fotosDeAlma, filmeFinal: film,
     encounters: st.encounters, damageTicks: st.damageTicks,
-    sanityMin: st.sanityMin | 0,
+    sanityMin: st.sanityMin | 0, quedas: st.quedas || 0, descansos: st.descansos || 0,
     nPecas: Object.keys(world.flags.cam).filter(k => world.flags.cam[k]).length,
     error: st.error || "",
+    diag: state === "win" ? "" : JSON.stringify({
+      cam: world.flags.cam, fus: world.flags.fuses, fusIn: world.flags.fusesIn,
+      cofre: world.flags.safeOpen, marcas: world.flags.marksSeen, elev: world.flags.elevatorOn,
+      chave: world.flags.key, itens: world.items.filter(i => !i.taken).map(i => i.id + "@f" + i.floor),
+      ecos: world.flags.ecosFotografados || 0, andar: world.cur, san: sanity | 0, filme: film,
+      t: (world.timeSec / 60).toFixed(1),
+    }),
     andaresVisitados: st.trace.filter(x => x.startsWith("f")).length,
-    trace: st.trace.filter(x => !x.startsWith("f")).slice(0, 8).join(";"),
+    trace: st.trace.filter(x => !x.startsWith("f")).slice(0, 8).join(";").slice(0, 400),
   };
 }
 

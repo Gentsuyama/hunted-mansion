@@ -8,6 +8,7 @@
 // ------------------------------------------------------------------
 function castLight(px, py, dir, halfAngle, range, power, rays) {
   const step = 0.5;
+  const origem = (py | 0) * COLS + (px | 0);   // quem está DENTRO do vão falso ainda enxerga
   for (let i = 0; i < rays; i++) {
     const rel = rays > 1 ? (i / (rays - 1)) * 2 - 1 : 0;
     const a = dir + rel * halfAngle;
@@ -21,9 +22,23 @@ function castLight(px, py, dir, halfAngle, range, power, rays) {
       const idx = cy * COLS + cx;
       if (v > light[idx]) light[idx] = v;
       const t = grid[idx];
-      if (t === T_WALL || t === T_FAKE || t === T_DOOR) break;  // falsa esconde!
+      if ((t === T_WALL || t === T_FAKE || t === T_DOOR) && idx !== origem) break;  // falsa esconde!
     }
   }
+}
+// a célula (cx,cy) recebe luz direta de (gx,gy)? A própria célula pode ser
+// parede (a face dela se acende); o que está ATRÁS dela, não.
+function glowLOS(gx, gy, cx, cy) {
+  const x1 = cx + 0.5, y1 = cy + 0.5, ox = gx | 0, oy = gy | 0;
+  const steps = Math.ceil(Math.hypot(x1 - gx, y1 - gy) * 2.5);
+  for (let i = 1; i < steps; i++) {
+    const t = i / steps;
+    const sx = (gx + (x1 - gx) * t) | 0, sy = (gy + (y1 - gy) * t) | 0;
+    if (sx === cx && sy === cy) break;
+    if (sx === ox && sy === oy) continue;        // a célula de onde a luz sai não a tapa
+    if (isOpaque(sx, sy)) return false;
+  }
+  return true;
 }
 function addGlow(gx, gy, r, p) {
   const x0 = Math.max(0, (gx - r) | 0), x1 = Math.min(COLS - 1, (gx + r) | 0);
@@ -32,10 +47,22 @@ function addGlow(gx, gy, r, p) {
     for (let cx = x0; cx <= x1; cx++) {
       const d = Math.hypot(cx + 0.5 - gx, cy + 0.5 - gy);
       if (d > r) continue;
+      if (!glowLOS(gx, gy, cx, cy)) continue;       // brilho não atravessa parede
       const v = p * (1 - d / r);
       const idx = cy * COLS + cx;
       if (v > light[idx]) light[idx] = v;
     }
+}
+// a luz que o streamer carrega: facho longo e estreito + leque lateral curto
+// + o halo aos pés. (O robô de teste humano usa ESTA função para "ver".)
+function luzDoJogador(dir, flick) {
+  const lHalf = LANTERNA.halfAngle * (IS_TOUCH ? 1.2 : 1);
+  const lRays = IS_TOUCH ? (LANTERNA.rays * 1.2) | 0 : LANTERNA.rays;
+  castLight(player.x, player.y, dir, lHalf, LANTERNA.range,
+            LANTERNA.power * flick, lRays);
+  const S = LANTERNA.lado;
+  if (S) castLight(player.x, player.y, dir, S.halfAngle, S.range, S.power * flick, S.rays);
+  addGlow(player.x, player.y, 3.5, 0.22);
 }
 function lightAt(x, y) {
   const cx = x | 0, cy = y | 0;
@@ -57,6 +84,144 @@ function aimAngle() {
   if (aimSource === "stick") return aimDirStick;
   const mw = mouseWorld();
   return Math.atan2(mw.y - player.y * CELL, mw.x - player.x * CELL);
+}
+
+// ------------------------------------------------------------------
+// Corpo do streamer: peso, três ritmos, fôlego, passos, tremor
+// ------------------------------------------------------------------
+const MOV = { andar: 8.5, correr: 12, furtivo: 4, acel: 13, freio: 17 };
+let pvx = 0, pvy = 0;                // velocidade atual (células/s)
+let passoFase = 0, passoDist = 0;    // ciclo do passo: anima os pés e dispara o som
+let folego = 1, folegoT = 0, semFolego = false;
+let movModo = "parado";              // parado | furtivo | andar | correr (é o BARULHO)
+let movendo = false;
+let tremor = 0;                      // o susto fica no corpo por alguns segundos
+let aimVis = 0;                      // direção VISUAL da lanterna (tem inércia)
+let vistoCd = 0, sinalT = 0;         // "fui visto": um som só para isso + queda de sinal
+let boteLivreT = 0, danoT = 0;       // intervalo entre botes · clarão vermelho do golpe
+let simAnda = "";                    // só os robôs de teste: "andar" | "correr" | "furtivo"
+let olhosFalsos = null, falsoT = 9;  // sanidade no chão: olhos que não estão lá
+// O jogo lê a POSIÇÃO das teclas (KeyW/A/S/D). Num teclado AZERTY elas estão
+// rotuladas Z Q S D: pergunta ao navegador o que está escrito nelas.
+let TECLAS_ANDAR = "WASD";
+(function () {
+  const porIdioma = () => {
+    const n = (navigator.language || "").toLowerCase();
+    if (n === "fr" || n.startsWith("fr-fr") || n.startsWith("fr-be")) TECLAS_ANDAR = "ZQSD";
+  };
+  try {
+    if (navigator.keyboard && navigator.keyboard.getLayoutMap)
+      navigator.keyboard.getLayoutMap().then((m) => {
+        const t = ["KeyW", "KeyA", "KeyS", "KeyD"].map(k => (m.get(k) || "").toUpperCase());
+        if (t.every(x => x.length === 1)) TECLAS_ANDAR = t.join("");
+      }).catch(porIdioma);
+    else porIdioma();
+  } catch (e) { porIdioma(); }
+})();
+
+// até onde a sanidade volta sozinha (cai a cada ferida; a lamparina zera as feridas)
+function sanTeto() {
+  return Math.max(SAN_PISO, SAN_TETO - SAN_FERIDA * (world.flags.feridas || 0));
+}
+function ferida() {
+  world.flags.feridas = (world.flags.feridas || 0) + 1;
+  if (!live.hinted.has("ferida1")) {
+    live.hinted.add("ferida1");
+    livePush(liveRandUser(), "cada golpe deixa MARCA: a barra não volta mais até onde voltava. só a LAMPARINA do hall cura");
+  }
+}
+function corpoReset() {
+  pvx = pvy = 0; passoFase = passoDist = 0;
+  folego = 1; folegoT = 0; semFolego = false;
+  movModo = "parado"; movendo = false; tremor = 0;
+  vistoCd = 0; sinalT = 0; polaroid = null;
+  boteLivreT = 0; danoT = 0;
+  olhosFalsos = null; falsoT = 9;
+}
+function tremorAtual() {
+  return Math.max(tremor, sanity < 40 ? (40 - sanity) / 40 : 0);
+}
+// de que é feito o chão sob os pés (decide o som do passo)
+function chaoSobOsPes() {
+  const rg = fl().rugGrid;
+  const v = rg ? rg[(player.y | 0) * COLS + (player.x | 0)] : 0;
+  if (v === 1 || v === 2) return "tapete";
+  if (v === 3) return "ladrilho";
+  return world.cur === 0 ? "pedra" : "madeira";
+}
+function somPasso(modo) {
+  const sup = chaoSobOsPes();
+  const vol = modo === "correr" ? 1 : modo === "furtivo" ? 0.28 : 0.6;
+  sfxPasso(sup, vol);
+  // há algo por perto, no escuro? às vezes um SEGUNDO passo responde ao seu
+  let perto = false;
+  for (const g of fl().ghosts)
+    if (g.respawn <= 0 && Math.hypot(g.x - player.x, g.y - player.y) < 13 &&
+        lightAt(g.x, g.y) < 0.1) { perto = true; break; }
+  if (!perto)
+    for (const e of soulEnts)
+      if (e.floor === world.cur && Math.hypot(e.x - player.x, e.y - player.y) < 15 &&
+          lightAt(e.x, e.y) < 0.1) { perto = true; break; }
+  if (perto && Math.random() < 0.3)
+    setTimeout(() => sfxPasso(sup, vol * 0.42, true), 170 + Math.random() * 110);
+}
+
+// ------------------------------------------------------------------
+// A POLAROID que sai da câmera e se revela aos poucos, no canto
+// ------------------------------------------------------------------
+let polaroid = null;                 // { cv, t }
+function polaroidEjeta(cv) { polaroid = { cv, t: 0 }; sfxEjeta(); }
+function polaroidRect() {
+  const r = camHudRect();
+  const w = touchUI.seen ? 168 : 196, h = w * 494 / 620;
+  if (touchUI.seen) return { x: r.x + r.w + 12, y: r.y - 6, w, h };
+  return { x: r.x - w - 14, y: r.y + r.h - h, w, h };
+}
+function polaroidHit(px2, py2) {
+  if (!polaroid || polaroid.t < 0.5) return false;
+  const r = polaroidRect();
+  return px2 > r.x && px2 < r.x + r.w && py2 > r.y && py2 < r.y + r.h;
+}
+function drawPolaroid() {
+  if (!polaroid) return;
+  const t = polaroid.t, r = polaroidRect();
+  const sai = Math.min(1, t / 0.55);                 // 0→1: saindo da câmera
+  const ease = 1 - (1 - sai) * (1 - sai);
+  const some = t > 9 ? Math.max(0, 1 - (t - 9) / 2) : 1;
+  const dx = (touchUI.seen ? -1 : 1) * (1 - ease) * 70;
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, sai * 1.6) * some;
+  ctx.translate(r.x + r.w / 2 + dx, r.y + r.h / 2);
+  ctx.rotate(-0.035 + (1 - ease) * 0.12);
+  ctx.shadowColor = "rgba(0,0,0,0.6)"; ctx.shadowBlur = 14; ctx.shadowOffsetY = 5;
+  ctx.drawImage(polaroid.cv, -r.w / 2, -r.h / 2, r.w, r.h);
+  ctx.shadowColor = "rgba(0,0,0,0)"; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  // a emulsão ainda leitosa: a imagem EMERGE (e o que emerge pode não ser bom)
+  let s = Math.max(0, Math.min(1, (t - 0.5) / 3.3));
+  s = s * s * (3 - 2 * s);
+  const veu = Math.pow(1 - s, 1.25);
+  if (veu > 0.01) {
+    const ix = -r.w / 2 + r.w * 0.0355, iy = -r.h / 2 + r.h * 0.0445;
+    const iw = r.w * 0.929, ih = r.h * 0.822;
+    ctx.fillStyle = `rgba(172,180,166,${veu.toFixed(3)})`;
+    ctx.fillRect(ix, iy, iw, ih);
+    // revela primeiro pelo centro: a borda fica leitosa por mais tempo
+    const gr = ctx.createRadialGradient(0, iy + ih / 2, ih * 0.1, 0, iy + ih / 2, iw * 0.62);
+    gr.addColorStop(0, "rgba(172,180,166,0)");
+    gr.addColorStop(1, `rgba(150,160,148,${(veu * 0.5 + (1 - s) * s * 1.2).toFixed(3)})`);
+    ctx.fillStyle = gr;
+    ctx.fillRect(ix, iy, iw, ih);
+  }
+  ctx.restore();
+  if (t > 3.9 && t < 9 && !touchUI.seen) {
+    ctx.save();
+    ctx.globalAlpha = 0.55 * some;
+    ctx.font = "bold 10px 'Courier New', monospace";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillStyle = "rgba(220,220,225,0.9)";
+    ctx.fillText("clique: ver no álbum", r.x + r.w / 2, r.y - 8);
+    ctx.restore();
+  }
 }
 
 // ------------------------------------------------------------------
@@ -110,6 +275,21 @@ function updatePrompt() {
       return;
     }
   }
+  // a lamparina do hall: o único refúgio — e ele cobra
+  if (world.cur === 1 && world.lamp &&
+      Math.hypot(world.lamp.x - player.x, world.lamp.y - player.y) < 2.4) {
+    const o = world.flags.lampOleo;
+    if (world.flags.lampApagada)
+      prompt = { text: "A LAMPARINA APAGOU. NÃO ACENDE MAIS", action: null };
+    else if (o <= 0)
+      prompt = { text: "LAMPARINA SEM ÓLEO", action: null };
+    else if (sanity >= 95)
+      prompt = { text: tf("LAMPARINA — óleo {0}/{1}", o, LAMP_OLEO), action: null };
+    else
+      prompt = { text: tf("DESCANSAR À LAMPARINA — óleo {0}/{1}", o, LAMP_OLEO),
+                 action: lampDescansa };
+    return;
+  }
   // retrato aprisionador (depois que a foto o revelou)
   for (const r of world.retratos) {
     if (r.floor !== world.cur || world.taken.has(r.id)) continue;
@@ -120,8 +300,8 @@ function updatePrompt() {
         showVinheta("retrato");         // só na primeira vez (flag interna)
         sfxSting(); shake = 0.6;
         livePush(liveRandUser(), "pegou o retrato!! olha os OLHOS dele… tá vivo isso");
-        livePush(liveRandUser(), "agora acha o " + SOUL_DEFS[r.soul].nome +
-                 " e FOTOGRAFA ele segurando o retrato");
+        livePush(liveRandUser(), tf("agora acha o {0} e FOTOGRAFA ele segurando o retrato",
+                 tr(SOUL_DEFS[r.soul].nome)));
         saveRun();
       }};
       return;
@@ -168,7 +348,7 @@ function updatePrompt() {
     if (Math.hypot(fb.x - player.x, fb.y - player.y) < 2.4) {
       const total = world.flags.fusesIn;
       if (UI_IMGS.fusebox)
-        prompt = { text: `QUADRO DE FUSÍVEIS (${total}/3)`,
+        prompt = { text: tf("QUADRO DE FUSÍVEIS ({0}/3)", total),
                    action: () => { state = "fusebox"; } };
       else if (total >= 3)
         prompt = { text: "LIGAR A CHAVE GERAL", action: () => {
@@ -178,13 +358,13 @@ function updatePrompt() {
           saveRun();
         }};
       else if (world.flags.fuses > 0)
-        prompt = { text: `ENCAIXAR FUSÍVEL (${total}/3)`, action: () => {
+        prompt = { text: tf("ENCAIXAR FUSÍVEL ({0}/3)", total), action: () => {
           world.flags.fusesIn += world.flags.fuses;
           world.flags.fuses = 0;
           sfxPickup(); saveRun();
         }};
       else
-        prompt = { text: `QUADRO DE FUSÍVEIS (${total}/3) — faltam fusíveis`, action: null };
+        prompt = { text: tf("QUADRO DE FUSÍVEIS ({0}/3) — faltam fusíveis", total), action: null };
       return;
     }
   }
@@ -195,20 +375,63 @@ function updatePrompt() {
 // ------------------------------------------------------------------
 let eventTimer = 14;
 function update(dt) {
-  // movimento
-  let vx = 0, vy = 0;
-  if (keys.has("KeyW") || keys.has("ArrowUp"))    vy -= 1;
-  if (keys.has("KeyS") || keys.has("ArrowDown"))  vy += 1;
-  if (keys.has("KeyA") || keys.has("ArrowLeft"))  vx -= 1;
-  if (keys.has("KeyD") || keys.has("ArrowRight")) vx += 1;
-  if (Math.hypot(touchUI.jx, touchUI.jy) > 0.2) { vx += touchUI.jx; vy += touchUI.jy; }
-  if (vx || vy) {
-    const len = Math.hypot(vx, vy);
-    vx = vx / len * PLAYER_SPEED * dt;
-    vy = vy / len * PLAYER_SPEED * dt;
-    if (!collides(player.x + vx, player.y)) player.x += vx;
-    if (!collides(player.x, player.y + vy)) player.y += vy;
+  // movimento com PESO: acelera, freia, e o ritmo decide o barulho
+  let ix = 0, iy = 0;
+  if (keys.has("KeyW") || keys.has("ArrowUp"))    iy -= 1;
+  if (keys.has("KeyS") || keys.has("ArrowDown"))  iy += 1;
+  if (keys.has("KeyA") || keys.has("ArrowLeft"))  ix -= 1;
+  if (keys.has("KeyD") || keys.has("ArrowRight")) ix += 1;
+  let mag = Math.hypot(ix, iy);
+  if (mag > 0) { ix /= mag; iy /= mag; mag = 1; }
+  const jm = Math.hypot(touchUI.jx, touchUI.jy);
+  if (jm > 0.2) {                       // analógico: a inclinação É o ritmo
+    ix = touchUI.jx / jm; iy = touchUI.jy / jm;
+    mag = Math.min(1, (jm - 0.2) / 0.68);
   }
+  const querCorrer = mag > 0.9 &&
+    (keys.has("ShiftLeft") || keys.has("ShiftRight") || touchUI.correr);
+  const querFurtivo = keys.has("Space") || keys.has("KeyC");
+  let alvoV = MOV.andar * mag, modo = "andar";
+  if (querCorrer && !semFolego) { alvoV = MOV.correr; modo = "correr"; }
+  else if (querFurtivo) { alvoV = MOV.furtivo * mag; modo = "furtivo"; }
+  else if (alvoV <= MOV.furtivo * 1.35) modo = "furtivo";
+  const kAc = Math.min(1, (mag > 0 ? MOV.acel : MOV.freio) * dt);
+  pvx += (ix * alvoV - pvx) * kAc;
+  pvy += (iy * alvoV - pvy) * kAc;
+  const spd = Math.hypot(pvx, pvy);
+  let andou = 0;
+  if (spd > 0.05) {
+    const x0 = player.x, y0 = player.y;
+    if (!collides(player.x + pvx * dt, player.y)) player.x += pvx * dt; else pvx = 0;
+    if (!collides(player.x, player.y + pvy * dt)) player.y += pvy * dt; else pvy = 0;
+    andou = Math.hypot(player.x - x0, player.y - y0);
+    const passada = modo === "correr" ? 2.3 : modo === "furtivo" ? 1.2 : 1.75;
+    passoFase += andou * Math.PI / passada;
+    passoDist += andou;
+    if (passoDist >= passada) { passoDist = 0; somPasso(modo); }
+  } else { pvx = pvy = 0; }
+  // o que conta é sair do lugar: empurrar parede não faz barulho nem cansa
+  movendo = dt > 0 && andou / dt > 0.6;
+  movModo = movendo ? modo : "parado";
+  if (simAnda) { movendo = true; movModo = simAnda; }   // robôs que movem o jogador por fora
+  if (movModo === "correr") {
+    folego = Math.max(0, folego - dt / 4.5); folegoT = 0.9;
+    if (folego <= 0) semFolego = true;
+  } else {
+    if (folegoT > 0) folegoT -= dt;
+    else folego = Math.min(1, folego + dt / 6);
+    if (folego > 0.35) semFolego = false;
+  }
+
+  // a lanterna tem inércia (e treme com o susto); a FOTO sai onde se mira
+  { let da = aimAngle() - aimVis;
+    while (da > Math.PI) da -= 2 * Math.PI;
+    while (da < -Math.PI) da += 2 * Math.PI;
+    aimVis += da * Math.min(1, dt * 18); }
+  if (tremor > 0) tremor = Math.max(0, tremor - dt / 6);
+  if (vistoCd > 0) vistoCd -= dt;
+  if (sinalT > 0) sinalT -= dt;
+  if (polaroid) { polaroid.t += dt; if (polaroid.t > 11) polaroid = null; }
 
   updatePrompt();
 
@@ -250,6 +473,22 @@ function update(dt) {
   if (flickDip > 0) flickDip -= dt;
   if (dmgSfxT > 0) dmgSfxT -= dt;
 
+  // a cabeça no chão vê o que não está lá: um par de olhos acende no escuro e some
+  if (olhosFalsos) { olhosFalsos.t += dt; if (olhosFalsos.t >= olhosFalsos.dur) olhosFalsos = null; }
+  if (sanity < 28) {
+    falsoT -= dt;
+    if (falsoT <= 0 && !olhosFalsos) {
+      falsoT = 7 + Math.random() * 8;
+      for (let k = 0; k < 14; k++) {
+        const a = Math.random() * 6.283, rr = 7 + Math.random() * 9;
+        const x = player.x + Math.cos(a) * rr, y = player.y + Math.sin(a) * rr * 0.6;
+        if (isSolid(x | 0, y | 0) || isOpaque(x | 0, y | 0)) continue;
+        olhosFalsos = { x, y, t: 0, dur: 0.9 + Math.random() * 0.5 };
+        sfxWhisper();
+        break;
+      }
+    }
+  }
   // eventos de tensão
   eventTimer -= dt;
   if (eventTimer <= 0) {
@@ -258,30 +497,95 @@ function update(dt) {
     sfxWhisper();
   }
 
-  // fantasmas do andar atual
+  // ecos do andar atual
   let nearest = 999;
   const gs = fl().ghosts;
+  const pac = !!fl().pacified;          // alma do andar libertada: ecos mansos
+  if (boteLivreT > 0) boteLivreT -= dt;
+  if (danoT > 0) danoT -= dt;
+  let emBote = false;
+  for (const g of gs) if (g.bote && g.respawn <= 0) { emBote = true; break; }
+  // o eco OUVE: pé ante pé ele quase não percebe; correndo, ouve de longe —
+  // e só se arrasta na sua direção enquanto você faz barulho
+  // (parado é tão silencioso quanto pé ante pé)
+  const percep = ECO.ouve[movModo === "correr" ? 2 : movModo === "andar" ? 1 : 0];
+  const ruido = movModo === "correr" ? 1.5 : movModo === "andar" ? 1 : 0;
+  const lamp = lampAcesa() ? world.lamp : null;
+  const naLamp = !!lamp && Math.hypot(lamp.x - player.x, lamp.y - player.y) < LAMP_RAIO;
   for (const g of gs) {
     if (g.respawn > 0) {
       g.respawn -= dt;
       if (g.respawn <= 0) {
-        const rooms = fl().rooms;
-        const r = rooms[2 + (Math.random() * (rooms.length - 2) | 0)];
-        g.x = r.x + 2 + Math.random() * (r.w - 4);
-        g.y = r.y + 2 + Math.random() * (r.h - 4);
-        g.wx = g.x; g.wy = g.y; g.chase = false;
+        const p = fl().freeSpot();
+        g.x = p.x; g.y = p.y;
+        g.wx = g.x; g.wy = g.y; g.chase = false; g.bote = null; g.gasto = 0;
         g.artSeed = Math.random(); g.sprCv = null;
       }
       continue;
     }
     if (g.stun > 0) { g.stun -= dt; continue; }   // arremessado pelo flash vazio
-    const d = Math.hypot(player.x - g.x, player.y - g.y);
+    const d = Math.hypot(player.x - g.x, player.y - g.y) || 0.001;
     nearest = Math.min(nearest, d);
-    const pac = !!fl().pacified;        // alma do andar libertada: ecos mansos
-    g.chase = !pac && (d < 18 || attractT > 0);
+    g.bob += dt * 2.2;
+    if (pac) g.bote = null;
+    if (g.bote) {                       // ele INSPIRA… e salta
+      const b = g.bote;
+      b.t -= dt;
+      if (b.fase === "inspira") {
+        if (d > BOTE.desiste) { g.bote = null; boteLivreT = 0.5; }   // você abriu distância
+        else if (b.t <= 0) {
+          b.fase = "salto"; b.t = BOTE.dur; b.acertou = false;
+          b.dx = (player.x - g.x) / d; b.dy = (player.y - g.y) / d;   // direção TRAVADA
+          sfxBote();
+        }
+      } else {
+        g.x = Math.max(2, Math.min(COLS - 2, g.x + b.dx * BOTE.vel * dt));
+        g.y = Math.max(2, Math.min(ROWS - 2, g.y + b.dy * BOTE.vel * dt));
+        if (!b.acertou && Math.hypot(player.x - g.x, player.y - g.y) < 1.3) {
+          b.acertou = true;
+          sanity -= BOTE.dano; shake = 1.2; tremor = 1; danoT = 0.5;
+          ferida();
+          sfxDamage(); dmgSfxT = 0.5;
+          if (!live.hinted.has("bote2")) {
+            live.hinted.add("bote2");
+            livePush(liveRandUser(), "ele AVISA antes de pular: os olhos acendem. FLASH nessa hora, ou sai da frente");
+          } else if (Math.random() < 0.4) liveEvent("damage");
+        }
+        if (b.t <= 0) {                 // passou: fica gasto e some no escuro
+          g.wx = g.x + b.dx * 7; g.wy = g.y + b.dy * 7;
+          g.bote = null; g.gasto = BOTE.gasto; g.chase = false;
+          boteLivreT = BOTE.pausa;
+        }
+      }
+      continue;
+    }
+    if (g.gasto > 0) g.gasto -= dt;
+    // Uma vez atrás de você, só larga se a distância abrir um pouco (+2).
+    const antes = g.chase;
+    g.chase = !pac && !(g.gasto > 0) &&
+              ((attractT > 0 && d < ECO.atraiRaio) || d < (antes ? percep + 2 : percep));
+    if (g.chase && !antes && attractT <= 0 && vistoCd <= 0) {
+      sfxVisto(); vistoCd = 8; sinalT = 1.3;   // UM som, UM significado: fui visto
+    }
+    // perto, com você à vista e ninguém mais no bote: é a vez dele
+    if (g.chase && d < BOTE.dist && !emBote && boteLivreT <= 0 && !naLamp &&
+        hasLOS(g.x, g.y, player.x, player.y)) {
+      g.bote = { fase: "inspira", t: BOTE.inspira };
+      emBote = true;
+      sfxInspira(Math.max(-1, Math.min(1, (g.x - player.x) / 6)));
+      if (!live.hinted.has("bote1")) {
+        live.hinted.add("bote1");
+        livePush(liveRandUser(), "ele tá PUXANDO O AR… vai pular!! FLASH NELE ou sai da frente");
+      }
+      continue;
+    }
     let tx, ty;
-    if (g.chase) { tx = player.x; ty = player.y; }
-    else {
+    if (g.chase) {
+      if (d < BOTE.dist) {              // colado, mas não é a vez dele: ronda
+        const a = Math.atan2(g.y - player.y, g.x - player.x) + 0.5;
+        tx = player.x + Math.cos(a) * BOTE.dist; ty = player.y + Math.sin(a) * BOTE.dist;
+      } else { tx = player.x; ty = player.y; }
+    } else {
       if (Math.hypot(g.wx - g.x, g.wy - g.y) < 1.5) {
         if (Math.random() < 0.5) {
           g.wx = player.x + (Math.random() - 0.5) * 22;
@@ -297,22 +601,31 @@ function update(dt) {
     }
     const dd = Math.hypot(tx - g.x, ty - g.y) || 1;
     const sp = g.chase ? GHOST_SPEED : GHOST_SPEED * 0.55;
-    g.bob += dt * 2.2;
     g.x += (tx - g.x) / dd * sp * dt + Math.cos(g.bob) * 0.6 * dt;
     g.y += (ty - g.y) / dd * sp * dt + Math.sin(g.bob * 1.3) * 0.6 * dt;
-    if (!g.chase && !pac) {
-      g.x += (player.x - g.x) / d * GHOST_SPEED * 0.30 * dt;
-      g.y += (player.y - g.y) / d * GHOST_SPEED * 0.30 * dt;
+    if (!g.chase && !pac && ruido > 0 && !(g.gasto > 0)) {
+      g.x += (player.x - g.x) / d * GHOST_SPEED * ECO.deriva * ruido * dt;
+      g.y += (player.y - g.y) / d * GHOST_SPEED * ECO.deriva * ruido * dt;
     }
-    if (d < 1.15 && !pac) {
-      sanity -= GHOST_DMG * dt;
-      shake = 1;
-      if (dmgSfxT <= 0) { sfxDamage(); dmgSfxT = 0.5; }
+    // a luz da lamparina é o único lugar onde eles não entram
+    if (lamp) {
+      const dl = Math.hypot(g.x - lamp.x, g.y - lamp.y) || 0.001;
+      if (dl < LAMP_RAIO + 1.5) {
+        g.x += (g.x - lamp.x) / dl * 8 * dt; g.y += (g.y - lamp.y) / dl * 8 * dt;
+        g.wx = g.x + (g.x - lamp.x) / dl * 6; g.wy = g.y + (g.y - lamp.y) / dl * 6;
+      }
     }
   }
-  soulsUpdate(dt);   // almas nomeadas (Tomás foge, etc.)
-  if (nearest > 10 && sanity < 100) sanity = Math.min(100, sanity + 3.5 * dt);
-  if (sanity <= 0) { state = "dead"; sfxDeath(); clearRun(); return; }
+  { const s0 = sanity;
+    soulsUpdate(dt);   // almas nomeadas (Tomás foge, etc.)
+    if (sanity < s0 - 0.01) tremor = 1; }
+  if (sanity <= 0) { casaPega(); return; }
+  // sozinha, a cabeça só volta até certo ponto; o resto é com a lamparina
+  if (nearest > 10 && sanity < sanTeto())
+    sanity = Math.min(sanTeto(), sanity + SAN_VOLTA * dt);
+
+  // a casa nota você: o drone engrossa quando algo te caça de perto
+  audioTensao(nearest < 22 ? Math.min(1, (22 - nearest) / 16) : 0);
 
   // batimento
   hbT -= dt;
@@ -348,6 +661,7 @@ function update(dt) {
           film = Math.min(filmMax(), film + 4);   // a tampa vem com rolos
           world.flags.filmLoaded = true;
           liveEvent("tampa");
+          liveFixo("agora sim. uma câmera inteira.");
           toast(touchUI.seen
             ? "TAMPA + FILME!  toque na câmera do canto para pôr/tirar o rolo"
             : "TAMPA + FILME!  [R] põe/tira o rolo — sem filme o flash só espanta", 8);
@@ -389,14 +703,17 @@ function update(dt) {
     p.vx *= 0.94; p.vy *= 0.94;
   }
 
-  // câmera segue o jogador (desktop e celular)
+  // câmera segue o jogador e ANTECIPA para onde a lanterna aponta
   const zTarget = IS_TOUCH ? 2.0 : 1.7;
   camZoom += (zTarget - camZoom) * Math.min(1, dt * 4);
   const hw = canvas.width / (2 * camZoom), hh = canvas.height / (2 * camZoom);
-  const cx2 = Math.max(hw, Math.min(COLS * CELL - hw, player.x * CELL));
-  const cy2 = Math.max(hh, Math.min(ROWS * CELL - hh, player.y * CELL));
-  cam.x += (cx2 - cam.x) * Math.min(1, dt * 6);
-  cam.y += (cy2 - cam.y) * Math.min(1, dt * 6);
+  const la = IS_TOUCH ? 30 : 44;         // px do mundo à frente da mira
+  const cx2 = Math.max(hw, Math.min(COLS * CELL - hw,
+                player.x * CELL + Math.cos(aimVis) * la));
+  const cy2 = Math.max(hh, Math.min(ROWS * CELL - hh,
+                player.y * CELL + Math.sin(aimVis) * la * 0.8));
+  cam.x += (cx2 - cam.x) * Math.min(1, dt * 5);
+  cam.y += (cy2 - cam.y) * Math.min(1, dt * 5);
 }
 
 // ------------------------------------------------------------------
@@ -463,8 +780,10 @@ function render() {
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+  if (state === "lang")  { drawLang(); drawCursor(); return; }
   if (state === "cine")  { drawCinematic(); drawCursor(); return; }
   if (state === "title") { drawTitle(); drawCursor(); return; }
+  if (state === "dead")  { drawDead(); drawCursor(); return; }
 
   const shx = shake > 0 ? (Math.random() - 0.5) * 7 * shake : 0;
   const shy = shake > 0 ? (Math.random() - 0.5) * 7 * shake : 0;
@@ -472,27 +791,36 @@ function render() {
                    canvas.width / 2 - cam.x * camZoom + shx,
                    canvas.height / 2 - cam.y * camZoom + shy);
 
-  const dir = aimAngle();
+  // a lanterna aponta com inércia, balança no passo e treme depois do susto
+  const trem = tremorAtual();
+  const dir = aimVis
+    + (movendo ? Math.sin(passoFase) * (movModo === "correr" ? 0.04 : 0.016) : 0)
+    + (trem > 0 ? (nzVal(time * 9, 3.3) - 0.5) * 0.11 * trem : 0);
   const tick = Math.floor(time * 12);
 
   // luz
   light.fill(0);
   let flick = 0.9 + 0.1 * hash(7, 13, tick);
   if (flickDip > 0) flick *= 0.3 + 0.35 * hash(3, 5, tick);
-  const lHalf = LANTERNA.halfAngle * (IS_TOUCH ? 1.2 : 1);
-  const lRays = IS_TOUCH ? (LANTERNA.rays * 1.2) | 0 : LANTERNA.rays;
-  castLight(player.x, player.y, dir, lHalf, LANTERNA.range,
-            LANTERNA.power * flick, lRays);
+  if (trem > 0.5) flick *= 0.82 + 0.18 * hash(11, 2, tick);   // o medo come a luz
+  luzDoJogador(dir, flick);
   if (flashT > 0) {
     const p = FLASH.power * flashT * flashT;
     castLight(player.x, player.y, flashDir, FLASH.halfAngle, FLASH.range, p, FLASH.rays);
   }
-  addGlow(player.x, player.y, 3.5, 0.22);
-  // escadas emitem um brilho fraco na boca do nicho (precisam ser encontráveis)
-  if (world.cur < NFLOORS - 1)
-    addGlow(STAIR_UP_RECT.x + 1, STAIR_UP_RECT.y + STAIR_UP_RECT.h + 0.5, 2.8, 0.13);
-  if (world.cur > 0)
-    addGlow(STAIR_DOWN_RECT.x + 1, STAIR_DOWN_RECT.y - 0.5, 2.8, 0.13);
+  // quarto escuro (porão): a luz de segurança nunca apagou
+  if (world.cur === 0)
+    addGlow(DARKROOM.x + DARKROOM.w / 2, DARKROOM.y + DARKROOM.h / 2, 7, 0.34);
+  // a lamparina do hall: luz própria, quente, que treme
+  if (lampAcesa())
+    addGlow(world.lamp.x, world.lamp.y,
+            LAMP_RAIO * (0.95 + 0.05 * hash(5, 9, tick)), 0.62);
+  // escada JÁ DESCOBERTA: brilho fraco na boca do nicho, para reencontrar
+  { const vistas = world.flags.stairsSeen || [];
+    if (world.cur < NFLOORS - 2 && vistas.includes(world.cur + ":up"))
+      addGlow(STAIR_UP_RECT.x + 1, STAIR_UP_RECT.y + STAIR_UP_RECT.h + 0.5, 2.8, 0.13);
+    if (world.cur > 0 && world.cur < NFLOORS - 1 && vistas.includes(world.cur + ":down"))
+      addGlow(STAIR_DOWN_RECT.x + 1, STAIR_DOWN_RECT.y - 0.5, 2.8, 0.13); }
 
   // células visíveis (culling pela câmera)
   const hw = canvas.width / (2 * camZoom), hh = canvas.height / (2 * camZoom);
@@ -501,177 +829,126 @@ function render() {
   const r0 = Math.max(0, ((cam.y - hh) / CELL | 0) - 1);
   const r1 = Math.min(ROWS - 1, ((cam.y + hh) / CELL | 0) + 1);
 
+  // PLANTA A NANQUIM: chão em mancha de luz, paredes em bloco hachurado,
+  // móveis em símbolo. O que há NAS paredes continua sendo só da foto.
+  mapaLuzChao(c0, c1, r0, r1);
+  mapaMemoria(c0, c1, r0, r1);
+  mapaParedes(c0, c1, r0, r1);
+  mapaPegadas();
+  mapaMoveis();
   ctx.font = "bold 11px 'Courier New', monospace";
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  const fg = fl().furnGrid;
-  for (let cy = r0; cy <= r1; cy++) {
-    for (let cx = c0; cx <= c1; cx++) {
-      const idx = cy * COLS + cx;
-      const raw = light[idx];
-      if (raw <= 0.02) continue;
-      const t = grid[idx];
-      const px2 = cx * CELL + CELL / 2, py2 = cy * CELL + CELL / 2 + 1;
-
-      if (t === T_FLOOR && fg[idx] === 0) {
-        // CHÃO: luz suave contínua, sem caracteres (visual limpo)
-        const L = Math.min(1, raw);
-        ctx.fillStyle = `rgba(142,132,112,${(L * 0.30).toFixed(3)})`;
-        ctx.fillRect(cx * CELL, cy * CELL, CELL, CELL);
-        continue;
-      }
-
-      // elementos da casa continuam em caracteres, com leve vida
-      const n = hash(cx, cy, tick);
-      const clamped = Math.min(1, raw * (0.82 + 0.36 * n));
-      const b = (60 + 195 * clamped) | 0;
-      if (t === T_WALL || t === T_FAKE) {   // falsa = idêntica à parede no jogo
-        ctx.fillStyle = `rgb(${b},${(b * 0.88) | 0},${(b * 0.66) | 0})`;
-        ctx.fillText("#", px2, py2);
-      } else if (t === T_DOOR) {
-        ctx.fillStyle = `rgb(${b},${(b * 0.62) | 0},${(b * 0.34) | 0})`;
-        ctx.fillText("▦", px2, py2);
-      } else if (t === T_STAIR_UP || t === T_STAIR_DOWN) {
-        // chão sob a escada; os degraus são desenhados por drawStairs()
-        ctx.fillStyle = `rgba(142,132,112,${(Math.min(1, raw) * 0.30).toFixed(3)})`;
-        ctx.fillRect(cx * CELL, cy * CELL, CELL, CELL);
-      } else if (t === T_ELEV) {
-        ctx.fillStyle = `rgb(${(b * 0.7) | 0},${(b * 0.7) | 0},${(b * 0.75) | 0})`;
-        ctx.fillText("◫", px2, py2);
-      } else if (fg[idx] !== 0) {
-        // móvel: chão suave por baixo + caractere do móvel por cima
-        ctx.fillStyle = `rgba(142,132,112,${(Math.min(1, raw) * 0.30).toFixed(3)})`;
-        ctx.fillRect(cx * CELL, cy * CELL, CELL, CELL);
-        ctx.fillStyle = `rgb(${b},${(b * 0.8) | 0},${(b * 0.4) | 0})`;
-        ctx.fillText(FURN_BY_ID[fg[idx]].ch, px2, py2);
-      }
-    }
-  }
-
   drawStairsTopDown();
+  mapaPoeira(dir);
 
-  // refis
-  ctx.font = "bold 12px 'Courier New', monospace";
+  // itens: ícones que pulsam de leve (coisa de PEGAR)
+  const pul = 0.86 + 0.14 * Math.sin(time * 3.2);
   for (const f of fl().films) {
     if (f.taken) continue;
     const L = Math.min(1, lightAt(f.x, f.y) * 1.8);
-    if (L <= 0.03) continue;
-    ctx.fillStyle = `rgba(180,220,180,${L})`;
-    ctx.fillText("¤", f.x * CELL, f.y * CELL);
+    mapaIcone("film", f.x * CELL, f.y * CELL, 4.2, "180,225,180", L * pul);
   }
-  // itens especiais (fusível F, chave K, peças da câmera ✦)
-  ctx.font = "bold 14px 'Courier New', monospace";
   for (const it of world.items) {
     if (it.taken || it.floor !== world.cur) continue;
     const L = Math.min(1, lightAt(it.x, it.y) * 1.8);
-    if (L <= 0.03) continue;
-    ctx.fillStyle = it.kind === "key" ? `rgba(240,210,110,${L})`
-      : it.kind === "campart" ? `rgba(150,220,235,${L})`
-      : `rgba(255,170,90,${L})`;
-    ctx.fillText(it.kind === "key" ? "K" : it.kind === "campart" ? "✦" : "F",
-                 it.x * CELL, it.y * CELL);
+    mapaIcone(it.kind === "campart" ? "campart" : it.kind, it.x * CELL, it.y * CELL, 4.6,
+      it.kind === "key" ? "244,214,116" : it.kind === "campart" ? "150,222,238"
+                                                               : "255,172,96", L * pul);
   }
-  // retrato aprisionador: só ganha um brilho no mundo DEPOIS da foto denunciar
+  // retrato aprisionador: só ganha ícone DEPOIS da foto denunciar
   for (const r of world.retratos) {
     if (r.floor !== world.cur || world.taken.has(r.id)) continue;
     if (!world.flags.retSeen.includes(r.id)) continue;
     const L = Math.min(1, lightAt(r.x, r.y) * 1.8);
-    if (L <= 0.03) continue;
-    const tw = 0.5 + 0.5 * Math.sin(time * 5);
-    ctx.fillStyle = `rgba(230,220,180,${L * (0.5 + tw * 0.5)})`;
-    ctx.fillText("▧", r.x * CELL, r.y * CELL);
+    mapaIcone("ret", r.x * CELL, r.y * CELL, 4.6, "232,222,184",
+              L * (0.55 + 0.45 * Math.sin(time * 5)));
+  }
+  // a lamparina (acesa, ela se mostra sozinha)
+  if (world.cur === 1 && world.lamp) {
+    const lp = world.lamp, ac = !world.flags.lampApagada;
+    mapaIcone("lamp", lp.x * CELL, lp.y * CELL, 5, ac ? "255,206,120" : "136,130,118",
+              ac ? 0.9 + 0.1 * hash(5, 9, tick) : Math.min(1, lightAt(lp.x, lp.y) * 1.8));
   }
   // bancada de revelação (quarto escuro)
   if (fl().bench) {
     const b = fl().bench;
-    const L = Math.min(1, lightAt(b.x, b.y) * 1.8);
-    if (L > 0.03) {
-      ctx.fillStyle = `rgba(210,120,120,${L})`;   // luz vermelha de revelação
-      ctx.fillText("◱", b.x * CELL, b.y * CELL);
-    }
+    mapaIcone("bench", b.x * CELL, b.y * CELL, 5.2, "214,124,124",
+              Math.min(1, lightAt(b.x, b.y) * 1.8));
   }
   // o ateliê: cavalete e a cadeira do Fotógrafo (último andar)
   if (world.cur === NFLOORS - 1) {
     const cv2 = ATELIER_CAVALETE, ca2 = ATELIER_CADEIRA;
-    const Lc = Math.min(1, lightAt(cv2.x, cv2.y) * 1.8);
-    if (Lc > 0.03) {
-      ctx.fillStyle = `rgba(190,180,160,${Lc})`;
-      ctx.fillText("╽", cv2.x * CELL, cv2.y * CELL);   // o cavalete
-    }
-    const La = Math.min(1, lightAt(ca2.x, ca2.y) * 1.8);
-    if (La > 0.03) {
-      const pronta = world.flags.souls && world.flags.souls.blackwood &&
-                     world.flags.souls.blackwood.state === "captured";
-      ctx.fillStyle = pronta
-        ? `rgba(240,210,110,${La})` : `rgba(170,165,155,${La})`;
-      ctx.fillText("Π", ca2.x * CELL, ca2.y * CELL);   // a cadeira
-    }
+    mapaIcone("easel", cv2.x * CELL, cv2.y * CELL, 5.2, "196,186,166",
+              Math.min(1, lightAt(cv2.x, cv2.y) * 1.8));
+    const pronta = world.flags.souls && world.flags.souls.blackwood &&
+                   world.flags.souls.blackwood.state === "captured";
+    mapaIcone("chair", ca2.x * CELL, ca2.y * CELL, 5.2,
+              pronta ? "244,214,116" : "174,168,158",
+              Math.min(1, lightAt(ca2.x, ca2.y) * 1.8) * (pronta ? pul : 1));
   }
   // cofre e quadro de fusíveis (visíveis sob luz)
   if (fl().safe) {
     const s = fl().safe;
-    const L = Math.min(1, lightAt(s.x, s.y) * 1.8);
-    if (L > 0.03) {
-      ctx.font = "bold 15px 'Courier New', monospace";
-      ctx.fillStyle = world.flags.safeOpen
-        ? `rgba(120,120,120,${L * 0.6})` : `rgba(210,190,140,${L})`;
-      ctx.fillText("▣", s.x * CELL, s.y * CELL);
-    }
+    mapaIcone("safe", s.x * CELL, s.y * CELL, 5,
+              world.flags.safeOpen ? "128,128,128" : "214,194,146",
+              Math.min(1, lightAt(s.x, s.y) * 1.8) * (world.flags.safeOpen ? 0.6 : 1));
   }
   if (fl().fusebox) {
     const fb = fl().fusebox;
-    const L = Math.min(1, lightAt(fb.x, fb.y) * 1.8);
-    if (L > 0.03) {
-      ctx.font = "bold 15px 'Courier New', monospace";
-      ctx.fillStyle = world.flags.elevatorOn
-        ? `rgba(130,220,130,${L})` : `rgba(230,200,90,${L})`;
-      ctx.fillText("⚡", fb.x * CELL, fb.y * CELL);
-    }
+    mapaIcone("fusebox", fb.x * CELL, fb.y * CELL, 5,
+              world.flags.elevatorOn ? "134,224,134" : "232,204,96",
+              Math.min(1, lightAt(fb.x, fb.y) * 1.8));
   }
 
-  // fantasmas
+  // ecos: mancha espectral que respira (olhos acendem quando te caçam)
   for (const g of fl().ghosts) {
     if (g.respawn > 0) continue;
-    const L = Math.min(1, lightAt(g.x, g.y) * 1.9);
-    if (L <= 0.04) continue;
-    const gy = g.y * CELL + Math.sin(g.bob) * 2.5;
-    ctx.font = "bold 20px 'Courier New', monospace";
-    const b = (90 + 165 * L) | 0;
-    ctx.fillStyle = `rgba(${(b * 0.82) | 0},${(b * 0.92) | 0},${b},${0.35 + 0.65 * L})`;
-    ctx.fillText("Ψ", g.x * CELL, gy);
-    if (L > 0.4) {
-      ctx.fillStyle = `rgba(255,60,60,${L})`;
-      ctx.fillRect(g.x * CELL - 4, gy - 4, 2, 2);
-      ctx.fillRect(g.x * CELL + 2, gy - 4, 2, 2);
+    let L = Math.min(1, lightAt(g.x, g.y) * 1.9), fx = null;
+    // no bote ele se ACENDE sozinho: dá para ver (e mirar) mesmo no escuro
+    if (g.bote) {
+      if (g.bote.fase === "inspira") {
+        const k = 1 - Math.max(0, g.bote.t) / BOTE.inspira;
+        fx = { insp: k }; L = Math.max(L, 0.3 + 0.6 * k);
+      } else { fx = { dx: g.bote.dx, dy: g.bote.dy }; L = Math.max(L, 0.9); }
     }
+    if (L <= 0.04) continue;
+    mapaVulto(g.x * CELL, g.y * CELL, L, g.bob, 6.2,
+              g.streamer ? "232,190,198" : "205,220,246", g.chase || !!g.bote, false, false, fx);
   }
-  // almas nomeadas (menores, tom pálido — o Tomás foge da luz)
+  // almas nomeadas: cada uma com um traço seu
   for (const e of soulEnts) {
     if (e.floor !== world.cur) continue;
     const L = Math.min(1, lightAt(e.x, e.y) * 1.9);
     if (L <= 0.04) continue;
-    const ey = e.y * CELL + Math.sin(e.bob) * 2.5;
-    ctx.font = "bold 15px 'Courier New', monospace";
-    ctx.fillStyle = `rgba(200,225,235,${0.3 + 0.6 * L})`;
-    ctx.fillText("ψ", e.x * CELL, ey);
+    const id = e.id;
+    mapaVulto(e.x * CELL, e.y * CELL, L, e.bob,
+      id === "tomas" ? 4.2 : id === "bento" ? 7.2 : id === "blackwood" ? 7 : 5.6,
+      id === "aurora" ? "238,226,196" : id === "blackwood" ? "236,214,214" : "214,232,240",
+      false, id === "hospede" || id === "blackwood", id === "cecilia" || id === "aurora",
+      { alma: id, ent: e });
+    // ELE te enquadrando: a linha do visor, dele até você
+    if (id === "blackwood" && bossWarnT > 0) {
+      ctx.save();
+      ctx.strokeStyle = `rgba(226,44,32,${(0.35 + 0.4 * Math.abs(Math.sin(time * 14))).toFixed(2)})`;
+      ctx.lineWidth = 1; ctx.setLineDash([5, 4]);
+      ctx.beginPath(); ctx.moveTo(e.x * CELL, e.y * CELL); ctx.lineTo(player.x * CELL, player.y * CELL);
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 
   // partículas
   ctx.font = "bold 11px 'Courier New', monospace";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
   for (const p of particles) {
     ctx.fillStyle = `rgba(190,210,255,${p.life})`;
     ctx.fillText(p.ch, p.x * CELL, p.y * CELL);
   }
 
-  // jogador
-  const px = player.x * CELL, py = player.y * CELL;
-  ctx.save();
-  ctx.translate(px, py);
-  ctx.rotate(dir + Math.PI / 2);
-  ctx.fillStyle = "#fff";
-  ctx.beginPath();
-  ctx.moveTo(0, -7); ctx.lineTo(5.5, 6); ctx.lineTo(-5.5, 6);
-  ctx.closePath(); ctx.fill();
-  ctx.restore();
+  if (olhosFalsos) mapaOlhosFalsos(olhosFalsos);
+  // o streamer
+  mapaJogador(player.x * CELL, player.y * CELL, dir, passoFase, movendo,
+              movModo === "furtivo", trem);
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
 
@@ -684,6 +961,15 @@ function render() {
   // clarão do flash
   if (flashT > 0) {
     ctx.fillStyle = `rgba(255,255,255,${(flashT * flashT * 0.18).toFixed(3)})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  // o golpe do bote: a tela lateja em vermelho
+  if (danoT > 0) {
+    const vg = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 160,
+                                        canvas.width / 2, canvas.height / 2, 720);
+    vg.addColorStop(0, "rgba(150,10,10,0)");
+    vg.addColorStop(1, `rgba(170,12,10,${(0.7 * Math.min(1, danoT / 0.5)).toFixed(3)})`);
+    ctx.fillStyle = vg;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
   // BLACKWOOD TE ENQUADRANDO: moldura vermelha pulsando — QUEBRE a visão dele
@@ -724,9 +1010,9 @@ function render() {
     ctx.stroke();
   }
 
+  if (state === "ritual") { drawRitual(); return; }
   drawHUD();
   if (state === "album") drawAlbum();
-  if (state === "dead") drawDead();
   if (state === "chat") drawChat();
   if (state === "safe") drawSafe();
   if (state === "elevator") drawElevator();
@@ -749,9 +1035,9 @@ const BTN_USE    = { x: 150,  y: 314, r: 52 };
 const MOVE_STICK = { x: 150,  y: 530, r: 90, travel: 56, knob: 30 };
 const AIM_STICK  = { x: 1050, y: 530, r: 90, travel: 56, knob: 30 };
 const DEAD_BTNS = [
-  { id: "fotos", x: 210, y: 430, w: 240, h: 76, label: "VER FOTOS" },
-  { id: "jogar", x: 480, y: 430, w: 240, h: 76, label: "NOVA RUN" },
-  { id: "menu",  x: 750, y: 430, w: 240, h: 76, label: "MENU" },
+  { id: "fotos", x: 210, y: 540, w: 240, h: 70, label: "VER FOTOS" },
+  { id: "jogar", x: 480, y: 540, w: 240, h: 70, label: "NOVA LIVE" },
+  { id: "menu",  x: 750, y: 540, w: 240, h: 70, label: "MENU" },
 ];
 const ALB_CLOSE = { x: 1040, y: 20, w: 140, h: 56 };
 
@@ -804,19 +1090,19 @@ function drawCamHUD() {
   ctx.fillStyle = "rgba(200,200,205,0.85)";
   ctx.fillText(cm.tampa ? (touchUI.seen ? "toque: filme"
                                         : "CÂMERA · [R] filme")
-                        : "CÂMERA", r.x + 10, r.y + 13);
+                        : "CÂMERA", r.x + 10, r.y + 13, r.w * 0.5 - 12);
   if (cm.tampa) {
     ctx.textAlign = "right";
     ctx.font = "bold 10px 'Courier New', monospace";
     const curto = touchUI.seen;          // no celular o cartão é menor
     if (world.flags.filmLoaded && film > 0) {
       ctx.fillStyle = "rgba(150,230,150,0.95)";
-      ctx.fillText(curto ? "DENTRO" : "FILME DENTRO", r.x + r.w - 8, r.y + 13);
+      ctx.fillText(curto ? "DENTRO" : "FILME DENTRO", r.x + r.w - 8, r.y + 13, r.w * 0.44);
     } else {
       ctx.fillStyle = "rgba(235,195,110,0.95)";
       ctx.fillText(film <= 0 ? (curto ? "S/ROLOS" : "SEM ROLOS")
                  : (curto ? "FORA" : "FILME FORA — SÓ ESPANTA"),
-                   r.x + r.w - 8, r.y + 13);
+                   r.x + r.w - 8, r.y + 13, r.w * 0.44);
     }
   }
 
@@ -908,7 +1194,7 @@ function drawCamHUD() {
   ctx.textAlign = "left";
   ctx.font = "bold 11px 'Courier New', monospace";
   ctx.fillStyle = film > 0 ? "rgba(185,215,185,0.9)" : "rgba(230,90,80,0.9)";
-  ctx.fillText("ROLOS " + "▮".repeat(film) +
+  ctx.fillText(tr("ROLOS") + " " + "▮".repeat(film) +
                "▯".repeat(Math.max(0, filmMax() - film)), r.x + 10, r.y + r.h - 10);
   ctx.restore();
   ctx.textAlign = "left";
@@ -924,8 +1210,11 @@ function drawHUD() {
   ctx.fillText(FLOOR_NAMES[world.cur], 12, y1);
   // correntes da porta (aparece depois que o chat explicou)
   if (live.hinted.has("chainsSeen")) {
-    ctx.fillStyle = "rgba(170,195,230,0.85)";
-    ctx.fillText(`CORRENTES ${chainsBroken()}/${CHAINS_TOTAL}`, M ? 180 : 130, y1);
+    const q = chainsBroken();
+    const x0 = Math.max(M ? 196 : 136, 12 + ctx.measureText(FLOOR_NAMES[world.cur]).width + 22);
+    for (let i = 0; i < CHAINS_TOTAL; i++) hudElo(x0 + i * 24, y1, i < q);
+    ctx.fillStyle = "rgba(170,195,230,0.8)";
+    ctx.fillText(`${q}/${CHAINS_TOTAL}`, x0 + CHAINS_TOTAL * 24 + 2, y1);
   }
 
   const sc = sanity > 40 ? "rgba(200,200,200,0.7)" : "rgba(230,70,60,0.85)";
@@ -936,6 +1225,13 @@ function drawHUD() {
     ctx.strokeRect(132, 53, 240, 22);
     ctx.fillStyle = sc;
     ctx.fillRect(134, 55, 236 * Math.max(0, sanity) / 100, 18);
+    ctx.fillStyle = "rgba(255,206,120,0.75)";
+    ctx.fillRect(134 + 236 * sanTeto() / 100 - 1, 51, 2, 26);
+    if (world.flags.quase) hudNegativo(388, 64);
+    if (folego < 0.995) {                 // fôlego: só aparece quando falta
+      ctx.fillStyle = semFolego ? "rgba(230,90,80,0.85)" : "rgba(150,200,230,0.8)";
+      ctx.fillRect(134, 78, 236 * folego, 4);
+    }
   } else {
     ctx.fillStyle = "rgba(120,120,120,0.5)";
     ctx.fillText("SANIDADE", 12, canvas.height - 46);
@@ -943,38 +1239,52 @@ function drawHUD() {
     ctx.strokeRect(95, canvas.height - 52, 140, 11);
     ctx.fillStyle = sc;
     ctx.fillRect(96, canvas.height - 51, 138 * Math.max(0, sanity) / 100, 9);
+    // até aqui ela volta sozinha; daqui para cima, só a lamparina
+    ctx.fillStyle = "rgba(255,206,120,0.75)";
+    ctx.fillRect(96 + 138 * sanTeto() / 100 - 0.5, canvas.height - 54, 1.5, 15);
+    if (world.flags.quase) hudNegativo(250, canvas.height - 46);
+    if (folego < 0.995) {                 // fôlego: só aparece quando falta
+      ctx.fillStyle = semFolego ? "rgba(230,90,80,0.85)" : "rgba(150,200,230,0.8)";
+      ctx.fillRect(96, canvas.height - 39, 138 * folego, 3);
+    }
     ctx.fillStyle = "rgba(160,160,160,0.55)";
-    ctx.fillText("WASD mover · mouse lanterna · botão direito FOTO · R filme · F álbum · E usar",
-                 12, canvas.height - 14);
+    ctx.fillText(tr("WASD mover · SHIFT correr · ESPAÇO pé ante pé · mouse lanterna · botão direito FOTO · R filme · F álbum · E usar")
+                   .replace("WASD", TECLAS_ANDAR),
+                 12, canvas.height - 14, canvas.width - 250);
   }
   const cm = world.flags.cam;
   const fotoOk = cm.tampa && world.flags.filmLoaded && film > 0;
   ctx.fillStyle = flashCd > 0 ? "rgba(255,120,120,0.7)"
     : fotoOk ? "rgba(120,255,120,0.7)" : "rgba(230,200,120,0.75)";
+  // no celular o texto é curto: o painel da live começa logo à direita
   ctx.fillText(
-    flashCd > 0        ? "CÂMERA [ RECARREGANDO ]" :
-    !cm.tampa          ? "CÂMERA [ SEM TAMPA — SÓ FLASH ]" :
-    !world.flags.filmLoaded ? "CÂMERA [ FILME FORA — SÓ ESPANTA ]" :
-    film <= 0          ? "CÂMERA [ ROLOS ACABARAM ]" :
-                         "CÂMERA [ PRONTA ]",
-    M ? 400 : 12, M ? 64 : canvas.height - 30);
+    flashCd > 0        ? (M ? "RECARREGANDO…" : "CÂMERA [ RECARREGANDO ]") :
+    !cm.tampa          ? (M ? "SEM TAMPA" : "CÂMERA [ SEM TAMPA — SÓ FLASH ]") :
+    !world.flags.filmLoaded ? (M ? "FILME FORA" : "CÂMERA [ FILME FORA — SÓ ESPANTA ]") :
+    film <= 0          ? (M ? "SEM ROLOS" : "CÂMERA [ ROLOS ACABARAM ]") :
+                         (M ? "CÂMERA PRONTA" : "CÂMERA [ PRONTA ]"),
+    M ? 400 : 12, M ? 64 : canvas.height - 30, M ? 190 : 560);
 
   // inventário especial
   let invY = M ? 96 : 44;
   ctx.font = M ? "bold 16px 'Courier New', monospace" : "bold 12px 'Courier New', monospace";
   if (world.flags.fuses > 0 || world.flags.fusesIn > 0) {
+    const nIn = world.flags.fusesIn, nMao = world.flags.fuses;
+    for (let i = 0; i < 3; i++)
+      hudFusivel(24 + i * 27, invY, i < nIn ? 2 : i < nIn + nMao ? 1 : 0);
     ctx.fillStyle = "rgba(255,170,90,0.85)";
-    ctx.fillText(`FUSÍVEIS: ${world.flags.fuses} na mão · ${world.flags.fusesIn}/3 no quadro`,
-                 12, invY);
-    invY += M ? 24 : 18;
+    ctx.fillText(nMao > 0 ? tf("{0} na mão · {1}/3 no quadro", nMao, nIn)
+                          : tf("{0}/3 no quadro", nIn), 100, invY);
+    invY += M ? 28 : 22;
   }
   if (world.flags.key) {
+    hudChave(26, invY, true);
     ctx.fillStyle = "rgba(240,210,110,0.9)";
-    ctx.fillText("CHAVE DA PORTA ✓ — vá até o hall de entrada", 12, invY);
+    ctx.fillText("CHAVE DA PORTA — vá até o hall de entrada", 48, invY);
   }
 
   // a câmera no canto (peças coletadas + filme dentro/fora)
-  if (state === "play") drawCamHUD();
+  if (state === "play") { drawCamHUD(); drawPolaroid(); }
 
   // aviso central (mecânica nova / filme dentro-fora)
   if (state === "play" && toastT > 0) {
@@ -983,17 +1293,33 @@ function drawHUD() {
     ctx.font = "bold " + (M ? 20 : 16) + "px 'Courier New', monospace";
     const tw2 = ctx.measureText(toastText).width;
     ctx.fillStyle = `rgba(8,8,10,${(0.78 * a).toFixed(2)})`;
-    ctx.fillRect(canvas.width / 2 - tw2 / 2 - 18, (M ? 118 : 96) - 20, tw2 + 36, 40);
+    const ty3 = M ? 126 : 124;             // abaixo do painel da live (que vai até y=92)
+    ctx.fillRect(canvas.width / 2 - tw2 / 2 - 18, ty3 - 20, tw2 + 36, 40);
     ctx.strokeStyle = `rgba(235,210,130,${(0.6 * a).toFixed(2)})`;
     ctx.lineWidth = 1.5;
-    ctx.strokeRect(canvas.width / 2 - tw2 / 2 - 18, (M ? 118 : 96) - 20, tw2 + 36, 40);
+    ctx.strokeRect(canvas.width / 2 - tw2 / 2 - 18, ty3 - 20, tw2 + 36, 40);
     ctx.fillStyle = `rgba(240,225,170,${a.toFixed(2)})`;
-    ctx.fillText(toastText, canvas.width / 2, M ? 118 : 96);
+    ctx.fillText(toastText, canvas.width / 2, ty3);
     ctx.textAlign = "left";
   }
 
   // painel da live (clicar/tocar PAUSA e abre o chat)
   if (state === "play") drawLivePanel();
+  // FUI VISTO: a transmissão engasga (o mesmo aviso, sempre com o mesmo som)
+  if (state === "play" && sinalT > 0) {
+    const P = LIVE_PANEL, a = Math.min(1, sinalT);
+    for (let i = 0; i < 26; i++) {
+      const b = (Math.random() * 200) | 0;
+      ctx.fillStyle = `rgba(${b},${b},${b},${(0.5 * a).toFixed(2)})`;
+      ctx.fillRect(P.x + Math.random() * P.w, P.y + Math.random() * P.h,
+                   20 + Math.random() * 90, 1 + Math.random() * 2);
+    }
+    ctx.font = "bold 11px 'Courier New', monospace";
+    ctx.textAlign = "right";
+    ctx.fillStyle = `rgba(255,90,80,${a.toFixed(2)})`;
+    ctx.fillText("SINAL FRACO", P.x + P.w - 8, P.y + 14);
+    ctx.textAlign = "left";
+  }
 
   // prompt contextual (escada/elevador)
   if (prompt && state === "play") {
@@ -1001,8 +1327,9 @@ function drawHUD() {
     ctx.font = M ? "bold 22px 'Courier New', monospace" : "bold 16px 'Courier New', monospace";
     ctx.fillStyle = `rgba(230,240,255,${0.6 + 0.4 * Math.sin(time * 4)})`;
     ctx.fillText(prompt.action
-      ? (M ? `${prompt.text} — botão USAR` : `${prompt.text} — tecle E`)
-      : prompt.text, canvas.width / 2, canvas.height - (M ? 110 : 80));
+      ? tf(M ? "{0} — botão USAR" : "{0} — tecle E", tr(prompt.text))
+      : tr(prompt.text), canvas.width / 2, canvas.height - (M ? 110 : 80),
+      M ? 700 : canvas.width - 500);
     ctx.textAlign = "left";
   }
 
@@ -1161,7 +1488,7 @@ function drawAlbum() {
     }
     ctx.font = "italic 17px 'Segoe Script', 'Comic Sans MS', cursive";
     ctx.fillStyle = "rgba(200,190,170,0.8)";
-    ctx.fillText(`página ${albumPage + 1} de ${pages}`,
+    ctx.fillText(tf("página {0} de {1}", albumPage + 1, pages),
                  canvas.width / 2, canvas.height - 16);
   } else {
     // ZOOM numa foto
@@ -1184,8 +1511,8 @@ function drawAlbum() {
     ctx.font = "bold 13px 'Courier New', monospace";
     ctx.fillStyle = "rgba(170,170,170,0.8)";
     ctx.fillText(`${albumZoom + 1} / ${album.length}   ·   ` +
-                 (touchUI.seen ? "toque fora para voltar ao álbum"
-                               : "clique fora volta ao álbum · ← →"),
+                 tr(touchUI.seen ? "toque fora para voltar ao álbum"
+                                 : "clique fora volta ao álbum · ← →"),
                  canvas.width / 2, canvas.height - 20);
   }
 
@@ -1201,54 +1528,9 @@ function drawAlbum() {
   ctx.fillText("FECHAR", ALB_CLOSE.x + ALB_CLOSE.w / 2, ALB_CLOSE.y + ALB_CLOSE.h / 2 + 1);
 }
 
-function drawDead() {
-  ctx.fillStyle = "rgba(0,0,0,0.8)";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.font = "bold 34px 'Courier New', monospace";
-  ctx.fillStyle = "rgba(200,50,45,0.9)";
-  ctx.fillText("A CASA FICOU COM VOCÊ", canvas.width / 2, canvas.height / 2 - 30);
-  ctx.font = "bold 14px 'Courier New', monospace";
-  ctx.fillStyle = "rgba(180,180,180,0.8)";
-  ctx.fillText(`a live caiu no ${FLOOR_NAMES[world.cur]}`, canvas.width / 2, canvas.height / 2 + 16);
-  ctx.fillStyle = "rgba(170,170,170,0.8)";
-  ctx.fillText("as fotos reveladas se perdem com você",
-               canvas.width / 2, canvas.height / 2 + 52);
-
-  for (const b of DEAD_BTNS) {
-    const hov = mouse.x >= b.x && mouse.x <= b.x + b.w &&
-                mouse.y >= b.y && mouse.y <= b.y + b.h;
-    ctx.fillStyle = "rgba(255,255,255,0.07)";
-    ctx.fillRect(b.x, b.y, b.w, b.h);
-    ctx.lineWidth = (hov || b.id === "jogar") ? 3 : 2;
-    ctx.strokeStyle = hov ? "rgba(255,255,255,0.95)"
-                          : b.id === "jogar"
-                            ? `rgba(255,255,255,${0.6 + 0.25 * Math.sin(time * 3)})`
-                            : "rgba(255,255,255,0.45)";
-    ctx.strokeRect(b.x, b.y, b.w, b.h);
-    ctx.font = "bold 25px 'Courier New', monospace";
-    ctx.fillStyle = b.id === "jogar" ? "rgba(255,255,255,0.95)" : "rgba(215,215,215,0.9)";
-    ctx.fillText(b.label, b.x + b.w / 2, b.y + b.h / 2 + 1);
-  }
-  if (!touchUI.seen) {
-    ctx.font = "bold 12px 'Courier New', monospace";
-    ctx.fillStyle = "rgba(140,140,140,0.7)";
-    ctx.fillText("F fotos · ENTER nova run · ESC menu", canvas.width / 2, canvas.height / 2 + 200);
-  }
-}
-
 // ------------------------------------------------------------------
 // Input
 // ------------------------------------------------------------------
-function deadHit(px2, py2) {
-  for (const b of DEAD_BTNS)
-    if (px2 >= b.x && px2 <= b.x + b.w && py2 >= b.y && py2 <= b.y + b.h) {
-      if (b.id === "fotos") openAlbum("dead");
-      else if (b.id === "jogar") newRun();
-      else state = "title";
-      return;
-    }
-}
 function albumHit(px2, py2) {
   if (px2 >= ALB_CLOSE.x && px2 <= ALB_CLOSE.x + ALB_CLOSE.w &&
       py2 >= ALB_CLOSE.y && py2 <= ALB_CLOSE.y + ALB_CLOSE.h) {
@@ -1307,6 +1589,8 @@ window.addEventListener("keydown", e => {
   if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"].includes(e.code))
     e.preventDefault();
 
+  if (state === "ritual") return;
+  if (state === "lang")  { langKey(e.code); return; }
   if (state === "cine")  { cineAdvance(); return; }
   if (state === "vinheta") { vinhetaAdvance(); return; }
   if (state === "title") { titleKey(e.code); return; }
@@ -1325,6 +1609,8 @@ window.addEventListener("keydown", e => {
     if (e.code === "Enter") { newRun(); return; }
     if (e.code === "Escape" || e.code === "KeyM") { state = "title"; return; }
     if (e.code === "KeyF") openAlbum("dead");
+    if (e.code === "Digit1" || e.code === "Digit2" || e.code === "Digit3")
+      deadEscolhe(+e.code.slice(5) - 1);
     return;
   }
 
@@ -1359,7 +1645,7 @@ window.addEventListener("keyup", e => keys.delete(e.code));
 function limpaEntradas() {
   keys.clear();
   touchUI.joyId = null; touchUI.jx = 0; touchUI.jy = 0;
-  touchUI.jkx = 0; touchUI.jky = 0;
+  touchUI.jkx = 0; touchUI.jky = 0; touchUI.correr = false;
   touchUI.aimId = null; touchUI.akx = 0; touchUI.aky = 0;
 }
 window.addEventListener("blur", limpaEntradas);
@@ -1377,6 +1663,9 @@ canvas.addEventListener("mousedown", e => {
   const rct = canvas.getBoundingClientRect();
   const mx = (e.clientX - rct.left) * (canvas.width / rct.width);
   const my = (e.clientY - rct.top) * (canvas.height / rct.height);
+  if (state === "ritual") return;
+  if (e.button !== 0 && state !== "play") return;   // fora do jogo, só o botão esquerdo clica
+  if (state === "lang")  { langHit(mx, my); return; }
   if (state === "cine")  { cineAdvance(mx, my); return; }
   if (state === "vinheta") { vinhetaAdvance(); return; }
   if (state === "title") { titleHit(mx, my); return; }
@@ -1390,6 +1679,9 @@ canvas.addEventListener("mousedown", e => {
   if (state === "win")   { winHit(mx, my); return; }
   if (state !== "play") return;
   if (e.button === 0 && liveInPanel(mx, my)) { state = "chat"; live.scroll = 0; return; }
+  if (e.button === 0 && polaroidHit(mx, my)) {
+    openAlbum("play"); albumZoom = album.length - 1; return;
+  }
   if (e.button === 0 && camHudHit(mx, my)) { toggleFilm(); return; }
   if (e.button === 2) takePhoto();
 });
@@ -1430,6 +1722,8 @@ canvas.addEventListener("touchstart", e => {
   touchUI.seen = true;
   for (const t of e.changedTouches) {
     const p = tcoord(t);
+    if (state === "ritual") return;
+    if (state === "lang")  { enterFullscreen(); langHit(p.x, p.y); return; }
     if (state === "cine")  { cineAdvance(p.x, p.y); return; }
     if (state === "vinheta") { vinhetaAdvance(); return; }
     if (state === "title") { enterFullscreen(); titleHit(p.x, p.y); return; }
@@ -1446,6 +1740,7 @@ canvas.addEventListener("touchstart", e => {
     if (state === "darkroom") { darkroomHit(p.x, p.y); return; }
     if (state === "win")   { winHit(p.x, p.y); return; }
     if (liveInPanel(p.x, p.y)) { state = "chat"; live.scroll = 0; return; }
+    if (polaroidHit(p.x, p.y)) { openAlbum("play"); albumZoom = album.length - 1; return; }
     if (camHudHit(p.x, p.y)) { toggleFilm(); continue; }
     if (Math.hypot(p.x - BTN_PHOTO.x, p.y - BTN_PHOTO.y) < BTN_PHOTO.r + 10) {
       takePhoto(); continue;
@@ -1467,6 +1762,8 @@ canvas.addEventListener("touchstart", e => {
     } else if (touchUI.joyId === null &&
                Math.hypot(p.x - MOVE_STICK.x, p.y - MOVE_STICK.y) < MOVE_STICK.r + 50) {
       touchUI.joyId = t.identifier;
+      // toque duplo no analógico = CORRER enquanto segurar
+      touchUI.correr = performance.now() - (touchUI.joyUp || 0) < 320;
       updateMoveStick(p);
     }
   }
@@ -1495,6 +1792,7 @@ function touchEnd(e) {
     if (t.identifier === touchUI.joyId) {
       touchUI.joyId = null;
       touchUI.jx = 0; touchUI.jy = 0; touchUI.jkx = 0; touchUI.jky = 0;
+      touchUI.joyUp = performance.now(); touchUI.correr = false;
     }
     if (t.identifier === touchUI.aimId) {
       touchUI.aimId = null;

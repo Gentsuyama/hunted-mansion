@@ -619,8 +619,9 @@ function makeGlowSprite() {
 // MÓVEIS — tipos e sprites de foto (nanquim simples)
 // ------------------------------------------------------------------
 // def: ch = caractere no mapa; w,h em células; ph/pw = proporção na foto
-// w/h = footprint em células no mapa; hC = ALTURA real em "unidades de parede"
-// (parede = 1.0) — a foto usa o footprint projetado p/ largura e hC p/ altura
+// w/h = footprint em células no mapa; hC = altura relativa do móvel: na foto
+// vale hC × FOTO.FURN_K células (2,9), contra um pé-direito de FOTO.WALL (6) —
+// hC 1.0 dá meia parede. A largura vem do footprint projetado.
 const FURN_TYPES = {
   sofa:     { id: 1,  ch: "▬", w: 3, h: 1, hC: 0.50 },
   mesa:     { id: 2,  ch: "■", w: 2, h: 2, hC: 0.42 },
@@ -830,14 +831,14 @@ function smudgeSprite() {
 }
 
 // retratos: Assets/Retratos/<alma>.jpg (Gemini, fundo preto) ou fallback
-const RET_IMGS = {}, RET_SPRS = {};
+const RET_IMGS = {}, RET_SPRS = {}, RET_ORIG = {};
 // (lista fixa: sprites.js carrega antes de souls.js)
 const RET_SOUL_IDS = ["tomas", "cecilia", "bento", "olivia",
                       "hospede", "aurora", "blackwood"];
 (function loadRetImgs() {
   for (const k of RET_SOUL_IDS) {
     const im = new Image();
-    im.onload = () => { RET_IMGS[k] = keyBlackToAlpha(im); };
+    im.onload = () => { RET_IMGS[k] = keyBlackToAlpha(im); RET_ORIG[k] = im; };
     im.onerror = () => {};
     im.src = "Assets/Retratos/" + k + ".jpg";
   }
@@ -869,6 +870,50 @@ function retratoSprite(soulId) {
   RET_SPRS[soulId] = cv;
   return cv;
 }
+
+// ALMAS na foto: Assets/Almas/<alma>.jpg (Gemini, fundo preto, corpo inteiro).
+// O brilho vira transparência — a aparição sai translúcida, nunca recortada.
+function keyLumToAlpha(im) {
+  const w = im.naturalWidth, h = im.naturalHeight;
+  const cv = document.createElement("canvas");
+  cv.width = w; cv.height = h;
+  const g = cv.getContext("2d");
+  g.drawImage(im, 0, 0);
+  const d = g.getImageData(0, 0, w, h), p = d.data;
+  let minX = w, minY = h, maxX = -1, maxY = -1;
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const o = (y * w + x) * 4;
+      const m = Math.max(p[o], p[o + 1], p[o + 2]);
+      const a = Math.max(0, Math.min(255, (m - 14) * 4));
+      p[o + 3] = a;
+      if (a > 40) {
+        if (x < minX) minX = x; if (x > maxX) maxX = x;
+        if (y < minY) minY = y; if (y > maxY) maxY = y;
+      }
+    }
+  g.putImageData(d, 0, 0);
+  if (maxX < 0) return cv;
+  const cw2 = maxX - minX + 1, ch2 = maxY - minY + 1;
+  const out = document.createElement("canvas");
+  out.width = cw2; out.height = ch2;
+  out.getContext("2d").drawImage(cv, minX, minY, cw2, ch2, 0, 0, cw2, ch2);
+  return out;
+}
+const SOUL_IMGS = {};
+(function loadSoulImgs() {
+  for (const k of RET_SOUL_IDS) {
+    const im = new Image();
+    im.onload = () => {
+      const cv = keyLumToAlpha(im);
+      cv._aspect = cv.width / cv.height; cv._hscale = 1;
+      SOUL_IMGS[k] = cv;
+    };
+    im.onerror = () => {};
+    im.src = "Assets/Almas/" + k + ".jpg";
+  }
+})();
+function soulArt(id) { return SOUL_IMGS[id] || null; }
 
 // correntes espectrais da porta: 7 no total, as quebradas pendem soltas
 const CHAIN_SPRS = {};
@@ -1063,4 +1108,484 @@ function hospedeSprite() {
   g.lineTo(fx + fr * 0.3, fy + fr * 0.5); g.stroke();
   cv._aspect = base._aspect; cv._hscale = base._hscale;
   return (HOSPEDE_SPR = cv);
+}
+
+// ==================================================================
+// PEÇAS DE CENÁRIO que só a foto mostra: cofre, quadro de força,
+// bancada de revelação, cavalete e a cadeira do Fotógrafo.
+// Assets/Props/<nome>.jpg (Gemini, fundo preto) substitui o desenho.
+// ==================================================================
+const PROP_IMGS = {}, PROP_SPRS = {};
+(function loadPropImgs() {
+  for (const k of ["cofre", "quadro", "bancada", "cavalete", "cadeira", "lamparina", "grade"]) {
+    const im = new Image();
+    im.onload = () => { PROP_IMGS[k] = keyBlackToAlpha(im); };
+    im.onerror = () => {};
+    im.src = "Assets/Props/" + k + ".jpg";
+  }
+})();
+function propSprite(name) {
+  if (PROP_IMGS[name]) return PROP_IMGS[name];
+  if (PROP_SPRS[name]) return PROP_SPRS[name];
+  const dims = { cofre: [150, 170], quadro: [130, 170], bancada: [260, 150],
+                 cavalete: [130, 220], cadeira: [140, 210],
+                 lamparina: [120, 220], grade: [200, 300] }[name] || [150, 150];
+  const cv = document.createElement("canvas");
+  cv.width = dims[0]; cv.height = dims[1];
+  const g = cv.getContext("2d");
+  const r = mulberry32(name.charCodeAt(0) * 7919 + name.length);
+  g.lineCap = "round"; g.lineJoin = "round";
+  // corpo em cinza de foto antiga, contorno escuro, luz vinda da frente
+  const box = (x, y, w, h, tone) => {
+    const gr = g.createLinearGradient(x, y, x, y + h);
+    gr.addColorStop(0, `rgb(${tone + 26},${tone + 24},${tone + 20})`);
+    gr.addColorStop(1, `rgb(${tone - 14},${tone - 15},${tone - 16})`);
+    g.fillStyle = gr; g.fillRect(x, y, w, h);
+    g.strokeStyle = "rgba(8,7,6,0.9)"; g.lineWidth = 2.2;
+    g.strokeRect(x, y, w, h);
+    for (let i = 0; i < w * h / 160; i++) {
+      g.fillStyle = `rgba(0,0,0,${(r() * 0.2).toFixed(3)})`;
+      g.fillRect(x + r() * w, y + r() * h, 1 + r() * 2, 1 + r() * 2);
+    }
+  };
+  const linha = (x0, y0, x1, y1, lw, cor) => {
+    g.strokeStyle = cor || "rgba(8,7,6,0.9)"; g.lineWidth = lw;
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+  };
+  if (name === "cofre") {
+    box(14, 20, 122, 132, 84);
+    box(26, 32, 98, 108, 104);                       // a porta
+    g.strokeStyle = "rgba(8,7,6,0.9)"; g.lineWidth = 2.4;
+    g.fillStyle = "rgb(150,146,136)";
+    g.beginPath(); g.arc(64, 86, 20, 0, 7); g.fill(); g.stroke();   // o disco
+    for (let i = 0; i < 12; i++) {
+      const a = i / 12 * 6.283;
+      linha(64 + Math.cos(a) * 14, 86 + Math.sin(a) * 14,
+            64 + Math.cos(a) * 19, 86 + Math.sin(a) * 19, 1.2);
+    }
+    linha(98, 70, 98, 104, 5, "rgb(160,156,146)");   // a alavanca
+    linha(98, 70, 110, 70, 5, "rgb(160,156,146)");
+    box(18, 152, 16, 12, 60); box(116, 152, 16, 12, 60);
+  } else if (name === "quadro") {
+    box(16, 14, 98, 142, 78);
+    box(26, 26, 78, 76, 46);                         // o miolo aberto
+    for (let i = 0; i < 3; i++) {                    // três soquetes
+      g.fillStyle = "rgb(150,140,110)";
+      g.beginPath(); g.arc(44 + i * 21, 50, 7, 0, 7); g.fill();
+      g.strokeStyle = "rgba(8,7,6,0.9)"; g.lineWidth = 1.6; g.stroke();
+    }
+    linha(40, 84, 90, 84, 3, "rgb(120,116,108)");
+    box(88, 108, 12, 34, 120);                       // a chave geral
+    linha(114, 20, 126, 30, 2.2); linha(126, 30, 126, 150, 2.2);    // tampa aberta
+    linha(126, 150, 114, 156, 2.2);
+  } else if (name === "bancada") {
+    box(10, 62, 240, 16, 92);                        // tampo
+    box(22, 78, 12, 66, 66); box(226, 78, 12, 66, 66);
+    box(34, 110, 192, 8, 60);                        // travessa
+    for (let i = 0; i < 3; i++) {                    // três bandejas
+      box(30 + i * 70, 46, 56, 16, 132);
+      g.fillStyle = "rgba(20,24,26,0.75)";
+      g.fillRect(34 + i * 70, 49, 48, 9);
+    }
+    linha(14, 14, 246, 20, 1.6);                     // o varal
+    for (let i = 0; i < 4; i++) {
+      const hx = 44 + i * 54;
+      g.fillStyle = "rgb(168,162,148)"; g.fillRect(hx, 20, 22, 26);
+      g.strokeStyle = "rgba(8,7,6,0.9)"; g.lineWidth = 1.4; g.strokeRect(hx, 20, 22, 26);
+    }
+  } else if (name === "cavalete") {
+    linha(64, 10, 20, 212, 6, "rgb(92,82,66)");      // as três pernas
+    linha(64, 10, 108, 212, 6, "rgb(92,82,66)");
+    linha(64, 30, 70, 206, 5, "rgb(70,62,50)");
+    box(22, 132, 86, 9, 96);                         // o apoio
+    box(28, 36, 74, 96, 156);                        // a tela
+  } else if (name === "grade") {
+    // a grade pantográfica do elevador: losangos de ferro, o breu do poço atrás
+    g.fillStyle = "rgba(4,4,5,0.94)"; g.fillRect(14, 30, 172, 264);
+    box(6, 22, 188, 12, 70);                         // verga
+    box(6, 22, 10, 276, 60); box(184, 22, 10, 276, 60);   // montantes
+    g.strokeStyle = "rgb(120,116,104)"; g.lineWidth = 2.4;
+    for (let i = -1; i < 7; i++) {
+      const x0 = 16 + i * 28;
+      g.beginPath();
+      for (let j = 0; j <= 8; j++) {
+        const y = 34 + j * 32.5, x = x0 + (j % 2 ? 28 : 0);
+        j ? g.lineTo(Math.max(16, Math.min(184, x)), y) : g.moveTo(Math.max(16, Math.min(184, x)), y);
+      }
+      g.stroke();
+      g.beginPath();
+      for (let j = 0; j <= 8; j++) {
+        const y = 34 + j * 32.5, x = x0 + (j % 2 ? 0 : 28);
+        j ? g.lineTo(Math.max(16, Math.min(184, x)), y) : g.moveTo(Math.max(16, Math.min(184, x)), y);
+      }
+      g.stroke();
+    }
+    // o mostrador de andares: um arco com ponteiro
+    g.strokeStyle = "rgb(170,160,130)"; g.lineWidth = 2.2;
+    g.beginPath(); g.arc(100, 22, 18, Math.PI, 0); g.stroke();
+    linha(100, 22, 110, 8, 2, "rgb(200,190,150)");
+  } else if (name === "lamparina") {
+    box(14, 118, 92, 10, 96);                        // tampo da mesinha
+    box(22, 128, 9, 88, 62); box(89, 128, 9, 88, 62);
+    box(30, 160, 60, 6, 56);                         // travessa
+    // a lamparina a óleo: base, vidro bojudo, chaminé e alça
+    box(42, 102, 36, 16, 70);
+    const vid = g.createRadialGradient(60, 76, 3, 60, 76, 30);
+    vid.addColorStop(0, "rgb(255,244,200)");
+    vid.addColorStop(0.45, "rgb(236,186,96)");
+    vid.addColorStop(1, "rgba(120,84,40,0.85)");
+    g.fillStyle = vid;
+    g.beginPath(); g.ellipse(60, 78, 21, 27, 0, 0, 7); g.fill();
+    g.strokeStyle = "rgba(8,7,6,0.9)"; g.lineWidth = 2; g.stroke();
+    g.fillStyle = "rgb(255,252,232)";                // a chama
+    g.beginPath(); g.ellipse(60, 82, 5, 11, 0, 0, 7); g.fill();
+    box(50, 40, 20, 14, 78);                         // chaminé
+    g.strokeStyle = "rgba(60,54,46,0.95)"; g.lineWidth = 2.6;
+    g.beginPath(); g.arc(60, 46, 30, Math.PI * 1.12, Math.PI * 1.88); g.stroke();   // alça
+  } else if (name === "cadeira") {
+    box(34, 12, 72, 104, 62);                        // espaldar alto
+    box(42, 22, 56, 82, 82);                         // estofado
+    box(26, 112, 88, 22, 76);                        // assento
+    box(18, 86, 16, 48, 58); box(106, 86, 16, 48, 58);   // braços
+    box(30, 134, 10, 66, 50); box(100, 134, 10, 66, 50); // pernas
+    g.strokeStyle = "rgba(8,7,6,0.9)"; g.lineWidth = 2.2;
+    g.beginPath(); g.arc(70, 12, 12, Math.PI, 0); g.stroke();       // remate
+  }
+  return (PROP_SPRS[name] = cv);
+}
+
+// ==================================================================
+// AS SETE ALMAS NA FOTO — cada uma com o SEU corpo.
+// O busto vem do retrato aprovado (a pessoa que ela foi), translúcido e
+// frio; o corpo é rabisco de nanquim com o traço que conta a história dela.
+// Assets/Almas/<alma>.jpg (Gemini, corpo inteiro) substitui tudo isto.
+// Nunca sai igual duas vezes: há variantes, sorteadas a cada foto.
+// ==================================================================
+// recorte do busto dentro do retrato (frações da imagem)
+const SOUL_BUSTO = {
+  tomas:     { cx: 0.505, cy: 0.530, rx: 0.290, ry: 0.350 },
+  cecilia:   { cx: 0.513, cy: 0.500, rx: 0.270, ry: 0.340 },
+  bento:     { cx: 0.505, cy: 0.500, rx: 0.290, ry: 0.330 },
+  olivia:    { cx: 0.520, cy: 0.500, rx: 0.250, ry: 0.330 },
+  hospede:   { cx: 0.513, cy: 0.500, rx: 0.250, ry: 0.330 },
+  aurora:    { cx: 0.503, cy: 0.500, rx: 0.280, ry: 0.330 },
+  blackwood: { cx: 0.513, cy: 0.500, rx: 0.270, ry: 0.340 },
+};
+// o busto a nanquim do streamer, na folha de referência (rosto e busto inteiro)
+const STREAMER_ROSTO = { cx: 0.741, cy: 0.565, rx: 0.105, ry: 0.200 };
+const STREAMER_BUSTO = { cx: 0.781, cy: 0.485, rx: 0.200, ry: 0.430 };
+
+// a imagem vira aparição: o claro fica, o escuro some, e a máscara acompanha a
+// forma de um busto (estreita na cabeça, larga nos ombros) para o fundo do
+// retrato não vir junto. opts: corte (limiar de brilho), oval (máscara oval)
+function bustoEspectral(im, B, larg, opts) {
+  opts = opts || {};
+  const iw = im.naturalWidth, ih = im.naturalHeight;
+  const sw = B.rx * 2 * iw, sh = B.ry * 2 * ih;
+  const w = larg | 0, h = (larg * sh / sw) | 0;
+  const cv = document.createElement("canvas");
+  cv.width = w; cv.height = h;
+  const g = cv.getContext("2d");
+  g.drawImage(im, (B.cx - B.rx) * iw, (B.cy - B.ry) * ih, sw, sh, 0, 0, w, h);
+  let d;
+  try { d = g.getImageData(0, 0, w, h); } catch (e) { return null; }
+  const p = d.data, c0 = opts.corte || 44, forca = opts.forca || 1;
+  const ss = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  for (let y = 0; y < h; y++) {
+    const v = (y + 0.5) / h;
+    // meia-largura da figura nesta altura: cabeça estreita, ombros largos
+    const meia = opts.oval ? Math.sqrt(Math.max(0, 1 - (v * 2 - 1) * (v * 2 - 1))) * 0.98
+                           : 0.40 + 0.52 * ss(0.24, 0.56, v);
+    const my = ss(0, 0.07, v) * (1 - ss(0.74, 1, v));
+    for (let x = 0; x < w; x++) {
+      const o = (y * w + x) * 4;
+      const ax = Math.abs((x + 0.5) / w * 2 - 1);
+      const m = (1 - ss(meia - 0.16, meia + 0.04, ax)) * my;
+      const lum = Math.max(p[o], p[o + 1], p[o + 2]);
+      const a = Math.max(0, Math.min(1, (lum - c0) / 80)) * m * forca;
+      p[o] = lum * 0.90 + p[o] * 0.08;
+      p[o + 1] = lum * 0.93 + p[o + 1] * 0.06;
+      p[o + 2] = Math.min(255, lum * 1.0 + 8);
+      p[o + 3] = a * 255;
+    }
+  }
+  g.putImageData(d, 0, 0);
+  return cv;
+}
+
+// o Hóspede não tem rosto no mundo; na foto ele aparece com o rosto do STREAMER
+let HOSPEDE_SEU_ROSTO = true;
+const SOUL_SPRS = {};
+function soulSprite(id) {
+  const art = soulArt(id);
+  if (art) return art;
+  const im = RET_ORIG[id] || null;
+  const key = id + ((Math.random() * 2) | 0) + (im ? "a" : "p");
+  if (SOUL_SPRS[key]) return SOUL_SPRS[key];
+  const W = 240, H = 420, cx = W / 2;
+  const cv = document.createElement("canvas");
+  cv.width = W; cv.height = H;
+  const g = cv.getContext("2d");
+  g.lineCap = "round"; g.lineJoin = "round";
+  const r = mulberry32((id.length * 7919 + key.charCodeAt(key.length - 2) * 131 + id.charCodeAt(0)) | 0);
+  const T = penTools(g, r);
+  // massa escura por trás do traço: nasce transparente no alto, borda roída
+  const massa = (larT, yTop, larB, yBot, a) => {
+    const gr = g.createLinearGradient(0, yTop, 0, yBot);
+    gr.addColorStop(0, "rgba(4,4,6,0)");
+    gr.addColorStop(0.16, `rgba(4,4,6,${a})`);
+    gr.addColorStop(0.86, `rgba(4,4,6,${a * 0.9})`);
+    gr.addColorStop(1, "rgba(4,4,6,0)");
+    g.fillStyle = gr;
+    g.beginPath();
+    const N = 12;
+    for (let i = 0; i <= N; i++) {
+      const t = i / N, lar = larT + (larB - larT) * t + (r() - 0.5) * 7;
+      const x = cx - lar, y = yTop + (yBot - yTop) * t;
+      i ? g.lineTo(x, y) : g.moveTo(x, y);
+    }
+    for (let i = N; i >= 0; i--) {
+      const t = i / N, lar = larT + (larB - larT) * t + (r() - 0.5) * 7;
+      g.lineTo(cx + lar, yTop + (yBot - yTop) * t);
+    }
+    g.closePath(); g.fill();
+  };
+  const fios = (x0, x1, y0, y1, n, abre, a0) => {   // fios que caem (vestido, véu, pano)
+    for (let i = 0; i < n; i++) {
+      const t = r(), xa = x0 + (x1 - x0) * t;
+      const xb = cx + (xa - cx) * abre + (r() - 0.5) * 8;
+      const ya = y0 + r() * 14, yb = y1 - r() * (y1 - y0) * 0.25;
+      T.pen(xa, ya, xb, yb, a0 * (0.4 + r() * 0.9), 0.6 + r() * 0.7);
+    }
+  };
+  const vestido = (yTop, larT, larB, n) => {
+    massa(larT, yTop, larB, H - 6, 0.84);
+    fios(cx - larT, cx + larT, yTop + 10, H - 8, n, larB / larT, 0.26);
+    for (let i = 0; i < 26; i++) {        // barra esfiapada
+      const x = cx - larB + r() * larB * 2;
+      T.pen(x, H - 24 - r() * 8, x + (r() - 0.5) * 6, H - 4 - r() * 6, 0.14 + r() * 0.2, 0.7);
+    }
+  };
+  const pernas = (yTop, abre, gross, yPe) => {
+    for (const sd of [-1, 1]) {
+      const x0 = cx + sd * 15, x1 = cx + sd * (abre + r() * 4);
+      T.arm(x0, yTop, x0 + sd * (4 + r() * 6), (yTop + yPe) / 2, x1, yPe, gross);
+      T.pen(x1 - 6, yPe + 2, x1 + sd * 16, yPe + 4 + r() * 2, 0.5, 2.4);   // o sapato
+    }
+  };
+
+  // ---- o corpo (atrás do busto) ----
+  if (id === "tomas") {
+    pernas(250, 19, 4.2, 370);            // os pés NÃO tocam o chão
+    massa(34, 196, 30, 276, 0.8);         // calça curta
+    fios(cx - 28, cx + 28, 206, 272, 22, 1.05, 0.24);
+    for (let k = 0; k < 2; k++) {         // ele ainda conta até cem: riscos de contagem no ar
+      const bx = k ? 14 : W - 52, by = 104 + k * 64 + r() * 18;
+      for (let i = 0; i < 4; i++) T.pen(bx + i * 7, by, bx + i * 7 + 1, by + 20, 0.6, 1.5);
+      T.pen(bx - 4, by + 15, bx + 26, by + 4, 0.6, 1.5);
+    }
+  } else if (id === "cecilia") {
+    vestido(190, 46, 86, 110);
+    fios(cx - 62, cx - 30, 30, H - 14, 46, 1.5, 0.22);      // o véu desce dos dois lados
+    fios(cx + 30, cx + 62, 30, H - 14, 46, 1.5, 0.22);
+    for (let i = 0; i < 16; i++) {        // pétalas secas do buquê, caindo
+      const x = cx - 18 + r() * 50, y = 240 + r() * 150;
+      T.pen(x, y, x + 3 + r() * 4, y + 2 + r() * 3, 0.3 + r() * 0.35, 1.6);
+    }
+  } else if (id === "bento") {
+    pernas(286, 28, 8, 398);
+    massa(50, 186, 44, 312, 0.82);        // avental
+    fios(cx - 46, cx + 46, 200, 304, 40, 0.95, 0.22);
+    for (let i = 0; i < 3; i++) {         // o molho de chaves na cintura
+      g.strokeStyle = `rgba(232,232,240,${0.45 + r() * 0.3})`; g.lineWidth = 1.4;
+      g.beginPath(); g.arc(cx + 46 + i * 3, 264 + i * 9, 5 + r() * 2, 0, 7); g.stroke();
+      T.pen(cx + 46 + i * 3, 269 + i * 9, cx + 48 + i * 3, 286 + i * 9, 0.5, 1.2);
+    }
+  } else if (id === "olivia") {
+    vestido(190, 44, 78, 100);
+    // as mãos dela: compridas demais, ainda procurando o teclado
+    T.arm(cx - 56, 178, cx - 92, 236, cx - 84, 292, 4.5);
+    T.hand(cx - 84, 300, 64, Math.PI * 0.52, 0.10, 0.22, 5);
+    T.arm(cx + 56, 178, cx + 94, 232, cx + 88, 286, 4.5);
+    T.hand(cx + 88, 294, 64, Math.PI * 0.48, -0.10, 0.22, 5);
+  } else if (id === "hospede") {
+    pernas(300, 24, 7, 400);
+    massa(48, 180, 58, 330, 0.84);        // sobretudo
+    fios(cx - 46, cx + 46, 196, 322, 44, 1.2, 0.2);
+  } else if (id === "aurora") {
+    vestido(184, 56, 96, 130);
+    for (let i = 0; i < 3; i++) {         // os lugares que a SUA câmera já olhou
+      const fx = i === 0 ? 16 : i === 1 ? W - 60 : 26, fy = 64 + i * 96 + r() * 14;
+      g.save(); g.translate(fx + 22, fy + 18); g.rotate((r() - 0.5) * 0.5);
+      g.strokeStyle = `rgba(232,232,240,${0.35 + r() * 0.25})`; g.lineWidth = 1.4;
+      g.strokeRect(-22, -18, 44, 36); g.strokeRect(-17, -14, 34, 24);
+      g.restore();
+    }
+  } else if (id === "blackwood") {
+    // o tripé nasce das costas dele: três pernas a mais
+    for (const dx of [-78, 6, 82])
+      T.pen(cx + dx * 0.14, 190, cx + dx, H - 6, 0.5, 2.6);
+    pernas(292, 22, 6, 400);
+    massa(52, 150, 74, 340, 0.7);         // o pano preto do fotógrafo
+    fios(cx - 50, cx + 50, 170, 336, 60, 1.4, 0.16);
+  }
+
+  // ---- o busto: a pessoa do retrato ----
+  let ok = false;
+  if (im && SOUL_BUSTO[id]) {
+    const b = bustoEspectral(im, SOUL_BUSTO[id], id === "tomas" ? 176 : 196);
+    if (b) { g.drawImage(b, cx - b.width / 2, id === "tomas" ? 18 : 2); ok = true; }
+    if (b && id === "hospede" && HOSPEDE_SEU_ROSTO && typeof STREAMER_IMG !== "undefined" && STREAMER_IMG) {
+      // ele não tem rosto. NA FOTO, usa o SEU.
+      const f = bustoEspectral(STREAMER_IMG, STREAMER_ROSTO, 44, { corte: 84, oval: true, forca: 0.7 });
+      if (f) g.drawImage(f, 117 - f.width / 2, 63 - f.height / 2);
+    }
+  }
+  if (!ok) {                              // sem o retrato: crânio de rabisco, como os ecos
+    T.torso(cx, 96, 230, 62, 40, 0);
+    T.skull(cx, 62, 40, (r() - 0.5) * 0.3, id === "cecilia" || id === "olivia" ? 1.4 : 0.6);
+  }
+
+  // ---- o que só existe por cima ----
+  if (id === "bento") {                   // a lamparina dele ainda acende
+    const lg = g.createRadialGradient(cx + 2, 196, 2, cx + 2, 196, 46);
+    lg.addColorStop(0, "rgba(255,246,214,0.85)");
+    lg.addColorStop(0.4, "rgba(240,224,180,0.3)");
+    lg.addColorStop(1, "rgba(240,224,180,0)");
+    g.fillStyle = lg; g.fillRect(cx - 46, 150, 96, 96);
+  } else if (id === "aurora") {           // o camafeu: o primeiro retrato
+    const cg = g.createRadialGradient(cx + 1, 136, 1, cx + 1, 136, 16);
+    cg.addColorStop(0, "rgba(255,250,236,0.95)");
+    cg.addColorStop(1, "rgba(255,250,236,0)");
+    g.fillStyle = cg; g.fillRect(cx - 16, 120, 34, 34);
+  } else if (id === "blackwood") {        // a lente dele dispara
+    const fx = cx + 30, fy = 168;
+    const fg = g.createRadialGradient(fx, fy, 1, fx, fy, 30);
+    fg.addColorStop(0, "rgba(255,255,255,0.98)");
+    fg.addColorStop(0.3, "rgba(255,255,255,0.4)");
+    fg.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = fg; g.fillRect(fx - 30, fy - 30, 60, 60);
+    T.pen(fx - 46, fy, fx + 46, fy, 0.7, 1.2); T.pen(fx, fy - 34, fx, fy + 34, 0.7, 1.2);
+  } else if (id === "hospede" && !(HOSPEDE_SEU_ROSTO && ok && typeof STREAMER_IMG !== "undefined" && STREAMER_IMG)) {
+    for (let i = 0; i < 16; i++) {        // o rosto raspado da emulsão: riscos em cima
+      const y = 52 + r() * 40;
+      T.pen(cx - 22 + r() * 8, y, cx + 16 + r() * 10, y + (r() - 0.5) * 8, 0.3 + r() * 0.4, 0.8 + r());
+    }
+  }
+  // riscos por cima de tudo: a emulsão não aguenta a presença
+  for (let i = 0; i < 26; i++) {
+    const x = 20 + r() * (W - 40), y = 10 + r() * 240;
+    T.pen(x, y, x + (r() - 0.5) * 34, y + 6 + r() * 26, 0.05 + r() * 0.12, 0.6);
+  }
+  cv._aspect = W / H; cv._hscale = 1.06;
+  return (SOUL_SPRS[key] = cv);
+}
+
+// o eco de moletom: quem caiu na live passada
+let ECO_STREAMER = null;
+function ecoStreamerSprite() {
+  const temArte = typeof STREAMER_IMG !== "undefined" && !!STREAMER_IMG;
+  if (ECO_STREAMER && ECO_STREAMER._arte === temArte) return ECO_STREAMER;
+  const W = 230, H = 410, cx = W / 2;
+  const cv = document.createElement("canvas");
+  cv.width = W; cv.height = H;
+  const g = cv.getContext("2d");
+  g.lineCap = "round";
+  const r = mulberry32(54054);
+  const T = penTools(g, r);
+  for (const sd of [-1, 1]) {             // pernas
+    T.arm(cx + sd * 18, 280, cx + sd * 24, 340, cx + sd * 26, 396, 8);
+    T.pen(cx + sd * 20, 398, cx + sd * 42, 400, 0.5, 2.4);
+  }
+  // moletom: ombros e tronco em massa escura, riscado
+  const gr = g.createLinearGradient(0, 118, 0, 300);
+  gr.addColorStop(0, "rgba(4,4,6,0.9)"); gr.addColorStop(0.85, "rgba(4,4,6,0.82)");
+  gr.addColorStop(1, "rgba(4,4,6,0)");
+  g.fillStyle = gr;
+  g.beginPath();
+  g.moveTo(cx - 66, 300); g.lineTo(cx - 70, 170);
+  g.quadraticCurveTo(cx - 64, 128, cx, 122);
+  g.quadraticCurveTo(cx + 64, 128, cx + 70, 170);
+  g.lineTo(cx + 66, 300); g.closePath(); g.fill();
+  for (let i = 0; i < 80; i++) {
+    const x = cx - 62 + r() * 124, y = 140 + r() * 146;
+    T.pen(x, y, x + (r() - 0.5) * 8, y + 10 + r() * 22, 0.08 + r() * 0.2, 0.7);
+  }
+  // o braço do celular, ainda estendido — a live dele nunca caiu de verdade
+  T.arm(cx + 62, 172, cx + 96, 150, cx + 98, 92, 6);
+  g.strokeStyle = "rgba(240,240,246,0.85)"; g.lineWidth = 2;
+  g.strokeRect(cx + 88, 56, 20, 36);
+  const lg = g.createRadialGradient(cx + 98, 46, 1, cx + 98, 46, 24);
+  lg.addColorStop(0, "rgba(255,255,255,0.9)"); lg.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = lg; g.fillRect(cx + 72, 20, 52, 52);
+  // o capuz: uma sombra em volta do rosto
+  g.fillStyle = "rgba(4,4,6,0.92)";
+  g.beginPath(); g.ellipse(cx, 78, 56, 66, 0, 0, 7); g.fill();
+  let ok = false;
+  if (temArte) {
+    const b = bustoEspectral(STREAMER_IMG, STREAMER_ROSTO, 84, { corte: 96, oval: true, forca: 0.6 });
+    if (b) { g.drawImage(b, cx - b.width / 2, 84 - b.height / 2); ok = true; }
+  }
+  if (!ok) T.skull(cx, 84, 34, 0.1, 0.3);
+  for (let i = 0; i < 60; i++) {          // a borda do capuz, em rabisco
+    const a = Math.PI * (0.9 + r() * 1.2), rr = 0.92 + r() * 0.12;
+    const x = cx + Math.cos(a) * 56 * rr, y = 78 + Math.sin(a) * 66 * rr;
+    T.pen(x, y, x + (r() - 0.5) * 10, y + 4 + r() * 12, 0.12 + r() * 0.3, 0.8);
+  }
+  T.pen(cx - 12, 142, cx - 14, 190, 0.5, 1.3); T.pen(cx + 12, 142, cx + 14, 190, 0.5, 1.3);   // cordões
+  cv._aspect = W / H; cv._hscale = 1.02; cv._arte = temArte;
+  return (ECO_STREAMER = cv);
+}
+
+// AS MOLDURAS DO ATELIÊ (só na foto): o estado de cada alma vira o estado do
+// quadro — dormindo: coberto por um pano; desperta ou presa: o retrato;
+// libertada: moldura VAZIA; queimada: carvão.
+const MOLD_SPRS = {};
+function molduraSprite(id, estado) {
+  const temArte = !!RET_ORIG[id];
+  const k = id + estado + (temArte ? "a" : "p");
+  if (MOLD_SPRS[k]) return MOLD_SPRS[k];
+  const cv = document.createElement("canvas");
+  cv.width = 130; cv.height = 160;
+  const g = cv.getContext("2d");
+  const r = mulberry32(id.length * 97 + estado.length * 13 + id.charCodeAt(1));
+  g.fillStyle = "#33261a"; g.fillRect(0, 0, 130, 160);
+  g.strokeStyle = "rgba(168,134,84,0.95)"; g.lineWidth = 4; g.strokeRect(5, 5, 120, 150);
+  g.strokeStyle = "rgba(20,12,6,0.9)"; g.lineWidth = 2; g.strokeRect(12, 12, 106, 136);
+  g.fillStyle = "#0c0a08"; g.fillRect(14, 14, 102, 132);
+  if (estado === "freed") {                 // vazia: só o papel de fundo, mais claro no meio
+    const lg = g.createRadialGradient(65, 76, 6, 65, 76, 70);
+    lg.addColorStop(0, "rgb(206,196,170)"); lg.addColorStop(1, "rgb(110,100,82)");
+    g.fillStyle = lg; g.fillRect(14, 14, 102, 132);
+  } else if (estado === "burned") {         // carvão: buraco de borda irregular
+    g.fillStyle = "rgb(70,60,48)"; g.fillRect(14, 14, 102, 132);
+    g.fillStyle = "#050404";
+    g.beginPath();
+    for (let i = 0; i <= 18; i++) {
+      const a = i / 18 * 6.283, rr = 34 + r() * 22;
+      const x = 65 + Math.cos(a) * rr * 0.9, y = 80 + Math.sin(a) * rr * 1.15;
+      i ? g.lineTo(x, y) : g.moveTo(x, y);
+    }
+    g.closePath(); g.fill();
+    g.strokeStyle = "rgba(190,96,40,0.7)"; g.lineWidth = 1.6; g.stroke();
+  } else if (estado === "dormant") {        // pano por cima: ainda não é hora
+    const lg = g.createLinearGradient(0, 14, 0, 146);
+    lg.addColorStop(0, "rgb(120,112,98)"); lg.addColorStop(1, "rgb(70,64,56)");
+    g.fillStyle = lg; g.fillRect(10, 10, 110, 140);
+    g.strokeStyle = "rgba(20,16,12,0.5)"; g.lineWidth = 1.4;
+    for (let i = 0; i < 7; i++) {
+      const x = 18 + i * 16 + r() * 6;
+      g.beginPath(); g.moveTo(x, 12); g.quadraticCurveTo(x + (r() - 0.5) * 14, 80, x + (r() - 0.5) * 10, 148); g.stroke();
+    }
+  } else if (temArte) {                     // o retrato (desperta ou presa)
+    const im = RET_ORIG[id], B = SOUL_BUSTO[id];
+    const iw = im.naturalWidth, ih = im.naturalHeight;
+    g.drawImage(im, (B.cx - B.rx) * iw, (B.cy - B.ry) * ih, B.rx * 2 * iw, B.ry * 2 * ih, 14, 14, 102, 132);
+  } else {
+    g.fillStyle = "rgba(190,170,130,0.5)"; g.fillRect(14, 14, 102, 132);
+    g.fillStyle = "rgba(30,26,20,0.8)";
+    g.beginPath(); g.arc(65, 62, 20, 0, 7); g.fill();
+    g.beginPath(); g.ellipse(65, 118, 34, 26, 0, 0, 7); g.fill();
+  }
+  return (MOLD_SPRS[k] = cv);
 }

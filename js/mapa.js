@@ -1,0 +1,679 @@
+"use strict";
+// ==================================================================
+// MAPA — a visão de cima como PLANTA A NANQUIM
+// Continua abstrata de propósito: parede é bloco mudo, móvel é símbolo
+// de planta, item é ícone. O que existe NAS paredes só a FOTO mostra.
+// ==================================================================
+let LUZ_CV = null, LUZ_IMG = null;
+
+function mapaRR(x, y, w, h, r) {           // retângulo arredondado (no path atual)
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y);
+}
+function mapaParedeLike(cx, cy) {
+  if (cx < 0 || cy < 0 || cx >= COLS || cy >= ROWS) return true;
+  const t = grid[cy * COLS + cx];
+  return t === T_WALL || t === T_FAKE || t === T_DOOR;
+}
+
+// ------------------------------------------------------------------
+// CHÃO: a luz vira uma mancha contínua (1 px por célula, ampliado com
+// suavização) — sem serrilhado de grade. A cor só SUGERE o material.
+// ------------------------------------------------------------------
+function lzChao(i) {
+  const t = grid[i];
+  return (t === T_WALL || t === T_FAKE || t === T_DOOR) ? 0 : light[i];
+}
+function mapaLuzChao(c0, c1, r0, r1) {
+  const w = c1 - c0 + 1, h = r1 - r0 + 1;
+  if (w <= 0 || h <= 0) return;
+  if (!LUZ_CV) LUZ_CV = document.createElement("canvas");
+  if (LUZ_CV.width !== w || LUZ_CV.height !== h) {
+    LUZ_CV.width = w; LUZ_CV.height = h;
+    LUZ_IMG = new ImageData(w, h);
+  }
+  const d = LUZ_IMG.data;
+  const RG = fl().rugGrid;
+  const porao = world.cur === 0;
+  const lp = lampAcesa() ? world.lamp : null;
+  for (let cy = r0; cy <= r1; cy++)
+    for (let cx = c0; cx <= c1; cx++) {
+      const idx = cy * COLS + cx, o = ((cy - r0) * w + (cx - c0)) << 2;
+      const t = grid[idx];
+      if (t === T_WALL || t === T_FAKE || t === T_DOOR) { d[o + 3] = 0; continue; }
+      // média 3×3 da luz: tira o granulado dos raios e escurece junto às paredes
+      // (vizinho que é PAREDE conta como escuro: a luz batida na parede não
+      // pode clarear o chão que fica do outro lado dela)
+      let L = light[idx] * 2, n = 2;
+      if (cx > 0 && cx < COLS - 1 && cy > 0 && cy < ROWS - 1) {
+        L += lzChao(idx - 1) + lzChao(idx + 1) + lzChao(idx - COLS) + lzChao(idx + COLS)
+           + 0.5 * (lzChao(idx - COLS - 1) + lzChao(idx - COLS + 1) +
+                    lzChao(idx + COLS - 1) + lzChao(idx + COLS + 1));
+        n += 6;
+      }
+      L /= n;
+      if (L <= 0.012) { d[o + 3] = 0; continue; }
+      let r = 150, g = 138, b = 116, k = 0.42;
+      const rg = RG ? RG[idx] : 0;
+      if (t === T_ELEV) { r = 122; g = 130; b = 146; k = 0.44; }
+      else if (rg === 1) { r = 150; g = 74; b = 66; k = 0.44; }          // passadeira
+      else if (rg === 2) { r = 92; g = 118; b = 130; k = 0.42; }         // tapete
+      else if (rg === 3) {                                                // ladrilho
+        if ((cx + cy) & 1) { r = 176; g = 182; b = 176; k = 0.44; }
+        else { r = 104; g = 110; b = 108; k = 0.38; }
+      } else if (porao) { r = 128; g = 130; b = 126; k = 0.40; }
+      if (porao && cx >= DARKROOM.x && cx < DARKROOM.x + DARKROOM.w &&
+          cy >= DARKROOM.y && cy < DARKROOM.y + DARKROOM.h) { r = 206; g = 50; b = 42; k = 0.5; }
+      if (lp) {                                      // a lamparina aquece o chão
+        const q = 1 - Math.hypot(cx + 0.5 - lp.x, cy + 0.5 - lp.y) / LAMP_RAIO;
+        if (q > 0) { r += (236 - r) * q * 0.8; g += (168 - g) * q * 0.8; b += (84 - b) * q * 0.8; k += 0.14 * q; }
+      }
+      d[o] = r; d[o + 1] = g; d[o + 2] = b;
+      d[o + 3] = Math.min(1, L) * k * 255;
+    }
+  LUZ_CV.getContext("2d").putImageData(LUZ_IMG, 0, 0);
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(LUZ_CV, c0 * CELL, r0 * CELL, w * CELL, h * CELL);
+}
+
+// ------------------------------------------------------------------
+// PAREDES: bloco com hachura de planta; o contorno claro só aparece na
+// face voltada para chão ILUMINADO (a parede não conta o que há atrás).
+// Parede falsa é desenhada IGUAL — só a foto a denuncia.
+// ------------------------------------------------------------------
+function mapaParedes(c0, c1, r0, r1) {
+  const NB = 8, C = CELL, H = CELL / 2;
+  const P = [];
+  for (let i = 0; i < NB; i++)
+    P.push({ f: new Path2D(), h: new Path2D(), e: new Path2D(), n: 0 });
+  const lit = (cx, cy) => cx >= 0 && cy >= 0 && cx < COLS && cy < ROWS &&
+                          light[cy * COLS + cx] > 0.02 && !mapaParedeLike(cx, cy);
+  for (let cy = r0; cy <= r1; cy++)
+    for (let cx = c0; cx <= c1; cx++) {
+      const idx = cy * COLS + cx;
+      const raw = light[idx];
+      if (raw <= 0.02) continue;
+      const t = grid[idx];
+      if (t !== T_WALL && t !== T_FAKE) continue;
+      const k = Math.min(NB - 1, (Math.min(1, raw) * NB) | 0);
+      const p = P[k], x = cx * C, y = cy * C;
+      p.n++;
+      p.f.rect(x, y, C, C);
+      p.h.moveTo(x, y + C); p.h.lineTo(x + C, y);
+      p.h.moveTo(x, y + H); p.h.lineTo(x + H, y);
+      p.h.moveTo(x + H, y + C); p.h.lineTo(x + C, y + H);
+      if (lit(cx - 1, cy)) { p.e.moveTo(x + 0.7, y); p.e.lineTo(x + 0.7, y + C); }
+      if (lit(cx + 1, cy)) { p.e.moveTo(x + C - 0.7, y); p.e.lineTo(x + C - 0.7, y + C); }
+      if (lit(cx, cy - 1)) { p.e.moveTo(x, y + 0.7); p.e.lineTo(x + C, y + 0.7); }
+      if (lit(cx, cy + 1)) { p.e.moveTo(x, y + C - 0.7); p.e.lineTo(x + C, y + C - 0.7); }
+    }
+  ctx.lineCap = "butt";
+  for (let k = 0; k < NB; k++) {
+    const p = P[k];
+    if (!p.n) continue;
+    const b = (k + 0.6) / NB;
+    ctx.fillStyle = `rgb(${(8 + 46 * b) | 0},${(7 + 40 * b) | 0},${(6 + 31 * b) | 0})`;
+    ctx.fill(p.f);
+    ctx.strokeStyle = `rgb(${(20 + 112 * b) | 0},${(18 + 98 * b) | 0},${(14 + 74 * b) | 0})`;
+    ctx.lineWidth = 0.7;
+    ctx.stroke(p.h);
+    const e = 70 + 185 * b;
+    ctx.strokeStyle = `rgb(${e | 0},${(e * 0.88) | 0},${(e * 0.66) | 0})`;
+    ctx.lineWidth = 1.5;
+    ctx.stroke(p.e);
+  }
+
+  // porta da frente e piso do elevador (símbolos de planta)
+  for (let cy = r0; cy <= r1; cy++)
+    for (let cx = c0; cx <= c1; cx++) {
+      const idx = cy * COLS + cx;
+      const raw = light[idx];
+      if (raw <= 0.02) continue;
+      const t = grid[idx];
+      if (t !== T_DOOR && t !== T_ELEV) continue;
+      const b = Math.min(1, raw), x = cx * C, y = cy * C;
+      if (t === T_DOOR) {
+        ctx.fillStyle = `rgb(${(30 + 120 * b) | 0},${(18 + 72 * b) | 0},${(10 + 36 * b) | 0})`;
+        ctx.fillRect(x, y + 2, C, C - 4);
+        ctx.strokeStyle = `rgba(20,10,4,${(0.5 + 0.4 * b).toFixed(2)})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(x + H, y + 2); ctx.lineTo(x + H, y + C - 2); ctx.stroke();
+        ctx.strokeStyle = `rgba(232,196,120,${b.toFixed(2)})`;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.moveTo(x, y + 2); ctx.lineTo(x + C, y + 2);
+        ctx.moveTo(x, y + C - 2); ctx.lineTo(x + C, y + C - 2); ctx.stroke();
+      } else {
+        ctx.strokeStyle = `rgba(170,182,205,${(0.2 + 0.5 * b).toFixed(2)})`;
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.moveTo(x, y); ctx.lineTo(x + C, y + C);
+        ctx.moveTo(x + C, y); ctx.lineTo(x, y + C);
+        ctx.stroke();
+      }
+    }
+}
+
+// ------------------------------------------------------------------
+// MÓVEIS em planta: silhueta de cima em traço grosso (diz "há um piano
+// aqui" — como ele É, só a foto conta)
+// ------------------------------------------------------------------
+function mapaMoveis() {
+  const C = CELL;
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  for (const fu of fl().furn) {
+    let L = 0;
+    for (const [ci, cj] of fu.cells) L = Math.max(L, light[cj * COLS + ci]);
+    if (L <= 0.03) continue;
+    L = Math.min(1, L * 1.25);
+    const ft = FURN_TYPES[fu.type];
+    const x = (fu.x - ft.w / 2) * C + 1.4, y = (fu.y - ft.h / 2) * C + 1.4;
+    const w = ft.w * C - 2.8, h = ft.h * C - 2.8;
+    const b = 70 + 185 * L;
+    ctx.fillStyle = `rgba(14,11,7,${(0.5 + 0.35 * L).toFixed(2)})`;
+    ctx.strokeStyle = `rgb(${b | 0},${(b * 0.8) | 0},${(b * 0.42) | 0})`;
+    ctx.lineWidth = 1.35;
+    ctx.beginPath();
+    switch (fu.type) {
+      case "sofa":
+        mapaRR(x, y, w, h, 2.5); ctx.fill();
+        ctx.moveTo(x + 1.5, y + h * 0.36); ctx.lineTo(x + w - 1.5, y + h * 0.36);
+        ctx.moveTo(x + w / 3, y + h * 0.36); ctx.lineTo(x + w / 3, y + h);
+        ctx.moveTo(x + 2 * w / 3, y + h * 0.36); ctx.lineTo(x + 2 * w / 3, y + h);
+        break;
+      case "mesa":
+        mapaRR(x, y, w, h, 2); ctx.fill();
+        ctx.rect(x + 3.2, y + 3.2, w - 6.4, h - 6.4);
+        break;
+      case "estante":
+        ctx.rect(x, y, w, h); ctx.fill();
+        for (let i = 1; i < 6; i++) {
+          ctx.moveTo(x + w * i / 6, y + 1.5); ctx.lineTo(x + w * i / 6, y + h - 1.5);
+        }
+        break;
+      case "cadeira":
+        mapaRR(x + 0.6, y + 2, w - 1.2, h - 2.4, 1.6); ctx.fill();
+        ctx.moveTo(x + 0.6, y + 0.4); ctx.lineTo(x + w - 0.6, y + 0.4);
+        break;
+      case "piano":
+        ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + h * 0.5);
+        ctx.quadraticCurveTo(x + w * 0.95, y + h, x + w * 0.48, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h * 0.62);
+        ctx.closePath(); ctx.fill();
+        ctx.rect(x + 1.8, y + 1.6, w - 3.6, 3);
+        for (let i = 1; i < 7; i++) {
+          ctx.moveTo(x + 1.8 + (w - 3.6) * i / 7, y + 1.6);
+          ctx.lineTo(x + 1.8 + (w - 3.6) * i / 7, y + 4.6);
+        }
+        break;
+      case "cama":
+        mapaRR(x, y, w, h, 2); ctx.fill();
+        mapaRR(x + 1.6, y + 1.6, w / 2 - 2.4, 5, 1.2);
+        mapaRR(x + w / 2 + 0.8, y + 1.6, w / 2 - 2.4, 5, 1.2);
+        ctx.moveTo(x, y + h * 0.36); ctx.lineTo(x + w, y + h * 0.36);
+        ctx.moveTo(x + w * 0.62, y + h * 0.36); ctx.lineTo(x + w, y + h * 0.5);
+        break;
+      case "poltrona":
+        mapaRR(x, y, w, h, 2.6); ctx.fill();
+        mapaRR(x + 2, y + 2.6, w - 4, h - 3.4, 1.4);
+        break;
+      case "bau":
+        mapaRR(x, y, w, h, 1.4); ctx.fill();
+        ctx.moveTo(x, y + h / 2); ctx.lineTo(x + w, y + h / 2);
+        ctx.moveTo(x + w / 2 + 1.3, y + h / 2); ctx.arc(x + w / 2, y + h / 2, 1.3, 0, 7);
+        break;
+      case "escrivaninha":
+        ctx.rect(x, y, w, h); ctx.fill();
+        ctx.moveTo(x + w * 0.58, y); ctx.lineTo(x + w * 0.58, y + h);
+        ctx.moveTo(x + w * 0.58, y + h / 2); ctx.lineTo(x + w, y + h / 2);
+        break;
+      case "relogio":
+        ctx.arc(x + w / 2, y + h / 2, w / 2, 0, 7); ctx.fill();
+        ctx.moveTo(x + w / 2, y + h / 2); ctx.lineTo(x + w / 2, y + 1.6);
+        ctx.moveTo(x + w / 2, y + h / 2); ctx.lineTo(x + w * 0.76, y + h * 0.6);
+        break;
+      case "espelho":
+        ctx.ellipse(x + w / 2, y + h / 2, w / 2, h * 0.24, 0, 0, 7); ctx.fill();
+        ctx.moveTo(x + w * 0.3, y + h / 2); ctx.lineTo(x + w * 0.7, y + h / 2);
+        break;
+      case "berco":
+        ctx.rect(x, y, w, h); ctx.fill();
+        for (let i = 1; i < 6; i++) {
+          ctx.moveTo(x + w * i / 6, y); ctx.lineTo(x + w * i / 6, y + 2.6);
+          ctx.moveTo(x + w * i / 6, y + h - 2.6); ctx.lineTo(x + w * i / 6, y + h);
+        }
+        ctx.rect(x + 2.6, y + 2.6, w - 5.2, h - 5.2);
+        break;
+      default:
+        ctx.rect(x, y, w, h); ctx.fill();
+    }
+    ctx.stroke();
+  }
+}
+
+// ------------------------------------------------------------------
+// ÍCONES de item (traço grosso, no mundo). s = meia-altura em px
+// ------------------------------------------------------------------
+function mapaIcone(kind, x, y, s, rgb, a) {
+  if (a <= 0.03) return;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.globalAlpha = Math.min(1, a);
+  // halo: item é coisa que se PEGA
+  const hg = ctx.createRadialGradient(0, 0, 1, 0, 0, s * 2.4);
+  hg.addColorStop(0, `rgba(${rgb},0.30)`);
+  hg.addColorStop(1, `rgba(${rgb},0)`);
+  ctx.fillStyle = hg;
+  ctx.fillRect(-s * 2.4, -s * 2.4, s * 4.8, s * 4.8);
+  ctx.lineWidth = 1.5; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.strokeStyle = `rgb(${rgb})`;
+  ctx.fillStyle = "rgba(8,8,10,0.9)";
+  ctx.beginPath();
+  switch (kind) {
+    case "film":                           // lata do rolo + língua do filme
+      mapaRR(-s * 0.9, -s * 0.7, s * 1.0, s * 1.5, 1.2);
+      ctx.fill(); ctx.stroke(); ctx.beginPath();
+      ctx.moveTo(-s * 0.72, -s * 0.98); ctx.lineTo(-s * 0.08, -s * 0.98);
+      ctx.rect(s * 0.1, -s * 0.3, s * 0.85, s * 0.8);
+      ctx.moveTo(s * 0.35, -s * 0.05); ctx.lineTo(s * 0.36, -s * 0.05);
+      ctx.moveTo(s * 0.7, -s * 0.05); ctx.lineTo(s * 0.71, -s * 0.05);
+      break;
+    case "fuse":                           // cartucho com duas capas e filamento
+      mapaRR(-s, -s * 0.42, s * 2, s * 0.84, s * 0.3);
+      ctx.fill(); ctx.stroke(); ctx.beginPath();
+      ctx.moveTo(-s * 0.5, -s * 0.42); ctx.lineTo(-s * 0.5, s * 0.42);
+      ctx.moveTo(s * 0.5, -s * 0.42); ctx.lineTo(s * 0.5, s * 0.42);
+      ctx.moveTo(-s * 0.3, 0); ctx.lineTo(-s * 0.1, -s * 0.2);
+      ctx.lineTo(s * 0.1, s * 0.2); ctx.lineTo(s * 0.3, 0);
+      break;
+    case "key":                            // argola, haste e dois dentes
+      ctx.arc(-s * 0.55, 0, s * 0.45, 0, 7);
+      ctx.fill(); ctx.stroke(); ctx.beginPath();
+      ctx.moveTo(-s * 0.1, 0); ctx.lineTo(s, 0);
+      ctx.moveTo(s * 0.55, 0); ctx.lineTo(s * 0.55, s * 0.5);
+      ctx.moveTo(s * 0.9, 0); ctx.lineTo(s * 0.9, s * 0.42);
+      break;
+    case "campart":                        // uma lente: aro, vidro e o reflexo
+      ctx.arc(0, 0, s * 0.9, 0, 7);
+      ctx.fill(); ctx.stroke(); ctx.beginPath();
+      ctx.arc(0, 0, s * 0.5, 0, 7);
+      ctx.moveTo(-s * 0.2, -s * 0.24); ctx.arc(0, 0, s * 0.28, 3.6, 4.9);
+      ctx.moveTo(s * 0.95, -s * 1.25); ctx.lineTo(s * 0.95, -s * 0.75);   // faísca
+      ctx.moveTo(s * 0.7, -s); ctx.lineTo(s * 1.2, -s);
+      break;
+    case "ret":                            // moldura com o oval do retrato
+      ctx.rect(-s * 0.7, -s, s * 1.4, s * 2);
+      ctx.fill(); ctx.stroke(); ctx.beginPath();
+      ctx.ellipse(0, -s * 0.05, s * 0.36, s * 0.56, 0, 0, 7);
+      break;
+    case "safe":                           // caixa-forte com o disco
+      mapaRR(-s, -s, s * 2, s * 2, 1.4);
+      ctx.fill(); ctx.stroke(); ctx.beginPath();
+      ctx.arc(0, 0, s * 0.46, 0, 7);
+      ctx.moveTo(0, 0); ctx.lineTo(s * 0.3, -s * 0.3);
+      break;
+    case "fusebox":                        // quadro com o raio
+      ctx.rect(-s * 0.8, -s, s * 1.6, s * 2);
+      ctx.fill(); ctx.stroke(); ctx.beginPath();
+      ctx.moveTo(s * 0.2, -s * 0.62); ctx.lineTo(-s * 0.26, s * 0.06);
+      ctx.lineTo(s * 0.2, s * 0.06); ctx.lineTo(-s * 0.2, s * 0.66);
+      break;
+    case "bench":                          // bandeja de revelação com a gota
+      mapaRR(-s, -s * 0.6, s * 2, s * 1.2, 1.4);
+      ctx.fill(); ctx.stroke(); ctx.beginPath();
+      ctx.moveTo(0, -s * 0.34); ctx.quadraticCurveTo(s * 0.34, s * 0.16, 0, s * 0.3);
+      ctx.quadraticCurveTo(-s * 0.34, s * 0.16, 0, -s * 0.34);
+      break;
+    case "easel":                          // cavalete com a tela
+      ctx.rect(-s * 0.6, -s * 0.9, s * 1.2, s * 1.1);
+      ctx.fill(); ctx.stroke(); ctx.beginPath();
+      ctx.moveTo(-s * 0.4, s * 0.2); ctx.lineTo(-s * 0.8, s);
+      ctx.moveTo(s * 0.4, s * 0.2); ctx.lineTo(s * 0.8, s);
+      ctx.moveTo(0, s * 0.2); ctx.lineTo(0, s * 0.9);
+      break;
+    case "lamp":                           // lamparina: alça, vidro e a chama
+      ctx.arc(0, s * 0.1, s * 0.62, 0, 7);
+      ctx.fill(); ctx.stroke(); ctx.beginPath();
+      ctx.moveTo(-s * 0.5, s * 0.78); ctx.lineTo(s * 0.5, s * 0.78);
+      ctx.moveTo(-s * 0.3, -s * 0.5); ctx.lineTo(s * 0.3, -s * 0.5);
+      ctx.moveTo(-s * 0.55, -s * 0.5); ctx.quadraticCurveTo(0, -s * 1.45, s * 0.55, -s * 0.5);
+      ctx.moveTo(0, s * 0.42); ctx.quadraticCurveTo(s * 0.3, s * 0.05, 0, -s * 0.26);
+      ctx.quadraticCurveTo(-s * 0.3, s * 0.05, 0, s * 0.42);
+      break;
+    case "chair":                          // a cadeira do Fotógrafo
+      mapaRR(-s * 0.7, -s * 0.5, s * 1.4, s * 1.4, 1.4);
+      ctx.fill(); ctx.stroke(); ctx.beginPath();
+      ctx.moveTo(-s * 0.8, -s * 0.85); ctx.lineTo(s * 0.8, -s * 0.85);
+      ctx.moveTo(-s * 0.8, -s * 0.85); ctx.lineTo(-s * 0.8, s * 0.2);
+      ctx.moveTo(s * 0.8, -s * 0.85); ctx.lineTo(s * 0.8, s * 0.2);
+      break;
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+// ------------------------------------------------------------------
+// O STREAMER visto de cima: capuz vinho, mochila, a polaroid no peito e
+// o celular (a lanterna) no braço estendido. Ele ANDA: pés e ombros.
+// ------------------------------------------------------------------
+function mapaJogador(px, py, dir, passo, movendo, agachado, tremor) {
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.rotate(dir + (tremor ? (Math.random() - 0.5) * 0.06 * tremor : 0));
+  const sw = movendo ? Math.sin(passo) : 0;         // balanço do passo
+  const k = agachado ? 0.86 : 1;                    // encolhe ao se esgueirar
+  ctx.scale(k, k);
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  // sombra de contato
+  ctx.fillStyle = "rgba(0,0,0,0.45)";
+  ctx.beginPath(); ctx.ellipse(-0.6, 0, 6.2, 7, 0, 0, 7); ctx.fill();
+  // pés alternando
+  ctx.fillStyle = "#15110e";
+  ctx.beginPath(); ctx.ellipse(1.2 + sw * 2.8, -2.7, 2.7, 1.5, 0, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(1.2 - sw * 2.8, 2.7, 2.7, 1.5, 0, 0, 7); ctx.fill();
+  // mochila
+  ctx.fillStyle = "#34383d"; ctx.strokeStyle = "#0c0d0f"; ctx.lineWidth = 0.8;
+  ctx.beginPath(); mapaRR(-6.6, -3.5, 3.8, 7, 1.5); ctx.fill(); ctx.stroke();
+  // ombros (moletom vinho) — giram um pouco contra os pés
+  ctx.save();
+  ctx.rotate(-sw * 0.10);
+  ctx.fillStyle = "#6f2632"; ctx.strokeStyle = "#1f0a0e"; ctx.lineWidth = 0.9;
+  ctx.beginPath(); ctx.ellipse(-0.8, 0, 3.9, 6.3, 0, 0, 7); ctx.fill(); ctx.stroke();
+  // braço do celular (direito) esticado para a frente
+  ctx.strokeStyle = "#1f0a0e"; ctx.lineWidth = 3.6;
+  ctx.beginPath(); ctx.moveTo(0.2, 4.9); ctx.quadraticCurveTo(4.6, 5.6, 7.3, 2.4); ctx.stroke();
+  ctx.strokeStyle = "#6f2632"; ctx.lineWidth = 2.4;
+  ctx.beginPath(); ctx.moveTo(0.2, 4.9); ctx.quadraticCurveTo(4.6, 5.6, 7.3, 2.4); ctx.stroke();
+  // braço esquerdo dobrado, segurando a polaroid contra o peito
+  ctx.strokeStyle = "#1f0a0e"; ctx.lineWidth = 3.4;
+  ctx.beginPath(); ctx.moveTo(0.2, -4.9); ctx.quadraticCurveTo(3.4, -5.0, 3.9, -2.2); ctx.stroke();
+  ctx.strokeStyle = "#6f2632"; ctx.lineWidth = 2.2;
+  ctx.beginPath(); ctx.moveTo(0.2, -4.9); ctx.quadraticCurveTo(3.4, -5.0, 3.9, -2.2); ctx.stroke();
+  ctx.restore();
+  // a polaroid (creme) no peito
+  ctx.fillStyle = "#d6cdb8"; ctx.strokeStyle = "#17120e"; ctx.lineWidth = 0.7;
+  ctx.beginPath(); mapaRR(2.5, -3.3, 3.5, 4.2, 0.8); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#17120e";
+  ctx.beginPath(); ctx.arc(4.9, -1.2, 1.0, 0, 7); ctx.fill();
+  // mão + celular aceso
+  ctx.fillStyle = "#d9b99c";
+  ctx.beginPath(); ctx.arc(7.5, 2.2, 1.3, 0, 7); ctx.fill();
+  ctx.fillStyle = "#f2f5fa"; ctx.strokeStyle = "#0c0d0f"; ctx.lineWidth = 0.6;
+  ctx.beginPath(); mapaRR(8.1, 0.5, 1.8, 3.4, 0.5); ctx.fill(); ctx.stroke();
+  // capuz
+  ctx.fillStyle = "#812d3a"; ctx.strokeStyle = "#1f0a0e"; ctx.lineWidth = 0.9;
+  ctx.beginPath(); ctx.arc(0.5, 0, 3.4, 0, 7); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "rgba(20,6,9,0.55)";
+  ctx.beginPath(); ctx.arc(0.5, 0, 3.4, Math.PI * 0.5, Math.PI * 1.5); ctx.fill();
+  ctx.fillStyle = "#e0c0a4";                          // nesga de rosto na frente
+  ctx.beginPath(); ctx.ellipse(2.9, 0, 0.9, 1.7, 0, 0, 7); ctx.fill();
+  ctx.restore();
+}
+
+// ------------------------------------------------------------------
+// ECOS e ALMAS: mancha espectral que respira, com fiapos; olhos ocos
+// ------------------------------------------------------------------
+function mapaVulto(x, y, L, bob, raio, rgb, caca, semOlhos, veu, fx) {
+  const a = 0.22 + 0.62 * L;
+  const insp = fx && fx.insp !== undefined ? fx.insp : -1;   // 0..1: puxando o ar
+  const salto = !!fx && fx.dx !== undefined;
+  ctx.save();
+  ctx.translate(x, y + (insp >= 0 || salto ? 0 : Math.sin(bob) * 2.2));
+  if (salto) {                                        // o rastro do salto
+    ctx.save();
+    ctx.rotate(Math.atan2(fx.dy, fx.dx));
+    const rg = ctx.createLinearGradient(-raio * 6, 0, raio, 0);
+    rg.addColorStop(0, `rgba(${rgb},0)`);
+    rg.addColorStop(1, `rgba(${rgb},${(a * 0.6).toFixed(3)})`);
+    ctx.fillStyle = rg;
+    ctx.beginPath();
+    ctx.moveTo(-raio * 6, 0); ctx.lineTo(raio * 0.4, -raio);
+    ctx.lineTo(raio * 0.4, raio); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  if (insp >= 0) {                                    // o AVISO: um aro que se fecha
+    ctx.strokeStyle = `rgba(255,74,60,${(0.22 + 0.6 * insp).toFixed(3)})`;
+    ctx.lineWidth = 1.2 + insp;
+    ctx.beginPath(); ctx.arc(0, 0, raio * (3.5 - 2.4 * insp), 0, 7); ctx.stroke();
+    const s = 1 - 0.2 * insp + Math.sin(time * 42) * 0.035 * insp;   // encolhe e vibra
+    ctx.scale(s, s);
+  }
+  // aura
+  const ag = ctx.createRadialGradient(0, 0, raio * 0.3, 0, 0, raio * 2.3);
+  ag.addColorStop(0, `rgba(${rgb},${(a * 0.30).toFixed(3)})`);
+  ag.addColorStop(1, `rgba(${rgb},0)`);
+  ctx.fillStyle = ag;
+  ctx.fillRect(-raio * 2.3, -raio * 2.3, raio * 4.6, raio * 4.6);
+  // corpo: contorno que ondula
+  ctx.fillStyle = `rgba(${rgb},${(a * 0.62).toFixed(3)})`;
+  ctx.strokeStyle = `rgba(${rgb},${Math.min(1, a * 1.2).toFixed(3)})`;
+  ctx.lineWidth = 1.1;
+  ctx.beginPath();
+  const N = 14;
+  for (let i = 0; i <= N; i++) {
+    const t = i / N * 6.283;
+    const baixo = Math.max(0, Math.sin(t));           // a barra de baixo esfiapa
+    const rr = raio * (1 + 0.10 * Math.sin(t * 3 + bob * 1.7)
+                         + baixo * (0.34 + 0.22 * Math.sin(t * 7 + bob * 2.3)));
+    const px = Math.cos(t) * rr * 0.86, py = Math.sin(t) * rr;
+    i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+  }
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  if (veu) {                                          // véu que arrasta
+    ctx.strokeStyle = `rgba(${rgb},${(a * 0.5).toFixed(3)})`;
+    ctx.beginPath();
+    for (let i = -1; i <= 1; i++) {
+      ctx.moveTo(i * raio * 0.5, raio * 0.9);
+      ctx.quadraticCurveTo(i * raio * 0.9 + Math.sin(bob + i) * 2, raio * 1.7,
+                           i * raio * 0.7, raio * 2.3);
+    }
+    ctx.stroke();
+  }
+  if (!semOlhos) {
+    const aceso = insp >= 0 || salto;
+    const ke = aceso ? 1.3 + 0.5 * Math.max(0, insp) : 1;
+    if (aceso) { ctx.shadowColor = "rgba(255,60,40,0.95)"; ctx.shadowBlur = 9; }
+    ctx.fillStyle = aceso ? "rgb(255,96,72)"
+      : caca && L > 0.35 ? `rgba(255,70,60,${Math.min(1, L * 1.3).toFixed(2)})`
+                         : `rgba(6,6,10,${Math.min(1, a * 1.4).toFixed(2)})`;
+    ctx.beginPath();
+    ctx.ellipse(-raio * 0.30, -raio * 0.18, raio * 0.17 * ke, raio * 0.22 * ke, 0, 0, 7);
+    ctx.ellipse( raio * 0.30, -raio * 0.18, raio * 0.17 * ke, raio * 0.22 * ke, 0, 0, 7);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+  if (fx && fx.alma) mapaTraco(fx.alma, fx.ent, raio, a, bob, rgb);
+  ctx.restore();
+}
+// o TRAÇO de cada alma na planta: continua abstrato, mas é só dela
+function mapaTraco(id, e, raio, a, bob, rgb) {
+  ctx.lineCap = "round";
+  if (id === "tomas") {                    // riscos de contagem ao lado: ele conta até cem
+    ctx.strokeStyle = `rgba(${rgb},${(a * 0.8).toFixed(3)})`; ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    for (let i = 0; i < 4; i++) { ctx.moveTo(raio * 1.5 + i * 1.6, -3); ctx.lineTo(raio * 1.5 + i * 1.6, 3); }
+    ctx.moveTo(raio * 1.5 - 1, 2); ctx.lineTo(raio * 1.5 + 6, -2);
+    ctx.stroke();
+  } else if (id === "bento") {             // a lamparina do zelador: um ponto quente
+    const lx = raio * 1.05, ly = raio * 0.2;
+    const lg = ctx.createRadialGradient(lx, ly, 0.5, lx, ly, 9);
+    lg.addColorStop(0, `rgba(255,214,140,${Math.min(1, a * 1.3).toFixed(3)})`);
+    lg.addColorStop(1, "rgba(255,214,140,0)");
+    ctx.fillStyle = lg; ctx.fillRect(lx - 9, ly - 9, 18, 18);
+  } else if (id === "olivia") {            // enquanto ela toca, o som faz ondas (é o seguro)
+    if (e && e.tocando) {
+      ctx.lineWidth = 0.9;
+      for (let k = 0; k < 3; k++) {
+        const ph = (time * 0.7 + k / 3) % 1;
+        ctx.strokeStyle = `rgba(${rgb},${(a * 0.6 * (1 - ph)).toFixed(3)})`;
+        ctx.beginPath(); ctx.arc(0, 0, raio * (1.2 + ph * 2.4), 0, 7); ctx.stroke();
+      }
+    }
+  } else if (id === "hospede") {           // a aba do chapéu
+    ctx.strokeStyle = `rgba(${rgb},${Math.min(1, a * 1.1).toFixed(3)})`; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.ellipse(0, -raio * 0.62, raio * 1.15, raio * 0.24, 0, 0, 7); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, -raio * 0.62, raio * 0.55, Math.PI, 0); ctx.stroke();
+  } else if (id === "aurora") {            // o camafeu
+    ctx.fillStyle = `rgba(255,236,170,${Math.min(1, a * 1.3).toFixed(3)})`;
+    ctx.beginPath(); ctx.arc(0, raio * 0.25, 1.5, 0, 7); ctx.fill();
+  } else if (id === "blackwood") {         // um olho só — a lente — e o tripé
+    ctx.fillStyle = `rgba(255,74,60,${Math.min(1, a * 1.4).toFixed(3)})`;
+    ctx.beginPath(); ctx.arc(0, -raio * 0.15, raio * 0.26, 0, 7); ctx.fill();
+    ctx.strokeStyle = `rgba(${rgb},${(a * 0.8).toFixed(3)})`; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (const dx of [-0.9, 0, 0.9]) { ctx.moveTo(dx * raio * 0.3, raio * 0.8); ctx.lineTo(dx * raio * 1.3, raio * 2); }
+    ctx.stroke();
+  }
+}
+
+// ------------------------------------------------------------------
+// POEIRA no facho: grãos que só existem onde a luz bate
+// ------------------------------------------------------------------
+function mapaPoeira(dir) {
+  const t = time;
+  ctx.fillStyle = "rgba(255,244,214,0.5)";
+  for (let i = 0; i < 26; i++) {
+    const ph = nzHash(i * 17, 3) * 6.283, d0 = 2 + nzHash(i * 31, 7) * 20;
+    const ang = dir + (nzHash(i * 13, 11) - 0.5) * 0.7 + Math.sin(t * 0.3 + ph) * 0.05;
+    const dd = d0 + Math.sin(t * 0.21 + ph) * 1.4;
+    const x = player.x + Math.cos(ang) * dd, y = player.y + Math.sin(ang) * dd;
+    const L = lightAt(x, y);
+    if (L <= 0.12 || mapaParedeLike(x | 0, y | 0)) continue;
+    ctx.globalAlpha = Math.min(0.55, L * 0.5) * (0.5 + 0.5 * Math.sin(t * 1.7 + ph * 3));
+    ctx.fillRect(x * CELL, y * CELL + Math.sin(t * 0.5 + ph) * 3, 0.9, 0.9);
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ------------------------------------------------------------------
+// ÍCONES DE HUD (tela): elo de corrente, fusível, chave
+// ------------------------------------------------------------------
+function hudElo(x, y, quebrado) {
+  ctx.lineWidth = 2.4; ctx.lineCap = "round";
+  if (quebrado) {
+    ctx.strokeStyle = "rgba(120,132,150,0.45)";
+    ctx.beginPath(); ctx.arc(x - 2, y, 5.5, 0.9, 5.4); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x + 5, y - 5); ctx.lineTo(x + 8, y - 8);
+    ctx.moveTo(x + 6, y + 4); ctx.lineTo(x + 9, y + 7); ctx.stroke();
+  } else {
+    ctx.strokeStyle = "rgba(190,212,250,0.95)";
+    ctx.beginPath(); ctx.ellipse(x - 3, y, 5.5, 3.6, 0, 0, 7); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(x + 4, y, 5.5, 3.6, 0, 0, 7); ctx.stroke();
+  }
+}
+function hudFusivel(x, y, estado) {       // 0 falta · 1 na mão · 2 no quadro
+  ctx.lineWidth = 2; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.strokeStyle = estado === 2 ? "rgba(130,225,130,0.95)"
+    : estado === 1 ? "rgba(255,176,96,0.95)" : "rgba(130,130,130,0.4)";
+  ctx.fillStyle = estado === 2 ? "rgba(130,225,130,0.25)"
+    : estado === 1 ? "rgba(255,176,96,0.22)" : "rgba(0,0,0,0)";
+  ctx.beginPath(); mapaRR(x - 10, y - 5, 20, 10, 3.4); ctx.fill(); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x - 5, y - 5); ctx.lineTo(x - 5, y + 5);
+  ctx.moveTo(x + 5, y - 5); ctx.lineTo(x + 5, y + 5);
+  if (estado) {
+    ctx.moveTo(x - 3, y); ctx.lineTo(x - 1, y - 2.4);
+    ctx.lineTo(x + 1, y + 2.4); ctx.lineTo(x + 3, y);
+  }
+  ctx.stroke();
+}
+// "ele já tem um negativo seu": um quadrinho de filme com uma figura dentro
+function hudNegativo(x, y) {
+  const p = 0.7 + 0.3 * Math.sin(time * 2.4);
+  ctx.save();
+  ctx.lineWidth = 1.6; ctx.lineJoin = "round";
+  ctx.strokeStyle = `rgba(226,84,70,${p.toFixed(2)})`;
+  ctx.fillStyle = "rgba(40,8,6,0.75)";
+  ctx.beginPath(); ctx.rect(x, y - 8, 20, 16); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = `rgba(226,84,70,${p.toFixed(2)})`;
+  for (let i = 0; i < 4; i++) { ctx.fillRect(x + 2 + i * 4.6, y - 7, 2, 1.6); ctx.fillRect(x + 2 + i * 4.6, y + 5.4, 2, 1.6); }
+  ctx.beginPath(); ctx.arc(x + 10, y - 1.6, 2.2, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x + 10, y + 3.6, 3.6, 2.2, 0, Math.PI, 0); ctx.fill();
+  ctx.restore();
+}
+function hudChave(x, y, tem) {
+  ctx.lineWidth = 2.2; ctx.lineCap = "round";
+  ctx.strokeStyle = tem ? "rgba(244,214,116,0.98)" : "rgba(130,130,130,0.4)";
+  ctx.beginPath(); ctx.arc(x - 6, y, 4.6, 0, 7); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x - 1.4, y); ctx.lineTo(x + 11, y);
+  ctx.moveTo(x + 6, y); ctx.lineTo(x + 6, y + 5);
+  ctx.moveTo(x + 10, y); ctx.lineTo(x + 10, y + 4);
+  ctx.stroke();
+}
+
+// ------------------------------------------------------------------
+// PEGADAS: alguém pequeno andou até a parede… e não parou nela.
+// É a pista DENTRO do mundo para a parede falsa (só aparece sob a luz, e
+// some quando a sala secreta é achada). O que há atrás continua sendo da foto.
+// ------------------------------------------------------------------
+function mapaPegadas() {
+  const achadas = world.flags.secretsFound;
+  for (const sr of fl().secretRooms) {
+    if (!sr.frente || !sr.dn || achadas.includes(sr.id)) continue;
+    const dx = sr.dn[0], dy = sr.dn[1], ang = Math.atan2(-dy, -dx);
+    for (let i = 0; i < 7; i++) {
+      const lado = (i & 1 ? 1 : -1) * 0.2;
+      const x = sr.frente.x + dx * (0.5 + i * 0.85) - dy * lado;
+      const y = sr.frente.y + dy * (0.5 + i * 0.85) + dx * lado;
+      const L = lightAt(x, y);
+      if (L <= 0.08 || mapaParedeLike(x | 0, y | 0) || fl().furnGrid[(y | 0) * COLS + (x | 0)]) continue;
+      ctx.save();
+      ctx.translate(x * CELL, y * CELL);
+      ctx.rotate(ang);
+      ctx.fillStyle = `rgba(228,216,190,${(Math.min(1, L * 1.5) * (0.5 - i * 0.045)).toFixed(3)})`;
+      ctx.beginPath(); ctx.ellipse(0, 0, 1.5, 0.8, 0, 0, 7); ctx.fill();          // a planta do pé
+      ctx.beginPath(); ctx.arc(1.9, 0, 0.5, 0, 7); ctx.fill();                    // os dedos
+      ctx.restore();
+    }
+  }
+}
+
+// ------------------------------------------------------------------
+// MEMÓRIA DE PLANTA: parede já iluminada fica como um fantasma fraco,
+// que apodrece em alguns minutos. Diz POR ONDE você já passou — nunca o
+// que há na parede (parede falsa é lembrada igualzinha às outras).
+// ------------------------------------------------------------------
+let MEMO_T = 0;
+function mapaMemoria(c0, c1, r0, r1) {
+  if (!world.memo) world.memo = [];
+  let M = world.memo[world.cur];
+  if (!M) M = world.memo[world.cur] = new Uint8Array(COLS * ROWS);
+  // apodrece: ~1 ponto por segundo (255 = pouco mais de 4 minutos)
+  if (time - MEMO_T > 1) {
+    MEMO_T = time;
+    for (const m of world.memo) if (m) for (let i = 0; i < m.length; i++) if (m[i]) m[i]--;
+  }
+  const P = [new Path2D(), new Path2D(), new Path2D()], n = [0, 0, 0], C = CELL;
+  for (let cy = r0; cy <= r1; cy++)
+    for (let cx = c0; cx <= c1; cx++) {
+      const idx = cy * COLS + cx, t = grid[idx];
+      if (t !== T_WALL && t !== T_FAKE && t !== T_DOOR) continue;
+      if (light[idx] > 0.05) { M[idx] = 255; continue; }      // vista agora: grava
+      const m = M[idx];
+      if (m < 24) continue;
+      const k = m > 170 ? 2 : m > 90 ? 1 : 0;
+      P[k].rect(cx * C, cy * C, C, C); n[k]++;
+    }
+  for (let k = 0; k < 3; k++) {
+    if (!n[k]) continue;
+    ctx.fillStyle = `rgba(64,60,52,${[0.10, 0.17, 0.25][k]})`;
+    ctx.fill(P[k]);
+  }
+}
+// a cabeça no chão vê o que não está lá: um par de olhos no escuro
+function mapaOlhosFalsos(f) {
+  const a = Math.min(1, f.t / 0.25) * Math.min(1, (f.dur - f.t) / 0.3);
+  if (a <= 0) return;
+  ctx.save();
+  ctx.translate(f.x * CELL, f.y * CELL);
+  ctx.shadowColor = "rgba(255,60,40,0.9)"; ctx.shadowBlur = 8;
+  ctx.fillStyle = `rgba(255,92,70,${(0.85 * a).toFixed(3)})`;
+  ctx.beginPath();
+  ctx.ellipse(-2.0, 0, 1.3, 1.7, 0, 0, 7);
+  ctx.ellipse(2.0, 0, 1.3, 1.7, 0, 0, 7);
+  ctx.fill();
+  ctx.restore();
+}

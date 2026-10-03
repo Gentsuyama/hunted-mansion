@@ -51,7 +51,7 @@ function cineAdvance(px, py) {
 function drawCinematic() {
   const p = CINE_PANELS[cineIdx];
   const im = cineImgs[cineIdx];
-  cineT += 1 / 60;
+  cineT += frameDt;          // (era 1/60 fixo: em tela de 144 Hz a abertura corria)
 
   // painel 6: porta bate sozinha
   if (p.slam && !cineSlammed && cineT > 1.0) { sfxSlam(); cineSlammed = true; shakeCine = 1; }
@@ -78,7 +78,7 @@ function drawCinematic() {
     const a = Math.min(1, (cineT - 0.5) * 2.5);
     ctx.font = "bold 19px 'Courier New', monospace";
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    const lines = wrapText(p.cap, 72);
+    const lines = wrapText(tr(p.cap), 72);
     const bh = lines.length * 28 + 24;
     ctx.fillStyle = `rgba(0,0,0,${0.72 * a})`;
     ctx.fillRect(80, canvas.height - bh - 26, canvas.width - 160, bh);
@@ -109,6 +109,33 @@ function drawCinematic() {
 let shakeCine = 0;
 
 function wrapText(s, maxChars) {
+  if (LANG === "zh" || LANG === "ja") {
+    // sem espaço entre palavras: mede em meias-larguras (ideograma = 2, latino = 1),
+    // prefere quebrar depois de pontuação, não parte palavra latina e não deixa
+    // sinal de fechamento abrir a linha nem sinal de abertura fechá-la
+    const lim = Math.max(16, (maxChars * 1.04) | 0), ls = [];
+    const larg = (t) => { let n = 0; for (const ch of t) n += ch.charCodeAt(0) > 0x2E7F ? 2 : 1; return n; };
+    const FECHA = "、。，．！？!?…）)」』】”’：；・", ABRE = "「『（(【“‘", PAUSA = "、。，！？!?…";
+    const toks = s.match(/[A-Za-z0-9'’\-]+|[\s\S]/g) || [];
+    let cur = [], w = 0;
+    for (const t of toks) {
+      const tw = larg(t);
+      if (w + tw > lim && cur.length && !FECHA.includes(t)) {
+        let k = cur.length;
+        for (let i = cur.length - 1; i >= ((cur.length * 0.62) | 0); i--)
+          if (PAUSA.includes(cur[i])) { k = i + 1; break; }
+        while (k < cur.length && FECHA.includes(cur[k])) k++;
+        while (k > 1 && ABRE.includes(cur[k - 1])) k--;
+        ls.push(cur.slice(0, k).join("").trim());
+        cur = cur.slice(k);
+        while (cur.length && cur[0] === " ") cur.shift();
+        w = larg(cur.join(""));
+      }
+      cur.push(t); w += tw;
+    }
+    if (cur.length) ls.push(cur.join("").trim());
+    return ls;
+  }
   const words = s.split(" ");
   const lines = []; let cur = "";
   for (const w of words) {
@@ -130,8 +157,8 @@ function titleButtons() {
   const hasSave = !!loadRunData();
   const btns = [];
   let y = 400;
-  if (hasSave) { btns.push({ id: "cont", x: 460, y, w: 280, h: 64, label: "CONTINUAR" }); y += 84; }
-  btns.push({ id: "new", x: 460, y, w: 280, h: 64, label: hasSave ? "NOVA RUN" : "ENTRAR" }); y += 84;
+  if (hasSave) { btns.push({ id: "cont", x: 460, y, w: 280, h: 64, label: "RETOMAR A LIVE" }); y += 84; }
+  btns.push({ id: "new", x: 460, y, w: 280, h: 64, label: hasSave ? "NOVA LIVE" : "ENTRAR AO VIVO" }); y += 84;
   btns.push({ id: "intro", x: 460, y, w: 280, h: 52, label: "REVER INTRO" });
   return btns;
 }
@@ -175,7 +202,7 @@ function drawTitle() {
   // "ao vivo" como assinatura do jogo
   ctx.font = "bold 17px 'Courier New', monospace";
   ctx.fillStyle = `rgba(255,70,58,${0.65 + 0.35 * Math.sin(time * 4)})`;
-  ctx.fillText("●", canvas.width / 2 - 128, 212);
+  ctx.fillText("●", canvas.width / 2 - ctx.measureText("  uma live na casa errada").width / 2, 212);
   ctx.fillStyle = "rgba(210,210,210,0.9)";
   ctx.fillText("  uma live na casa errada", canvas.width / 2, 212);
 
@@ -198,6 +225,8 @@ function drawTitle() {
     ctx.fillText(b.label, b.x + b.w / 2, b.y + b.h / 2 + 1);
   }
 
+  drawArquivoTitulo();     // as lives que já caíram (ou saíram) nesta casa
+
   // checkbox do modo puzzle (canto inferior esquerdo)
   ctx.lineWidth = 2;
   ctx.strokeStyle = noGhosts ? "rgba(140,220,140,0.85)" : "rgba(255,255,255,0.4)";
@@ -215,11 +244,24 @@ function drawTitle() {
   ctx.fillStyle = noGhosts ? "rgba(140,220,140,0.85)" : "rgba(170,170,170,0.75)";
   ctx.fillText(CHK_GHOST.label, CHK_GHOST.x + CHK_GHOST.w + 12, CHK_GHOST.y + 15);
   ctx.textAlign = "center";
+  // trocar de idioma (volta à primeira tela)
+  { const b = LANG_BTN;
+    const hov = mouse.x >= b.x && mouse.x <= b.x + b.w && mouse.y >= b.y && mouse.y <= b.y + b.h;
+    ctx.lineWidth = hov ? 2.5 : 1.5;
+    ctx.strokeStyle = hov ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.35)";
+    ctx.strokeRect(b.x, b.y, b.w, b.h);
+    ctx.font = "bold 14px 'Courier New', 'Microsoft YaHei', 'Yu Gothic', monospace";
+    ctx.fillStyle = "rgba(210,210,210,0.85)";
+    const atual = LANGS.find(l => l.id === LANG) || LANGS[0];
+    ctx.fillText(tr("IDIOMA") + " · " + atual.nome, b.x + b.w / 2, b.y + b.h / 2 + 1, b.w - 16); }
   // (cursor desenhado centralmente por drawCursor no render)
 }
 
+const LANG_BTN = { x: 940, y: 612, w: 234, h: 40 };
 function titleHit(px2, py2) {
   initAudio();
+  if (px2 >= LANG_BTN.x && px2 <= LANG_BTN.x + LANG_BTN.w &&
+      py2 >= LANG_BTN.y && py2 <= LANG_BTN.y + LANG_BTN.h) { state = "lang"; return; }
   // checkbox "sem fantasmas" (área do quadradinho + rótulo)
   if (px2 >= CHK_GHOST.x && px2 <= CHK_GHOST.x + 420 &&
       py2 >= CHK_GHOST.y - 6 && py2 <= CHK_GHOST.y + CHK_GHOST.h + 6) {
