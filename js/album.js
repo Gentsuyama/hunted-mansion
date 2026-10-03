@@ -11,7 +11,7 @@ let albumPage = 0, albumZoom = -1, albumFlip = null, albumJogaFora = 0;
 const ALB_GUARDA = { x: 20, y: 20, w: 300, h: 56 };          // zoom: converter as almas da foto
 const ALB_PISTA  = { x: 340, y: 20, w: 280, h: 56 };         // zoom: fixar / soltar das pistas
 const ALB_FORA   = { x: 640, y: 20, w: 220, h: 56 };         // zoom: jogar fora
-const ALB_FLIP_T = 0.5;                                      // segundos para virar a página
+const ALB_FLIP_T = 0.85;                                      // segundos para virar a página
 
 // as fotos comuns (ordem do tempo) e, depois, as pistas
 function albumOrdem() {
@@ -168,32 +168,41 @@ function albumVira(dir) {
 function albumDesenhaFlip(b) {
   const F = albumFlip, X = b.x - 56, Y = b.y - 42, W = b.w + 112, H = b.h + 84;
   const w2 = W / 2, meio = X + w2;
-  const t = Math.min(1, F.t / ALB_FLIP_T), k = Math.cos(t * Math.PI);   // 1 → -1
-  const esq = (src) => ctx.drawImage(src, 0, 0, w2, H, X, Y, w2, H);
-  const dir = (src) => ctx.drawImage(src, w2, 0, w2, H, meio, Y, w2, H);
+  const u = Math.min(1, F.t / ALB_FLIP_T), t = u * u * (3 - 2 * u);      // arranca e assenta macio
+  const th = t * Math.PI, c = Math.cos(th), s = Math.sin(th), k = Math.abs(c);
+  // as páginas que ficam paradas: a VELHA do lado de onde a folha sai (a folha cai por cima
+  // dela no fim) e a NOVA do lado para onde ela vai (aparece conforme a folha levanta)
   if (F.dir > 0) {
-    esq(t < 0.5 ? F.antes : F.depois); dir(F.depois);
-    if (t < 0.5) {                       // a página velha da direita dobra para a esquerda
-      const pw = w2 * k;
-      ctx.drawImage(F.antes, w2, 0, w2, H, meio, Y, pw, H);
-      albumSombraDobra(meio + pw, Y, H, -1, t);
-    } else {                             // o verso dela: a página nova da esquerda abre
-      const pw = w2 * -k;
-      ctx.drawImage(F.depois, 0, 0, w2, H, meio - pw, Y, pw, H);
-      albumSombraDobra(meio - pw, Y, H, 1, t);
-    }
+    ctx.drawImage(F.antes, 0, 0, w2, H, X, Y, w2, H);
+    ctx.drawImage(F.depois, w2, 0, w2, H, meio, Y, w2, H);
   } else {
-    esq(F.depois); dir(t < 0.5 ? F.antes : F.depois);
-    if (t < 0.5) {                       // a página velha da esquerda dobra para a direita
-      const pw = w2 * k;
-      ctx.drawImage(F.antes, 0, 0, w2, H, meio - pw, Y, pw, H);
-      albumSombraDobra(meio - pw, Y, H, 1, t);
-    } else {
-      const pw = w2 * -k;
-      ctx.drawImage(F.depois, w2, 0, w2, H, meio, Y, pw, H);
-      albumSombraDobra(meio + pw, Y, H, -1, t);
-    }
+    ctx.drawImage(F.depois, 0, 0, w2, H, X, Y, w2, H);
+    ctx.drawImage(F.antes, w2, 0, w2, H, meio, Y, w2, H);
   }
+  // a FOLHA que vira: frente até 90°, depois o verso (que é a página nova)
+  const frente = t < 0.5;
+  let src, srcX0, lado;                   // lado +1: a folha está à direita do vinco
+  if (F.dir > 0) { if (frente) { src = F.antes; srcX0 = w2; lado = 1; } else { src = F.depois; srcX0 = 0; lado = -1; } }
+  else           { if (frente) { src = F.antes; srcX0 = 0; lado = -1; } else { src = F.depois; srcX0 = w2; lado = 1; } }
+  const N = 28, sw = w2 / N;
+  for (let i = 0; i < N; i++) {           // tiras verticais: a borda livre vem para perto (cresce)
+    const u0 = i / N, u1 = (i + 1) / N;
+    const p0 = 1 + 0.17 * u0 * s, p1 = 1 + 0.17 * u1 * s;
+    const sx = lado > 0 ? srcX0 + u0 * w2 : srcX0 + (1 - u1) * w2;
+    const x0 = lado > 0 ? meio + u0 * w2 * k : meio - u1 * w2 * k;
+    const x1 = lado > 0 ? meio + u1 * w2 * k : meio - u0 * w2 * k;
+    const hh = H * (p0 + p1) / 2;
+    ctx.drawImage(src, sx, 0, sw, H, x0, Y - (hh - H) / 2, Math.max(1, x1 - x0 + 0.8), hh);
+  }
+  // a folha escurece ao se levantar e a luz volta quando assenta
+  const xa = lado > 0 ? meio : meio - w2 * k, xb = lado > 0 ? meio + w2 * k : meio;
+  if (xb - xa > 1) {
+    const g = ctx.createLinearGradient(xa, 0, xb, 0), e = 0.5 * s;
+    g.addColorStop(0, `rgba(0,0,0,${(lado > 0 ? e : e * 0.2).toFixed(3)})`);
+    g.addColorStop(1, `rgba(0,0,0,${(lado > 0 ? e * 0.2 : e).toFixed(3)})`);
+    ctx.fillStyle = g; ctx.fillRect(xa, Y - H * 0.1, xb - xa, H * 1.2);
+  }
+  albumSombraDobra(lado > 0 ? xb : xa, Y, H, lado > 0 ? 1 : -1, t);   // sombra na página de baixo
 }
 function albumSombraDobra(x, y, h, lado, t) {
   const k = Math.sin(t * Math.PI);        // mais sombra no meio da virada
@@ -320,8 +329,8 @@ function drawAlbum() {
     // botões: converter alma(s), fixar/soltar das pistas, jogar fora
     const nS = almasSoltas(e), hv = (B) => mouse.x >= B.x && mouse.x <= B.x + B.w && mouse.y >= B.y && mouse.y <= B.y + B.h;
     albumBotao(ALB_GUARDA,
-      nS > 0 ? (temAmpola ? (nS === 1 ? tr("ARMAZENAR 1 ALMA") : tf("ARMAZENAR {0} ALMAS", nS)) : tr("PRECISA DA AMPOLA"))
-             : ((e.armazenadas || 0) > 0 ? tr("alma guardada na câmera") : tr("sem alma nesta foto")),
+      nS > 0 ? tr(temAmpola ? "CONVERTER A ALMA DA FOTO" : "PRECISA DA AMPOLA")
+             : tr((e.armazenadas || 0) > 0 ? "alma convertida" : "sem alma nesta foto"),
       nS > 0 && temAmpola, "rgba(20,40,70,0.75)", hv(ALB_GUARDA), "A");
     albumBotao(ALB_PISTA, tr(e.pista ? "SOLTAR DAS PISTAS" : "FIXAR NAS PISTAS"), true,
       e.pista ? "rgba(70,30,30,0.75)" : "rgba(40,30,20,0.75)", hv(ALB_PISTA), "P");
@@ -386,7 +395,7 @@ function albumHit(px2, py2) {
       if (m.guardada) continue;
       const q = albumMarcaRect(R, m);
       if (px2 >= q.x - 6 && px2 <= q.x + q.w + 6 && py2 >= q.y - 6 && py2 <= q.y + q.h + 6) {
-        armazenarAlma(e, m); return;
+        armazenarAlma(e); return;
       }
     }
     // laterais navegam, o resto volta ao livro

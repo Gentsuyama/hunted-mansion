@@ -155,12 +155,25 @@ function mapaParedes(c0, c1, r0, r1) {
         ctx.beginPath(); ctx.moveTo(x, y + 2); ctx.lineTo(x + C, y + 2);
         ctx.moveTo(x, y + C - 2); ctx.lineTo(x + C, y + C - 2); ctx.stroke();
       } else {
-        ctx.strokeStyle = `rgba(170,182,205,${(0.2 + 0.5 * b).toFixed(2)})`;
-        ctx.lineWidth = 0.8;
+        // o ELEVADOR: a grade pantográfica na parede acima e a placa de chamada no piso
+        const gx = x - C, gy = y - C + C * 0.42, gw = 3 * C, gh = C * 0.58;
+        ctx.save();
+        ctx.beginPath(); ctx.rect(gx, gy, gw, gh); ctx.clip();
+        ctx.fillStyle = `rgba(150,160,180,${(0.25 + 0.6 * b).toFixed(2)})`;
+        ctx.fillRect(gx, gy, gw, gh);
+        ctx.strokeStyle = `rgba(22,24,30,${(0.45 + 0.5 * b).toFixed(2)})`;
+        ctx.lineWidth = 0.9;
         ctx.beginPath();
-        ctx.moveTo(x, y); ctx.lineTo(x + C, y + C);
-        ctx.moveTo(x + C, y); ctx.lineTo(x, y + C);
+        for (let i = -1; i <= 6; i++) {
+          ctx.moveTo(gx + i * (C / 2), gy); ctx.lineTo(gx + (i + 1) * (C / 2), gy + gh);
+          ctx.moveTo(gx + (i + 1) * (C / 2), gy); ctx.lineTo(gx + i * (C / 2), gy + gh);
+        }
         ctx.stroke();
+        ctx.restore();
+        ctx.strokeStyle = `rgba(232,196,120,${b.toFixed(2)})`; ctx.lineWidth = 1.2;
+        ctx.strokeRect(gx + 0.6, gy + 0.6, gw - 1.2, gh - 1.2);
+        ctx.fillStyle = `rgba(232,196,120,${(0.3 + 0.6 * b).toFixed(2)})`;
+        ctx.fillRect(x + C * 0.32, y + C * 0.12, C * 0.36, C * 0.2);     // a placa de chamada
       }
     }
 }
@@ -541,27 +554,7 @@ function hudChave(x, y, tem) {
 // É a pista DENTRO do mundo para a parede falsa (só aparece sob a luz, e
 // some quando a sala secreta é achada). O que há atrás continua sendo da foto.
 // ------------------------------------------------------------------
-function mapaPegadas() {
-  const achadas = world.flags.secretsFound;
-  for (const sr of fl().secretRooms) {
-    if (!sr.frente || !sr.dn || achadas.includes(sr.id)) continue;
-    const dx = sr.dn[0], dy = sr.dn[1], ang = Math.atan2(-dy, -dx);
-    for (let i = 0; i < 7; i++) {
-      const lado = (i & 1 ? 1 : -1) * 0.2;
-      const x = sr.frente.x + dx * (0.5 + i * 0.85) - dy * lado;
-      const y = sr.frente.y + dy * (0.5 + i * 0.85) + dx * lado;
-      const L = lightAt(x, y);
-      if (L <= 0.08 || mapaParedeLike(x | 0, y | 0) || fl().furnGrid[(y | 0) * COLS + (x | 0)]) continue;
-      ctx.save();
-      ctx.translate(x * CELL, y * CELL);
-      ctx.rotate(ang);
-      ctx.fillStyle = `rgba(228,216,190,${(Math.min(1, L * 1.5) * (0.5 - i * 0.045)).toFixed(3)})`;
-      ctx.beginPath(); ctx.ellipse(0, 0, 1.5, 0.8, 0, 0, 7); ctx.fill();          // a planta do pé
-      ctx.beginPath(); ctx.arc(1.9, 0, 0.5, 0, 7); ctx.fill();                    // os dedos
-      ctx.restore();
-    }
-  }
-}
+// (as pegadas até a parede falsa foram retiradas em 2026-10-03: facilitavam demais)
 
 // ------------------------------------------------------------------
 // MEMÓRIA DE PLANTA: parede já iluminada fica como um fantasma fraco,
@@ -569,6 +562,17 @@ function mapaPegadas() {
 // que há na parede (parede falsa é lembrada igualzinha às outras).
 // ------------------------------------------------------------------
 let MEMO_T = 0;
+// as paredes (anel) das salas secretas deste andar — ficam fora da memória
+function mapaSegredo() {
+  const F = fl();
+  if (F.segredoParede) return F.segredoParede;
+  const m = new Uint8Array(COLS * ROWS);
+  for (const sr of F.secretRooms || [])
+    for (let cy = sr.y - 1; cy <= sr.y + sr.h; cy++)
+      for (let cx = sr.x - 1; cx <= sr.x + sr.w; cx++)
+        if (cx >= 0 && cy >= 0 && cx < COLS && cy < ROWS) m[cy * COLS + cx] = 1;
+  return (F.segredoParede = m);
+}
 function mapaMemoria(c0, c1, r0, r1) {
   if (!world.memo) world.memo = [];
   let M = world.memo[world.cur];
@@ -583,6 +587,7 @@ function mapaMemoria(c0, c1, r0, r1) {
     for (let cx = c0; cx <= c1; cx++) {
       const idx = cy * COLS + cx, t = grid[idx];
       if (t !== T_WALL && t !== T_FAKE && t !== T_DOOR) continue;
+      if (mapaSegredo()[idx]) continue;                        // parede de sala secreta: nunca lembrada
       if (light[idx] > 0.05) { M[idx] = 255; continue; }      // vista agora: grava
       const m = M[idx];
       if (m < 24) continue;

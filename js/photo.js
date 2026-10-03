@@ -145,11 +145,11 @@ function takePhoto() {
       if (inFlashCone(g.x, g.y, flashDir)) {
         bateu = true;
         const d = Math.hypot(g.x - player.x, g.y - player.y) || 1;
-        g.x = Math.max(2, Math.min(COLS - 2, g.x + (g.x - player.x) / d * 8));
-        g.y = Math.max(2, Math.min(ROWS - 2, g.y + (g.y - player.y) / d * 8));
-        g.wx = g.x; g.wy = g.y;
+        // recuo: ele é arremessado para trás (3–4 células, em meio segundo) e fica tonto —
+        // mas continua lá, e volta
+        g.kb = { dx: (g.x - player.x) / d, dy: (g.y - player.y) / d, t: 0.5 };
         if (g.bote && g.bote.fase === "inspira") boteCortado();
-        g.chase = false; g.stun = 1.6; g.bote = null; g.gasto = BOTE.gasto;
+        g.chase = false; g.stun = 1.4; g.bote = null; g.gasto = BOTE.gasto * 0.5;
         for (let i = 0; i < 10; i++) {
           const a = Math.random() * 6.28, s = 3 + Math.random() * 8;
           particles.push({ x: g.x, y: g.y, vx: Math.cos(a) * s,
@@ -782,7 +782,7 @@ function renderPhoto(px, py, dir, escuro) {
   }
   // a grade do elevador (o poço existe em todo andar)
   { const ec = roomCenter(ELEV_ROOM);
-    sprites.push({ x: ec.x, y: ELEV_ROOM.y + 0.6, kind: "prop", tipo: "grade", h: 4.9, base: 0 }); }
+    sprites.push({ x: (ec.x | 0) + 0.5, y: ELEV_ROOM.y + 0.3, kind: "prop", tipo: "grade", h: 4.9, base: 0 }); }
   // candelabros do andar (acesos ou não)
   for (const cd of fl().candelabros || [])
     sprites.push({ x: cd.x, y: cd.y, kind: "cande", cd });
@@ -1046,8 +1046,8 @@ function renderPhoto(px, py, dir, escuro) {
       }
     } else if (s.kind === "stair") {
       const spr = stairSprite(s.up);
-      const wPx = cell * 2.1;
       const hPx = 4.8 * cell;
+      const wPx = hPx * (spr.width / spr.height);
       blitLit(cc, spr, zbuf, ty, centerX, floorPx - hPx, wPx, hPx,
               Math.max(k, 0.3), Wc, CWc, FR);
       if (bright > 0.2 && ty < zAqui + 0.8) {

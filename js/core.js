@@ -32,7 +32,7 @@ const BAT = { max: 10, inicio: 10, porAlma: 5, almasMax: 12 };
 // 5 alcançam metade do facho da lanterna
 const VELAS = { max: 5, raio0: 2.5, passo: 3.6, porAndar: 2 };
 const ALBUM_MAX  = 24;
-const GHOST_SPEED = 3.6, GHOST_DMG = 40;
+const GHOST_SPEED = 3.2, GHOST_DMG = 40;
 // pressão dos ecos (ajustável para testes de balanceamento):
 //   atraiFlash = segundos que TODO o andar persegue depois de qualquer flash
 //   deriva     = fração da velocidade com que o eco se arrasta até você enquanto
@@ -40,7 +40,8 @@ const GHOST_SPEED = 3.6, GHOST_DMG = 40;
 //   volta      = segundos [mín, extra] até um eco fotografado reaparecer
 //   atraiRaio  = até onde o clarão é visto (antes era o andar inteiro)
 //   ouve       = raio em que ele percebe você: parado/pé ante pé, andando, correndo
-const ECO = { atraiFlash: 4, atraiRaio: 34, deriva: 0.18, volta: [50, 30],
+const ECO = { vem: 0.42,   // sem ouvir você, o eco ainda vem: fração da velocidade de caça
+ atraiFlash: 4, atraiRaio: 34, deriva: 0.18, volta: [50, 30],
               ouve: [6, 14, 22] };
 // O BOTE: o eco não fere por encostar. Ele chega perto, INSPIRA (os olhos
 // acendem, o som cresce) e salta em linha reta. Flash durante a inspiração
@@ -156,7 +157,7 @@ function hasLOS(x0, y0, x1, y1) {
 const SAVE_KEY = "hm_run";
 // muda quando a GERAÇÃO da casa muda: a mesma seed passa a dar outra mobília,
 // então um save antigo recolocaria o jogador dentro de um móvel
-const SAVE_V = 4;
+const SAVE_V = 5;
 
 function saveRun() {
   if (!world) return;

@@ -351,7 +351,8 @@ function genFloor(seed, f) {
   if (temUp) sealNiche(STAIR_UP_RECT, true);     // boca ao sul (hall)
   if (temDown) sealNiche(STAIR_DOWN_RECT, false);// boca ao norte (hall)
   const ec = roomCenter(ELEV_ROOM);
-  g[(ec.y | 0) * COLS + (ec.x | 0)] = T_ELEV;
+  // o piso de chamada fica EM FRENTE À GRADE (parede norte do poço), não no meio da sala
+  g[ELEV_ROOM.y * COLS + (ec.x | 0)] = T_ELEV;
 
   // --- porta da frente (só térreo): parede sul do hall de entrada ---
   if (f === 1) {

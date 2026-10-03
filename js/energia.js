@@ -50,8 +50,9 @@ function recarregar() {
 
 // --- ARMAZENAR: a alma sai da foto e entra na câmera --------------------
 function almasSoltas(e) { return Math.max(0, (e.almas || 0) - (e.armazenadas || 0)); }
-// converte UMA alma (a do vulto m) ou, sem m, a próxima que sobrar
-function armazenarAlma(e, m) {
+// converte a alma da FOTO: todos os vultos saem dela e a ampola ganha UMA carga
+// (regra do Rodolfo: uma foto, uma carga, mesmo com vários fantasmas)
+function armazenarAlma(e) {
   if (!e || almasSoltas(e) <= 0) return false;
   if (!world.flags.cam.ampola) {
     toast("SEM A AMPOLA a câmera não guarda alma nenhuma — procure a peça", 3.5);
@@ -60,14 +61,14 @@ function armazenarAlma(e, m) {
   if (world.flags.almas >= BAT.almasMax) {
     toast("A AMPOLA ESTÁ CHEIA — gaste almas antes", 3.5); sfxDry(); return false;
   }
-  if (!m) m = (e.marcas || []).find(q => !q.guardada);
-  if (m) {                                 // o vulto some da foto (sem vulto marcado: some sem rastro)
-    m.guardada = true;
-    if (!fotoSomeVulto(e, m)) fotoQueimaVulto(e.cv, m);
-  }
-  e.armazenadas = (e.armazenadas || 0) + 1;
+  const soltas = (e.marcas || []).filter(q => !q.guardada);
+  for (const m of soltas) m.guardada = true;      // primeiro todos marcados: nenhum é reposto
+  for (const m of soltas) if (!fotoSomeVulto(e, m)) fotoQueimaVulto(e.cv, m);
+  e.armazenadas = e.almas || 0;
   world.flags.almas += 1;
   sfxGuarda();
+  toast(soltas.length > 1 ? "ALMA CONVERTIDA — os vultos saíram da foto; +1 carga na ampola"
+                          : "ALMA CONVERTIDA — o vulto saiu da foto; +1 carga na ampola", 3.5);
   if (!live.hinted.has("guardou1")) {
     live.hinted.add("guardou1");
     livePush(liveRandUser(), "GUARDOU a alma na câmera?? isso vira BATERIA. aperta B pra recarregar");

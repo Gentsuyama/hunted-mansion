@@ -67,13 +67,14 @@ function penTools(g, r) {
           0.08 + r() * 0.15, 0.7);
     }
 
-    const eL = { x: -R * 0.42, y: -R * 0.08, rr: R * (0.30 + r() * 0.05) };
-    const eR = { x:  R * 0.40, y: -R * 0.10, rr: R * (0.27 + r() * 0.05) };
+    // olhos: menores, tortos entre si e FUNDOS — buracos, não óculos
+    const eL = { x: -R * 0.40, y: -R * (0.05 + r() * 0.09), rr: R * (0.20 + r() * 0.05) };
+    const eR = { x:  R * 0.38, y: -R * (0.09 + r() * 0.09), rr: R * (0.18 + r() * 0.06) };
 
     const faceRx = R * 1.02, faceRy = R * 1.18;
     const wash = g.createRadialGradient(0, -R * 0.05, R * 0.15, 0, -R * 0.05, R * 1.1);
-    wash.addColorStop(0, "rgba(158,158,168,0.62)");
-    wash.addColorStop(0.7, "rgba(126,126,138,0.36)");
+    wash.addColorStop(0, "rgba(150,150,160,0.52)");
+    wash.addColorStop(0.7, "rgba(118,118,130,0.30)");
     wash.addColorStop(1, "rgba(90,90,100,0)");
     g.fillStyle = wash;
     g.beginPath(); g.ellipse(0, -R * 0.05, faceRx, faceRy, 0, 0, 7); g.fill();
@@ -100,7 +101,7 @@ function penTools(g, r) {
       let y = Math.sin(a0) * R * (0.80 + r() * 0.14) - R * 0.08;
       const wild = r() < 0.12;
       const side = Math.cos(a0) >= 0 ? 1 : -1;
-      const overFace = !wild && r() < 0.22;
+      const overFace = !wild && r() < 0.42;
       let vx2 = wild ? side * (0.6 + r() * 0.8)
                      : overFace ? (r() - 0.5) * 0.08
                      : side * (0.06 + Math.abs(Math.cos(a0)) * 0.12);
@@ -123,19 +124,28 @@ function penTools(g, r) {
 
     // olhos: vazios com aros rabiscados
     for (const e of [eL, eR]) {
-      const halo = g.createRadialGradient(e.x, e.y, e.rr * 0.4, e.x, e.y, e.rr * 1.5);
+      const halo = g.createRadialGradient(e.x, e.y, e.rr * 0.4, e.x, e.y, e.rr * 1.3);
       halo.addColorStop(0, "rgba(0,0,0,1)");
-      halo.addColorStop(0.75, "rgba(0,0,0,0.85)");
+      halo.addColorStop(0.75, "rgba(0,0,0,0.7)");
       halo.addColorStop(1, "rgba(0,0,0,0)");
       g.fillStyle = halo;
-      g.beginPath(); g.arc(e.x, e.y, e.rr * 1.5, 0, 7); g.fill();
+      g.beginPath(); g.arc(e.x, e.y, e.rr * 1.3, 0, 7); g.fill();
+      // a órbita: um buraco torto (nunca um círculo perfeito — círculo vira desenho animado)
       g.fillStyle = "#000";
-      g.beginPath(); g.arc(e.x, e.y, e.rr, 0, 7); g.fill();
+      g.beginPath();
+      const tilt = (r() - 0.5) * 0.7, ex = e.rr * (0.8 + r() * 0.3), ey = e.rr * (1.1 + r() * 0.4);
+      for (let i2 = 0; i2 <= 26; i2++) {
+        const a = i2 / 26 * 6.283, wob = 1 + (r() - 0.5) * 0.2;
+        const px = Math.cos(a) * ex * wob, py = Math.sin(a) * ey * wob;
+        const X = e.x + px * Math.cos(tilt) - py * Math.sin(tilt), Y = e.y + px * Math.sin(tilt) + py * Math.cos(tilt);
+        i2 ? g.lineTo(X, Y) : g.moveTo(X, Y);
+      }
+      g.closePath(); g.fill();
 
-      for (let k = 0; k < 14; k++) {
-        const rad2 = e.rr * (0.98 + r() * 0.28);
-        g.strokeStyle = `rgba(232,232,240,${0.15 + r() * 0.5})`;
-        g.lineWidth = 0.6 + r() * 1.0;
+      for (let k = 0; k < 5; k++) {                     // aro apagado: só sugere a órbita
+        const rad2 = e.rr * (1.0 + r() * 0.3);
+        g.strokeStyle = `rgba(232,232,240,${0.04 + r() * 0.14})`;
+        g.lineWidth = 0.5 + r() * 0.6;
         g.beginPath();
         const aa0 = r() * 6.28, arc = 1.2 + r() * 3.5, steps = 14;
         for (let i2 = 0; i2 <= steps; i2++) {
@@ -146,14 +156,14 @@ function penTools(g, r) {
         }
         g.stroke();
       }
-      for (let k = 0; k < 40; k++) {
+      for (let k = 0; k < 10; k++) {
         const a = r() * 6.283;
-        const r0 = e.rr * (1.0 + r() * 0.15), r1 = r0 + 2 + r() * 6;
+        const r0 = e.rr * (1.0 + r() * 0.15), r1 = r0 + 2 + r() * 5;
         pen(e.x + Math.cos(a) * r0, e.y + Math.sin(a) * r0,
             e.x + Math.cos(a) * r1, e.y + Math.sin(a) * r1,
-            0.12 + r() * 0.3, 0.6);
+            0.04 + r() * 0.1, 0.6);
       }
-      for (let k = 0; k < 18; k++) {
+      for (let k = 0; k < 30; k++) {                    // olheiras: a órbita afunda
         const a = r() * 6.283;
         const r0 = e.rr * (1.3 + r() * 0.3);
         dark(e.x + Math.cos(a) * r0, e.y + Math.sin(a) * r0,
@@ -171,25 +181,20 @@ function penTools(g, r) {
     // boca: costurada / escancarada / rasgo largo
     const mtype = r();
     if (mtype < 0.38) {
-      const mw = R * (0.5 + r() * 0.15), my = R * 0.72;
+      // um talho fino, cantos caídos, costurado com pontos escuros — nunca um sorriso
+      const mw = R * (0.42 + r() * 0.12), my = R * 0.70;
       g.save();
       g.translate((r() - 0.5) * R * 0.1, my);
-      g.rotate((r() - 0.5) * 0.25);
-      g.fillStyle = "rgba(0,0,0,0.92)";
-      g.beginPath();
-      g.moveTo(-mw / 2, 0);
-      g.quadraticCurveTo(0, R * 0.16, mw / 2, -R * 0.02);
-      g.quadraticCurveTo(0, R * 0.05, -mw / 2, 0);
-      g.closePath(); g.fill();
-      const nT = 7 + (r() * 4 | 0);
+      g.rotate((r() - 0.5) * 0.2);
+      g.strokeStyle = "rgba(0,0,0,0.9)"; g.lineWidth = 2.2 + r() * 1.2; g.lineCap = "round";
+      g.beginPath(); g.moveTo(-mw / 2, -R * 0.03);
+      g.quadraticCurveTo(0, R * 0.02, mw / 2, -R * 0.04 + r() * R * 0.02); g.stroke();
+      dark(-mw / 2, -R * 0.03, -mw / 2 - R * 0.06, R * 0.06, 0.8, 1.6);   // os cantos caem
+      dark(mw / 2, -R * 0.04, mw / 2 + R * 0.05, R * 0.07, 0.8, 1.6);
+      const nT = 4 + (r() * 3 | 0);
       for (let i2 = 0; i2 < nT; i2++) {
-        const tx2 = -mw * 0.42 + (i2 / (nT - 1)) * mw * 0.84;
-        pen(tx2, -1 + (r() - 0.5) * 2, tx2 + (r() - 0.5) * 1.5, 3.5 + r() * 3,
-            0.4 + r() * 0.35, 0.8);
-      }
-      for (let i2 = 0; i2 < 16; i2++) {
-        const tx2 = -mw / 2 + r() * mw;
-        dark(tx2, -3 + r() * 2, tx2 + (r() - 0.5) * 6, 4 + r() * 4, 0.25, 0.8);
+        const tx2 = -mw * 0.38 + (i2 / (nT - 1)) * mw * 0.76;
+        dark(tx2, -R * 0.07, tx2 + (r() - 0.5) * 1.5, R * 0.04, 0.6, 1.1);
       }
       g.restore();
     } else if (mtype < 0.72) {
@@ -237,17 +242,17 @@ function penTools(g, r) {
       g.rotate((r() - 0.5) * 0.18);
       g.fillStyle = "rgba(0,0,0,0.94)";
       g.beginPath();
-      g.moveTo(-mw2 / 2, 0);
-      g.quadraticCurveTo(0, -mhh * 1.2, mw2 / 2, (r() - 0.5) * 4);
-      g.quadraticCurveTo(0, mhh * 3.2, -mw2 / 2, 0);
+      // os CANTOS ficam abaixo do meio: boca caída, escancarada — não um sorriso
+      g.moveTo(-mw2 / 2, mhh * 1.3);
+      g.quadraticCurveTo(0, -mhh * 0.9, mw2 / 2, mhh * 1.3 + (r() - 0.5) * 4);
+      g.quadraticCurveTo(0, mhh * 2.4, -mw2 / 2, mhh * 1.3);
       g.closePath(); g.fill();
-      const nT3 = 14 + (r() * 6 | 0);
+      const nT3 = 4 + (r() * 4 | 0);                   // poucos dentes, apagados
       for (let i2 = 0; i2 < nT3; i2++) {
-        const t = i2 / (nT3 - 1);
-        const tx2 = -mw2 * 0.46 + t * mw2 * 0.92;
-        const topY = -mhh * (0.6 + Math.sin(t * Math.PI) * 0.5);
-        const botY = mhh * (0.7 + Math.sin(t * Math.PI) * 1.6);
-        pen(tx2, topY, tx2 + (r() - 0.5) * 2, botY, 0.4 + r() * 0.35, 0.9 + r() * 0.5);
+        const t = (i2 + 0.5) / nT3;
+        const tx2 = -mw2 * 0.4 + t * mw2 * 0.8;
+        const topY = mhh * 0.2, botY = mhh * (0.8 + Math.sin(t * Math.PI) * 1.2);
+        pen(tx2, topY, tx2 + (r() - 0.5) * 2, botY, 0.12 + r() * 0.18, 0.8 + r() * 0.4);
       }
       for (let k = 0; k < 12; k++) {
         const t = r();
@@ -515,7 +520,45 @@ const GHOST_POOL_N = 12;
   GHOST_POOL.push(makeGhostSprite((GHOST_POOL.length + Math.random()) / GHOST_POOL_N));
   setTimeout(warmGhostPool, 40);
 })();
+// --- ECOS do Gemini (Assets/Ecos/eco01.jpg, eco02.jpg, … — guia, Etapa 8): corpo inteiro
+// sobre preto. Carrega em sequência até faltar um. Cada imagem vira um sprite ESPECTRAL:
+// fundo transparente, sem cor (prata), pés dissolvendo no chão; metade sai espelhada.
+const ECO_IMGS = [];
+(function loadEcoImgs(n) {
+  if (n > 60) return;
+  const im = new Image();
+  im.onload = () => { ECO_IMGS.push(ecoEspectral(im)); loadEcoImgs(n + 1); };
+  im.onerror = () => {};
+  im.src = "Assets/Ecos/eco" + String(n).padStart(2, "0") + ".jpg";
+})(1);
+function ecoEspectral(im, espelha) {
+  const base = keyBlackToAlpha(im), w = base.width, h = base.height;
+  const cv = document.createElement("canvas");
+  cv.width = w; cv.height = h;
+  const g = cv.getContext("2d");
+  if (espelha) { g.translate(w, 0); g.scale(-1, 1); }
+  g.drawImage(base, 0, 0);
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  const d = g.getImageData(0, 0, w, h), p = d.data;
+  for (let y = 0; y < h; y++) {
+    const f = y > h * 0.72 ? 1 - (y - h * 0.72) / (h * 0.28) : 1;   // os pés somem
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      const v = Math.min(255, (0.3 * p[i] + 0.59 * p[i + 1] + 0.11 * p[i + 2]) * 1.12);
+      p[i] = v; p[i + 1] = v; p[i + 2] = Math.min(255, v * 1.04);
+      p[i + 3] = p[i + 3] * f * f;
+    }
+  }
+  g.putImageData(d, 0, 0);
+  cv._aspect = w / h; cv._hscale = 1.0; cv._img = im;
+  return cv;
+}
 function ghostSprite(seed) {
+  if (ECO_IMGS.length) {
+    const spr = ECO_IMGS[(seed * ECO_IMGS.length) | 0];
+    if ((seed * 977) % 1 < 0.5) return spr;
+    return spr._esp || (spr._esp = ecoEspectral(spr._img, true));
+  }
   if (GHOST_POOL.length) return GHOST_POOL[(seed * GHOST_POOL.length) | 0];
   return makeGhostSprite(seed);
 }
@@ -1012,33 +1055,68 @@ const STAIR_SPRS = {};
 function stairSprite(up) {
   const k = up ? "u" : "d";
   if (STAIR_SPRS[k]) return STAIR_SPRS[k];
+  // o vão na parede com uma escada DE VERDADE dentro: degraus emendados (piso e
+  // espelho), afunilando em perspectiva, corrimão com balaústres e pilar de arranque
+  const W = 110, H = 240, vx = W / 2;
   const cv = document.createElement("canvas");
-  cv.width = 120; cv.height = 150;
+  cv.width = W; cv.height = H;
   const g = cv.getContext("2d");
-  // breu do vão
-  const bgg = g.createLinearGradient(0, up ? 150 : 0, 0, up ? 0 : 150);
-  bgg.addColorStop(0, "rgba(30,28,24,0.95)");
-  bgg.addColorStop(1, "rgba(5,5,6,0.98)");
-  g.fillStyle = bgg;
-  g.fillRect(6, 0, 108, 150);
-  // 6 degraus afunilando para o fundo
-  for (let i = 0; i < 6; i++) {
-    const t = i / 6;
-    const w = 104 - t * 52;
-    const x0 = 60 - w / 2;
-    const y = up ? 138 - i * 21 : 24 + i * 21;
-    const lum = up ? 0.75 - t * 0.5 : 0.65 - t * 0.45;
-    g.fillStyle = `rgba(${200 * lum | 0},${186 * lum | 0},${150 * lum | 0},0.9)`;
-    g.fillRect(x0, y, w, 7);
-    g.strokeStyle = `rgba(235,230,215,${0.5 - t * 0.3})`;
-    g.lineWidth = 1.6;
-    g.strokeRect(x0, y, w, 7);
+  g.fillStyle = "rgb(5,5,6)"; g.fillRect(8, 0, W - 16, H);
+  const trap = (yA, wA, yB, wB, fill) => {          // trapézio centrado no vão
+    g.fillStyle = fill; g.beginPath();
+    g.moveTo(vx - wA / 2, yA); g.lineTo(vx + wA / 2, yA);
+    g.lineTo(vx + wB / 2, yB); g.lineTo(vx - wB / 2, yB); g.closePath(); g.fill();
+  };
+  const cor = (l, a) => `rgba(${(206 * l) | 0},${(190 * l) | 0},${(152 * l) | 0},${a === undefined ? 1 : a})`;
+  const W0 = W - 22;
+  const corrimao = (xA, yA, xB, yB, yBaseA, yBaseB) => {
+    g.strokeStyle = cor(0.68); g.lineCap = "round";
+    g.lineWidth = 3; g.beginPath(); g.moveTo(xA, yA); g.lineTo(xB, yB); g.stroke();
+    g.lineWidth = 1.3;
+    for (let i = 0; i <= 7; i++) {                   // balaústres
+      const t = i / 7, bx = xA + (xB - xA) * t;
+      g.beginPath(); g.moveTo(bx, yA + (yB - yA) * t); g.lineTo(bx, yBaseA + (yBaseB - yBaseA) * t); g.stroke();
+    }
+    g.lineWidth = 5; g.beginPath(); g.moveTo(xA, yA - 8); g.lineTo(xA, yBaseA + 2); g.stroke();   // pilar
+  };
+  if (up) {
+    // SOBE: espelhos (faces verticais) empilhados, cada um mais estreito, até o patamar
+    let y = H - 6, w = W0, l = 0.80;
+    for (let i = 0; i < 9; i++) {
+      const hr = 24 * Math.pow(0.84, i), ht = 7 * Math.pow(0.84, i);   // espelho + beiral
+      const w1 = w * 0.955;
+      trap(y, w, y - hr, w1, cor(l));
+      trap(y - hr, w1, y - hr - ht, w1 * 0.985, cor(Math.min(1, l * 1.4)));   // o beiral pega mais flash
+      g.fillStyle = "rgba(0,0,0,0.5)"; g.fillRect(vx - w1 / 2, y - hr - ht - 1, w1, 1.2);
+      y -= hr + ht; w = w1 * 0.985; l *= 0.9;
+    }
+    const pg = g.createLinearGradient(0, y, 0, y - 56);
+    pg.addColorStop(0, cor(0.2)); pg.addColorStop(1, "rgba(5,5,6,0)");
+    trap(y, w, y - 56, w * 0.9, pg);                                   // o patamar some no escuro
+    corrimao(vx - W0 / 2 + 5, H - 58, vx - w / 2 + 3, y - 34, H - 6, y);
+  } else {
+    // DESCE: a aresta do patamar e os pisos descendo, encolhendo e escurecendo
+    const tg = g.createLinearGradient(0, 0, 0, 50);
+    tg.addColorStop(0, "rgba(44,42,38,0.95)"); tg.addColorStop(1, "rgba(16,15,14,0.95)");
+    g.fillStyle = tg; g.fillRect(vx - W0 / 2, 0, W0, 50);              // parede do fundo do poço
+    g.fillStyle = cor(0.55); g.fillRect(vx - W0 / 2, 50, W0, 4);        // a aresta do primeiro degrau
+    let y = 54, w = W0, l = 0.62;
+    for (let i = 0; i < 9; i++) {
+      const ht = 20 * Math.pow(0.86, i), hr = 4 * Math.pow(0.86, i);
+      const w1 = w * 0.93;
+      trap(y, w, y + ht, w1, cor(l));                                   // o piso
+      trap(y + ht, w1, y + ht + hr, w1 * 0.99, cor(l * 0.3));           // o espelho, na sombra
+      y += ht + hr; w = w1 * 0.99; l *= 0.8;
+    }
+    const pg = g.createLinearGradient(0, y, 0, H);
+    pg.addColorStop(0, cor(0.05)); pg.addColorStop(1, "rgba(0,0,0,0)");
+    trap(y, w, H, w * 0.9, pg);
+    corrimao(vx + W0 / 2 - 5, 16, vx + w / 2 + 2, y - 28, 54, y);
   }
-  // batentes laterais do vão
-  g.strokeStyle = "rgba(220,212,190,0.7)";
-  g.lineWidth = 3;
-  g.beginPath(); g.moveTo(7, 0); g.lineTo(7, 150); g.stroke();
-  g.beginPath(); g.moveTo(113, 0); g.lineTo(113, 150); g.stroke();
+  // batentes de pedra
+  g.fillStyle = "rgb(74,66,54)"; g.fillRect(0, 0, 9, H); g.fillRect(W - 9, 0, 9, H);
+  g.strokeStyle = "rgba(220,212,190,0.55)"; g.lineWidth = 1.5;
+  g.beginPath(); g.moveTo(9.5, 0); g.lineTo(9.5, H); g.moveTo(W - 9.5, 0); g.lineTo(W - 9.5, H); g.stroke();
   STAIR_SPRS[k] = cv;
   return cv;
 }

@@ -535,14 +535,23 @@ function update(dt) {
     if (g.respawn > 0) {
       g.respawn -= dt;
       if (g.respawn <= 0) {
-        const p = fl().freeSpot();
+        let p = fl().freeSpot();
+        for (let k = 0; k < 20 && Math.hypot(p.x - player.x, p.y - player.y) < 18; k++) p = fl().freeSpot();
         g.x = p.x; g.y = p.y;
         g.wx = g.x; g.wy = g.y; g.chase = false; g.bote = null; g.gasto = 0;
         g.artSeed = Math.random(); g.sprCv = null;
       }
       continue;
     }
-    if (g.stun > 0) { g.stun -= dt; continue; }   // arremessado pelo flash vazio
+    if (g.kb) {                                    // empurrado pelo flash vazio: recua à vista
+      const kb = g.kb, f = kb.t / 0.5;
+      g.x = Math.max(2, Math.min(COLS - 2, g.x + kb.dx * 11 * f * dt));
+      g.y = Math.max(2, Math.min(ROWS - 2, g.y + kb.dy * 11 * f * dt));
+      kb.t -= dt;
+      if (kb.t <= 0) { g.kb = null; g.wx = g.x + kb.dx * 5; g.wy = g.y + kb.dy * 5; }
+      continue;
+    }
+    if (g.stun > 0) { g.stun -= dt; continue; }   // tonto depois do empurrão
     const d = Math.hypot(player.x - g.x, player.y - g.y) || 0.001;
     nearest = Math.min(nearest, d);
     g.bob += dt * 2.2;
@@ -598,13 +607,15 @@ function update(dt) {
       }
       continue;
     }
-    let tx, ty;
+    let tx, ty, sp;
+    const vagueia = pac || g.gasto > 0;    // andar manso, ou eco gasto depois do bote: vagueia
     if (g.chase) {
       if (d < BOTE.dist) {              // colado, mas não é a vez dele: ronda
         const a = Math.atan2(g.y - player.y, g.x - player.x) + 0.5;
         tx = player.x + Math.cos(a) * BOTE.dist; ty = player.y + Math.sin(a) * BOTE.dist;
       } else { tx = player.x; ty = player.y; }
-    } else {
+      sp = GHOST_SPEED;
+    } else if (vagueia) {
       if (Math.hypot(g.wx - g.x, g.wy - g.y) < 1.5) {
         if (Math.random() < 0.5) {
           g.wx = player.x + (Math.random() - 0.5) * 22;
@@ -616,16 +627,16 @@ function update(dt) {
           g.wy = r.y + 2 + Math.random() * (r.h - 4);
         }
       }
-      tx = g.wx; ty = g.wy;
+      tx = g.wx; ty = g.wy; sp = GHOST_SPEED * 0.5;
+    } else {
+      // sem ter ouvido você, ele ainda assim VEM: devagar, torto, sem parar — é o aperto
+      const lado = Math.sin(g.bob * 0.3 + g.artSeed * 6.28) * 3;
+      tx = player.x - (player.y - g.y) / d * lado; ty = player.y + (player.x - g.x) / d * lado;
+      sp = GHOST_SPEED * (ECO.vem + 0.1 * ruido);
     }
     const dd = Math.hypot(tx - g.x, ty - g.y) || 1;
-    const sp = g.chase ? GHOST_SPEED : GHOST_SPEED * 0.55;
     g.x += (tx - g.x) / dd * sp * dt + Math.cos(g.bob) * 0.6 * dt;
     g.y += (ty - g.y) / dd * sp * dt + Math.sin(g.bob * 1.3) * 0.6 * dt;
-    if (!g.chase && !pac && ruido > 0 && !(g.gasto > 0)) {
-      g.x += (player.x - g.x) / d * GHOST_SPEED * ECO.deriva * ruido * dt;
-      g.y += (player.y - g.y) / d * GHOST_SPEED * ECO.deriva * ruido * dt;
-    }
     // a luz da lamparina é o único lugar onde eles não entram
     if (lamp) {
       const dl = Math.hypot(g.x - lamp.x, g.y - lamp.y) || 0.001;
@@ -772,12 +783,6 @@ function drawStairsTopDown() {
       ctx.fillStyle = `rgba(206,214,232,${(a * 0.9).toFixed(3)})`;
       ctx.fillRect(cxm - w2 / 2, y + 1.5, w2, stepH - 3);
     }
-    ctx.font = "bold 8px 'Courier New', monospace";
-    ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillStyle = `rgba(200,214,240,${Math.min(1, L0 * 1.6).toFixed(3)})`;
-    // rótulo DENTRO da sala, junto à boca do nicho
-    ctx.fillText(d.up ? "SOBE" : "DESCE", cxm,
-                 d.north ? (d.r.y + d.r.h) * CELL + 7 : d.r.y * CELL - 6);
   }
 }
 
@@ -858,7 +863,6 @@ function render() {
   mapaLuzChao(c0, c1, r0, r1);
   mapaMemoria(c0, c1, r0, r1);
   mapaParedes(c0, c1, r0, r1);
-  mapaPegadas();
   mapaMoveis();
   ctx.font = "bold 11px 'Courier New', monospace";
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
@@ -1262,6 +1266,24 @@ function drawCamHUD() {
   ctx.textAlign = "left";
 }
 
+// a bateria do flash, grande, ao lado da sanidade (o cartão da câmera repete, miúdo)
+function hudBateria(x, y, passo, h) {
+  ctx.fillStyle = bateria > 0 ? "rgba(120,120,120,0.5)" : "rgba(230,70,60,0.85)";
+  ctx.fillText(tr("BATERIA"), x, y);
+  const x0 = x + ctx.measureText(tr("BATERIA")).width + 10;
+  for (let i = 0; i < BAT.max; i++) {
+    ctx.fillStyle = i < bateria ? (bateria <= 2 ? "rgba(240,120,90,0.9)" : "rgba(200,205,215,0.75)")
+                                : "rgba(120,124,132,0.25)";
+    ctx.fillRect(x0 + i * passo, y - h / 2, passo - 2, h);
+  }
+  ctx.strokeStyle = "rgba(150,150,150,0.4)"; ctx.lineWidth = 1;
+  ctx.strokeRect(x0 - 1.5, y - h / 2 - 1.5, BAT.max * passo + 1, h + 3);
+  ctx.fillRect(x0 + BAT.max * passo, y - 2, 2, 4);                       // o polo
+  if (world.flags.cam.ampola && (world.flags.almas || 0) > 0) {        // almas na ampola
+    ctx.fillStyle = "rgba(140,196,255,0.9)";
+    ctx.fillText("+" + world.flags.almas, x0 + BAT.max * passo + 8, y);
+  }
+}
 function drawHUD() {
   const M = touchUI.seen;
   ctx.font = M ? "bold 19px 'Courier New', monospace" : "bold 13px 'Courier New', monospace";
@@ -1294,6 +1316,7 @@ function drawHUD() {
       ctx.fillStyle = semFolego ? "rgba(230,90,80,0.85)" : "rgba(150,200,230,0.8)";
       ctx.fillRect(134, 78, 236 * folego, 4);
     }
+    hudBateria(300, 96, 11, 10);
   } else {
     ctx.fillStyle = "rgba(120,120,120,0.5)";
     ctx.fillText("SANIDADE", 12, canvas.height - 46);
@@ -1304,7 +1327,14 @@ function drawHUD() {
     // até aqui ela volta sozinha; daqui para cima, só a lamparina
     ctx.fillStyle = "rgba(255,206,120,0.75)";
     ctx.fillRect(96 + 138 * sanTeto() / 100 - 0.5, canvas.height - 54, 1.5, 15);
-    if (world.flags.quase) hudNegativo(250, canvas.height - 46);
+    hudBateria(262, canvas.height - 46, 9, 9);
+    if (world.flags.quase) {
+      hudNegativo(446, canvas.height - 46);
+      if (Math.abs(mouse.x - 446) < 12 && Math.abs(mouse.y - (canvas.height - 46)) < 12) {
+        ctx.fillStyle = "rgba(230,120,110,0.9)";
+        ctx.fillText(tr("o negativo: ELE já tem a sua foto — a próxima queda é a última"), 462, canvas.height - 46);
+      }
+    }
     if (folego < 0.995) {                 // fôlego: só aparece quando falta
       ctx.fillStyle = semFolego ? "rgba(230,90,80,0.85)" : "rgba(150,200,230,0.8)";
       ctx.fillRect(96, canvas.height - 39, 138 * folego, 3);
