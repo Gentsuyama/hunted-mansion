@@ -1251,7 +1251,7 @@ const PROP_IMGS = {}, PROP_SPRS = {};
 // a BANCADA na foto: a arte do guia (PROP-003: lâmpada APAGADA, fotos em branco no
 // varal) recebe por cima a luz vermelha acesa e as últimas fotos do álbum secando —
 // a imagem é o cenário, o código põe o que muda. Sem a arte, o desenho por código.
-const BANCADA_PONTOS = { lampada: [0.50, 0.17], fotos: [[0.16, 0.21], [0.26, 0.21], [0.36, 0.21]], fotoW: 0.07 };
+const BANCADA_PONTOS = { lampada: [0.505, 0.27], fotos: [[0.144, 0.125], [0.242, 0.14], [0.337, 0.11]], fotoW: 0.068 };   // medido na arte PROP-003
 let BANCADA_CACHE = null;
 function bancadaSprite() {
   const img = PROP_IMGS.bancada;
@@ -1269,11 +1269,14 @@ function bancadaSprite() {
     g.save(); g.translate(fx * cv.width, fy * cv.height); g.rotate((i - 1) * 0.05);
     g.drawImage(e.cv, -w / 2, 0, w, h); g.restore();
   });
-  const [lx, ly] = BANCADA_PONTOS.lampada, R = cv.width * 0.16;   // a lâmpada vermelha acesa
-  const halo = g.createRadialGradient(lx * cv.width, ly * cv.height, 2, lx * cv.width, ly * cv.height, R);
-  halo.addColorStop(0, "rgba(255,90,70,0.95)"); halo.addColorStop(0.3, "rgba(255,60,40,0.45)");
-  halo.addColorStop(1, "rgba(255,60,40,0)");
-  g.fillStyle = halo; g.fillRect(lx * cv.width - R, ly * cv.height - R, 2 * R, 2 * R);
+  const [lx, ly] = BANCADA_PONTOS.lampada, R = cv.width * 0.2;    // a lâmpada vermelha ACESA
+  const bx = lx * cv.width, by = ly * cv.height;
+  const halo = g.createRadialGradient(bx, by, 2, bx, by, R);
+  halo.addColorStop(0, "rgba(255,120,90,1)"); halo.addColorStop(0.18, "rgba(255,70,45,0.7)");
+  halo.addColorStop(0.5, "rgba(255,50,30,0.25)"); halo.addColorStop(1, "rgba(255,50,30,0)");
+  g.fillStyle = halo; g.fillRect(bx - R, by - R, 2 * R, 2 * R);
+  g.fillStyle = "rgba(255,200,170,0.95)";                          // o filamento
+  g.beginPath(); g.ellipse(bx, by, cv.width * 0.012, cv.width * 0.016, 0, 0, 7); g.fill();
   BANCADA_CACHE = { chave, cv };
   return cv;
 }

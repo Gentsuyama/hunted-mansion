@@ -216,7 +216,7 @@ function mapaCandelabro(x, y, n, a) {
 const CANDE_SPRS = {};
 // as cinco chamas, em frações da arte (x, y do topo da vela) — valem para a
 // imagem do guia (PROP-008) e para o desenho por código
-const CANDE_CHAMAS = [[0.08, 0.26], [0.29, 0.21], [0.5, 0.18], [0.71, 0.21], [0.92, 0.26]];
+const CANDE_CHAMAS = [[0.158, 0.19], [0.320, 0.12], [0.503, 0.06], [0.684, 0.12], [0.850, 0.19]];   // medido na arte PROP-008
 function candelabroSprite(n) {
   const img = PROP_IMGS.candelabro;
   const chave = (img ? "img" : "cod") + n;
@@ -227,7 +227,7 @@ function candelabroSprite(n) {
     const g = cv.getContext("2d");
     g.drawImage(img, 0, 0);
     CANDE_CHAMAS.slice(0, n).forEach(([fx, fy]) => {
-      const x = fx * cv.width, y = fy * cv.height, R = cv.width * 0.13;
+      const x = fx * cv.width, y = fy * cv.height, R = cv.width * 0.085;
       const fg = g.createRadialGradient(x, y - R * 0.3, 1, x, y - R * 0.3, R);
       fg.addColorStop(0, "rgba(235,248,255,1)");
       fg.addColorStop(0.3, "rgba(140,190,255,0.9)");
