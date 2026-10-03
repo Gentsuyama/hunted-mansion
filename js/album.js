@@ -91,24 +91,20 @@ function albumDesenhaSpread(g, page, b, hover) {
     g.fillStyle = sp;
     g.fillRect(b.x + b.w / 2 - 36, b.y, 72, b.h);
   }
-  if (pista) {                            // páginas de outra cor: papel vinho, cantos dourados
+  if (pista) {                            // as páginas vermelhas: só o PAPEL muda de cor
+    const P = albumPapel(b), meio = b.x + b.w / 2;
+    const folhas = [[meio - P.dx1, meio - P.dx0], [meio + P.dx0, meio + P.dx1]];
     g.save();
     g.globalCompositeOperation = "multiply";
     g.fillStyle = "rgba(150,74,78,0.9)";
-    g.fillRect(b.x + 18, b.y + 10, b.w / 2 - 36, b.h - 20);
-    g.fillRect(b.x + b.w / 2 + 18, b.y + 10, b.w / 2 - 36, b.h - 20);
+    for (const [x0, x1] of folhas) g.fillRect(x0, P.y0, x1 - x0, P.y1 - P.y0);
     g.restore();
-    g.strokeStyle = "rgba(230,196,120,0.75)"; g.lineWidth = 1.5;
-    for (const [px, py, sx, sy] of [[b.x + 30, b.y + 22, 1, 1], [b.x + b.w / 2 - 30, b.y + 22, -1, 1],
-        [b.x + 30, b.y + b.h - 22, 1, -1], [b.x + b.w / 2 - 30, b.y + b.h - 22, -1, -1],
-        [b.x + b.w / 2 + 30, b.y + 22, 1, 1], [b.x + b.w - 30, b.y + 22, -1, 1],
-        [b.x + b.w / 2 + 30, b.y + b.h - 22, 1, -1], [b.x + b.w - 30, b.y + b.h - 22, -1, -1]]) {
-      g.beginPath(); g.moveTo(px + sx * 22, py); g.lineTo(px, py); g.lineTo(px, py + sy * 22); g.stroke();
-    }
-    g.font = "italic 20px 'Segoe Script', 'Comic Sans MS', cursive";
-    g.textAlign = "center"; g.textBaseline = "middle";
-    g.fillStyle = "rgba(240,214,150,0.9)";
-    g.fillText("PISTAS DA RUN", b.x + b.w / 4, b.y + b.h - 18);
+    g.strokeStyle = "rgba(230,196,120,0.7)"; g.lineWidth = 1.5;
+    for (const [x0, x1] of folhas)
+      for (const [px, py, sx, sy] of [[x0 + 12, P.y0 + 12, 1, 1], [x1 - 12, P.y0 + 12, -1, 1],
+                                      [x0 + 12, P.y1 - 12, 1, -1], [x1 - 12, P.y1 - 12, -1, -1]]) {
+        g.beginPath(); g.moveTo(px + sx * 22, py); g.lineTo(px, py); g.lineTo(px, py + sy * 22); g.stroke();
+      }
   }
   const fotos = albumFotosDaPagina(page);
   if (!album.length) {
@@ -128,8 +124,9 @@ function albumDesenhaSpread(g, page, b, hover) {
     const sc = (hov ? 1.045 : 1) * s.w / ph.width;
     g.drawImage(ph, -ph.width * sc / 2, -ph.height * sc / 2, ph.width * sc, ph.height * sc);
     g.shadowColor = "rgba(0,0,0,0)"; g.shadowBlur = 0; g.shadowOffsetY = 0;
-    // orelha vermelha: esta foto é PISTA; chama azul: tem alma para converter
-    if (e.pistas && e.pistas.length) {
+    if (e.pista) albumFita(g, e, ph.width * sc, ph.height * sc, 1);   // a fita com o rótulo
+    // orelha vermelha: esta foto tem pista (ainda não colada); chama azul: tem alma para converter
+    if (!e.pista && e.pistas && e.pistas.length) {
       g.fillStyle = "rgba(190,40,34,0.9)";
       g.beginPath(); g.moveTo(ph.width * sc / 2 - 26, -ph.height * sc / 2);
       g.lineTo(ph.width * sc / 2, -ph.height * sc / 2); g.lineTo(ph.width * sc / 2, -ph.height * sc / 2 + 26);
@@ -278,9 +275,7 @@ function drawAlbum() {
     }
     ctx.font = "italic 17px 'Segoe Script', 'Comic Sans MS', cursive";
     ctx.fillStyle = albumEhPista(albumPage) ? "rgba(240,214,150,0.9)" : "rgba(200,190,170,0.8)";
-    ctx.fillText(tf("página {0} de {1}", albumPage + 1, total) +
-                 (albumEhPista(albumPage) ? " · " + tr("PISTAS DA RUN") : ""),
-                 canvas.width / 2, canvas.height - 16);
+    ctx.fillText(tf("página {0} de {1}", albumPage + 1, total), canvas.width / 2, canvas.height - 16);
   } else {
     // ZOOM numa foto
     const e = ord[albumZoom], ph = e.cv, R = albumRetZoom(ph);
@@ -289,6 +284,7 @@ function drawAlbum() {
     ctx.shadowBlur = 26; ctx.shadowOffsetY = 8;
     ctx.drawImage(ph, R.x, R.y, R.w, R.h);
     ctx.restore();
+    if (e.pista) { ctx.save(); ctx.translate(R.x + R.w / 2, R.y + R.h / 2); albumFita(ctx, e, R.w, R.h, 1.9); ctx.restore(); }
     // COM a ampola, os vultos que ainda têm alma tremem num azul fraco e o mouse
     // em cima revela o que dá para fazer. SEM ela, a foto é só uma foto.
     const temAmpola = !!world.flags.cam.ampola;
@@ -343,7 +339,7 @@ function drawAlbum() {
       albumBotao(ALB_GUARDA,
         nS > 0 ? tr("CONVERTER A ALMA DA FOTO") : tr((e.armazenadas || 0) > 0 ? "alma convertida" : "sem alma nesta foto"),
         nS > 0, "rgba(20,40,70,0.75)", hv(ALB_GUARDA), "A");
-    albumBotao(ALB_PISTA, tr(e.pista ? "SOLTAR DAS PISTAS" : "FIXAR NAS PISTAS"), true,
+    albumBotao(ALB_PISTA, tr(e.pista ? "TIRAR DAS PÁGINAS VERMELHAS" : "COLAR NAS PÁGINAS VERMELHAS"), true,
       e.pista ? "rgba(70,30,30,0.75)" : "rgba(40,30,20,0.75)", hv(ALB_PISTA), "P");
     albumBotao(ALB_FORA, tr(albumJogaFora > time ? (nS > 0 && temAmpola ? "TEM ALMA NA FOTO! JOGAR FORA MESMO?" : "JOGAR FORA MESMO?") : "JOGAR FORA"),
       true, albumJogaFora > time ? "rgba(90,20,16,0.85)" : "rgba(30,30,30,0.7)", hv(ALB_FORA), "DEL");
@@ -380,8 +376,33 @@ function albumSaiZoom() {
   if (e) albumPage = albumPaginaDe(e);
   albumZoom = -1; albumJogaFora = 0;
 }
+// o que o streamer escreve na fita, por tipo de pista
+const FITA_TEXTO = {
+  digito: "número riscado na parede", retrato: "retrato escondido?!", correntes: "CORRENTES na porta",
+  escada: "escada dentro da parede", sinal: "olho riscado na parede", reflexo: "tem alguém no espelho",
+  passado: "foto antiga… olha a legenda", antes: "quadro com vibe estranha", molduras: "sete molduras",
+  manual: "importante (acho)",
+};
+// um pedaço de fita crepe colado no canto da polaroid, com o rótulo à mão
+function albumFita(g, e, w, h, k) {
+  const txt = tr(FITA_TEXTO[e.fita] || FITA_TEXTO.manual);
+  g.save();
+  g.translate(-w / 2 + 14 * k, -h / 2 + 10 * k);
+  g.rotate(-0.09 + (e.t % 7) * 0.01);
+  g.font = `italic ${11 * k}px 'Segoe Script', 'Comic Sans MS', cursive`;
+  const tw = Math.min(w * 0.78, g.measureText(txt).width + 18 * k), th = 17 * k;
+  g.fillStyle = "rgba(226,214,176,0.86)";
+  g.beginPath();                                      // pontas rasgadas
+  g.moveTo(0, 0); g.lineTo(tw, 1.5 * k); g.lineTo(tw - 3 * k, th / 2); g.lineTo(tw, th);
+  g.lineTo(2 * k, th - 1); g.lineTo(0, th / 2); g.closePath(); g.fill();
+  g.fillStyle = "rgba(255,255,240,0.25)"; g.fillRect(0, 2 * k, tw, 2 * k);   // o brilho da fita
+  g.fillStyle = "rgba(48,38,30,0.9)"; g.textAlign = "left"; g.textBaseline = "middle";
+  g.fillText(txt, 8 * k, th / 2 + 0.5, tw - 14 * k);
+  g.restore();
+}
 function albumAlternaPista(e) {
   e.pista = !e.pista;
+  if (e.pista && !e.fita) e.fita = "manual";
   sfxPage();
   if (albumZoom >= 0) albumZoom = albumOrdem().indexOf(e);   // o zoom continua NESTA foto
   albumPage = albumPaginaDe(e);                               // e o livro abre na página dela

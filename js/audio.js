@@ -22,6 +22,7 @@ function initAudio() {
     const lfoG = AC.createGain(); lfoG.gain.value = 0.03;
     lfo.connect(lfoG); lfoG.connect(g.gain);
     o1.start(); o2.start(); lfo.start();
+    if (typeof musicaInit === "function") musicaInit();   // a trilha nasce junto
   } catch (e) { /* sem áudio, segue o jogo */ }
 }
 

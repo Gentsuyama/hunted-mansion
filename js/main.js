@@ -12,6 +12,7 @@ function frame(now) {
 
   if (state === "play") update(dt);
   else if (state === "ritual") ritualUpdate(dt);
+  if (typeof musicaUpdate === "function") musicaUpdate(dt);   // a trilha ouve o jogo
   render();
   requestAnimationFrame(frame);
 }

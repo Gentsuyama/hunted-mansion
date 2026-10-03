@@ -545,10 +545,10 @@ function update(dt) {
       }
       continue;
     }
-    if (g.kb) {                                    // empurrado pelo flash vazio: recua à vista
-      const kb = g.kb, f = kb.t / 0.5;
-      g.x = Math.max(2, Math.min(COLS - 2, g.x + kb.dx * 11 * f * dt));
-      g.y = Math.max(2, Math.min(ROWS - 2, g.y + kb.dy * 11 * f * dt));
+    if (g.kb) {                                    // empurrado pelo flash vazio: recua à vista, sem pressa
+      const kb = g.kb, f = kb.t / 0.7;
+      g.x = Math.max(2, Math.min(COLS - 2, g.x + kb.dx * 6 * f * dt));
+      g.y = Math.max(2, Math.min(ROWS - 2, g.y + kb.dy * 6 * f * dt));
       kb.t -= dt;
       if (kb.t <= 0) { g.kb = null; g.wx = g.x + kb.dx * 5; g.wy = g.y + kb.dy * 5; }
       continue;

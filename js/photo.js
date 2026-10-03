@@ -51,10 +51,10 @@ function boteCortado() {
 }
 
 // esta foto guarda uma PISTA (vai para as páginas vinho do álbum se for nova)
-function fotoPista(texto, nova) {
+function fotoPista(texto, nova, tipo) {
   if (!window._fotoPistas) return;
   if (!window._fotoPistas.includes(texto)) window._fotoPistas.push(texto);
-  if (nova) window._fotoPistaAuto = true;
+  if (nova) { window._fotoPistaAuto = true; if (!window._fotoFita) window._fotoFita = tipo || "manual"; }
 }
 
 function takePhoto() {
@@ -91,11 +91,11 @@ function takePhoto() {
     film--;
     photoCount++;
     window._espelhoPend = -1; window._pianoPend = -1; window._fotoAlmas = [];
-    window._fotoPistas = []; window._fotoPistaAuto = false;
+    window._fotoPistas = []; window._fotoPistaAuto = false; window._fotoFita = null;
     const cv = renderPhoto(player.x, player.y, flashDir, !comFlash);
     const ent = { cv, caption: `FOTO ${photoCount} · ${FLOOR_NAMES[world.cur]}`,
                   almas: 0, armazenadas: 0, marcas: [], t: world.timeSec,
-                  pistas: window._fotoPistas.slice(), pista: window._fotoPistaAuto,
+                  pistas: window._fotoPistas.slice(), pista: window._fotoPistaAuto, fita: window._fotoFita,
                   escuro: !comFlash, sepia: !!window._fotoSepia, quimica: window._fotoQuimica,
                   semFilme: !!FOTO.rapido };
     album.push(ent);
@@ -147,7 +147,7 @@ function takePhoto() {
         const d = Math.hypot(g.x - player.x, g.y - player.y) || 1;
         // recuo: ele é arremessado para trás (3–4 células, em meio segundo) e fica tonto —
         // mas continua lá, e volta
-        g.kb = { dx: (g.x - player.x) / d, dy: (g.y - player.y) / d, t: 0.5 };
+        g.kb = { dx: (g.x - player.x) / d, dy: (g.y - player.y) / d, t: 0.7 };
         if (g.bote && g.bote.fase === "inspira") boteCortado();
         g.chase = false; g.stun = 1.4; g.bote = null; g.gasto = BOTE.gasto * 0.5;
         for (let i = 0; i < 10; i++) {
@@ -953,7 +953,7 @@ function renderPhoto(px, py, dir, escuro) {
           world.flags.souls.cecilia &&
           world.flags.souls.cecilia.state === "dormant" && bright > 0.25) {
         if (ty < zAqui + 0.6) {
-          fotoPista("o reflexo no espelho", true);
+          fotoPista("o reflexo no espelho", true, "reflexo");
           const gspr = soulSprite("cecilia");
           const ghPx = hPx * 0.85;
           blitOccluded(cc, gspr, zbuf, ty, centerX, floorPx - hPx * 0.95,
@@ -963,7 +963,7 @@ function renderPhoto(px, py, dir, escuro) {
         }
       }
     } else if (s.kind === "prop") {
-      const spr = propSprite(s.tipo);
+      const spr = s.tipo === "bancada" ? bancadaSprite() : propSprite(s.tipo);
       const hPx = Math.min(areaH * 1.6, s.h * cell);
       const wPx = hPx * (spr.width / spr.height);
       if (s.base === 0) {
@@ -981,7 +981,7 @@ function renderPhoto(px, py, dir, escuro) {
       blitOccluded(cc, spr, zbuf, ty, centerX, yAt(4.1, ty), wPx, hPx,
                    Math.min(1, 0.3 + k * 0.7), Wc, CWc, FR);
       if (nitida && bright > 0.25 && Math.abs(sxCol - Wc / 2) < Wc * 0.45 && ty < zAqui + 0.6)
-        fotoPista(tf("dígito nº {0} do cofre", s.mk.ord), !s.mk.seen);
+        fotoPista(tf("dígito nº {0} do cofre", s.mk.ord), !s.mk.seen, "digito");
       if (nitida && bright > 0.25 && Math.abs(sxCol - Wc / 2) < Wc * 0.45 &&
           ty < zAqui + 0.6 && !s.mk.seen) {        // só conta se a marca saiu na foto
         s.mk.seen = true;                          // o chat para de dar essa dica
@@ -1000,7 +1000,7 @@ function renderPhoto(px, py, dir, escuro) {
       blitLit(cc, spr, zbuf, ty, centerX, topRet, wPx, hPx,
               Math.max(k, 0.35), Wc, CWc, FR);
       if (bright > 0.2 && ty < zAqui + 0.6)
-        fotoPista(tf("retrato de {0}", tr(SOUL_DEFS[s.ret.soul].nome)), !world.flags.retSeen.includes(s.ret.id));
+        fotoPista(tf("retrato de {0}", tr(SOUL_DEFS[s.ret.soul].nome)), !world.flags.retSeen.includes(s.ret.id), "retrato");
       if (bright > 0.2 && ty < zAqui + 0.6 &&
           !world.flags.retSeen.includes(s.ret.id)) {
         world.flags.retSeen.push(s.ret.id);
@@ -1026,7 +1026,7 @@ function renderPhoto(px, py, dir, escuro) {
       const wPx = hPx * (spr.width / spr.height);
       blitLit(cc, spr, zbuf, ty, centerX, yAt(4.35, ty), wPx, hPx,
               Math.max(k, 0.3), Wc, CWc, FR);
-      if (bright > 0.2 && ty < zAqui + 0.9) fotoPista("quem veio antes", !world.flags.antVistos.includes(s.q.id));
+      if (bright > 0.2 && ty < zAqui + 0.9) fotoPista("quem veio antes", !world.flags.antVistos.includes(s.q.id), "antes");
       if (bright > 0.2 && ty < zAqui + 0.9 && !world.flags.antVistos.includes(s.q.id)) {
         world.flags.antVistos.push(s.q.id);
         quadroAntVisto(s.q);
@@ -1037,7 +1037,7 @@ function renderPhoto(px, py, dir, escuro) {
       const hPx = FOTO.DOOR_H * cell;
       blitOccluded(cc, spr, zbuf, ty, centerX, floorPx - hPx, wPx, hPx,
                    Math.min(1, 0.4 + k * 0.6), Wc, CWc, FR);
-      if (bright > 0.2 && ty < zAqui + 1.2) fotoPista("as correntes da porta", !live.hinted.has("chainsSeen"));
+      if (bright > 0.2 && ty < zAqui + 1.2) fotoPista("as correntes da porta", !live.hinted.has("chainsSeen"), "correntes");
       if (bright > 0.2 && ty < zAqui + 1.2 && !live.hinted.has("chainsSeen")) {
         live.hinted.add("chainsSeen");
         livePush(liveRandUser(), "A PORTA TÁ ACORRENTADA NA FOTO?!?!");
@@ -1052,7 +1052,7 @@ function renderPhoto(px, py, dir, escuro) {
               Math.max(k, 0.3), Wc, CWc, FR);
       if (bright > 0.2 && ty < zAqui + 0.8) {
         if (!world.flags.stairsSeen) world.flags.stairsSeen = [];
-        fotoPista("a escada escondida", !world.flags.stairsSeen.includes(s.key));
+        fotoPista("a escada escondida", !world.flags.stairsSeen.includes(s.key), "escada");
         if (!world.flags.stairsSeen.includes(s.key)) {
           world.flags.stairsSeen.push(s.key);   // a FOTO denunciou a escada
           livePush(liveRandUser(), "TEM UMA ESCADA NA FOTO!! dentro da parede!!");
@@ -1066,7 +1066,7 @@ function renderPhoto(px, py, dir, escuro) {
       blitOccluded(cc, spr, zbuf, ty, centerX, yAt(4.15, ty),
                    hPx, hPx, Math.min(1, 0.3 + k * 0.7), Wc, CWc, FR);
       if (world.flags.cam.lente && bright > 0.25 && ty < zAqui + 0.6) {
-        fotoPista("o sinal do Hóspede", world.flags.souls.hospede.state === "dormant");
+        fotoPista("o sinal do Hóspede", world.flags.souls.hospede.state === "dormant", "sinal");
         soulsOnSinal(world.cur);
       }
     }
@@ -1112,7 +1112,7 @@ function renderPhoto(px, py, dir, escuro) {
     c.fillText(PASSADO_TXT[passadoSpot.soul] || "", FR + 10, FR + PH - 16);
     c.restore();
     const hid = "pass_" + passadoSpot.soul;
-    fotoPista(tf("legenda do passado: {0}", tr(PASSADO_TXT[passadoSpot.soul] || "")), !live.hinted.has(hid));
+    fotoPista(tf("legenda do passado: {0}", tr(PASSADO_TXT[passadoSpot.soul] || "")), !live.hinted.has(hid), "passado");
     if (!live.hinted.has(hid)) {
       live.hinted.add(hid);
       livePush(liveRandUser(), tf("a legenda da foto… “{0}”",

@@ -1197,12 +1197,42 @@ function hospedeSprite() {
 const PROP_IMGS = {}, PROP_SPRS = {};
 (function loadPropImgs() {
   for (const k of ["cofre", "quadro", "bancada", "cavalete", "cadeira", "lamparina", "grade", "candelabro"]) {
+    // (a bancada ganha por cima a lâmpada acesa e as fotos no varal: ver bancadaSprite)
     const im = new Image();
     im.onload = () => { PROP_IMGS[k] = keyBlackToAlpha(im); };
     im.onerror = () => {};
     im.src = "Assets/Props/" + k + ".jpg";
   }
 })();
+// a BANCADA na foto: a arte do guia (PROP-003: lâmpada APAGADA, fotos em branco no
+// varal) recebe por cima a luz vermelha acesa e as últimas fotos do álbum secando —
+// a imagem é o cenário, o código põe o que muda. Sem a arte, o desenho por código.
+const BANCADA_PONTOS = { lampada: [0.50, 0.17], fotos: [[0.16, 0.21], [0.26, 0.21], [0.36, 0.21]], fotoW: 0.07 };
+let BANCADA_CACHE = null;
+function bancadaSprite() {
+  const img = PROP_IMGS.bancada;
+  if (!img) return propSprite("bancada");
+  const chave = album.length + ":" + (album.length ? album[album.length - 1].t : 0);
+  if (BANCADA_CACHE && BANCADA_CACHE.chave === chave) return BANCADA_CACHE.cv;
+  const cv = document.createElement("canvas");
+  cv.width = img.width; cv.height = img.height;
+  const g = cv.getContext("2d");
+  g.drawImage(img, 0, 0);
+  const ult = album.slice(-3);                      // as últimas fotos, penduradas
+  BANCADA_PONTOS.fotos.forEach(([fx, fy], i) => {
+    const e = ult[i]; if (!e) return;
+    const w = cv.width * BANCADA_PONTOS.fotoW, h = w * e.cv.height / e.cv.width;
+    g.save(); g.translate(fx * cv.width, fy * cv.height); g.rotate((i - 1) * 0.05);
+    g.drawImage(e.cv, -w / 2, 0, w, h); g.restore();
+  });
+  const [lx, ly] = BANCADA_PONTOS.lampada, R = cv.width * 0.16;   // a lâmpada vermelha acesa
+  const halo = g.createRadialGradient(lx * cv.width, ly * cv.height, 2, lx * cv.width, ly * cv.height, R);
+  halo.addColorStop(0, "rgba(255,90,70,0.95)"); halo.addColorStop(0.3, "rgba(255,60,40,0.45)");
+  halo.addColorStop(1, "rgba(255,60,40,0)");
+  g.fillStyle = halo; g.fillRect(lx * cv.width - R, ly * cv.height - R, 2 * R, 2 * R);
+  BANCADA_CACHE = { chave, cv };
+  return cv;
+}
 function propSprite(name) {
   if (PROP_IMGS[name]) return PROP_IMGS[name];
   if (PROP_SPRS[name]) return PROP_SPRS[name];
