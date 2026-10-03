@@ -20,7 +20,7 @@ import io, json, os, re, sys
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FONTES = ["core.js", "intro.js", "game.js", "photo.js", "live.js", "souls.js",
-          "puzzles.js", "mansion.js", "ritual.js"]
+          "puzzles.js", "mansion.js", "ritual.js", "energia.js", "album.js"]
 IDIOMAS = ["en", "es", "fr", "de", "zh", "ja"]
 
 NAO_TRADUZ = {
@@ -35,7 +35,7 @@ FORCA = ["berço", "cama", "espelho", "piano", "relógio", "escrivaninha", "polt
          "LIGAR", "PARAR", "REVELAR", "QUEIMAR", "FECHAR", "ELEVADOR", "ENTRAR",
          "CONTINUAR", "SANIDADE", "REVELADOR", "INTERRUPTOR", "FIXADOR",
          "ALVORADA", "CINZAS", "IDIOMA", "kkkkkkk", "CORREEEE", "achooooou",
-         "BLACKWOOD"]
+         "BLACKWOOD", "BATERIA", "alma", "almas", "pista:"]
 
 TEC = re.compile(
     r"^(rgba?\(|#[0-9a-fA-F]{3,8}$|Assets/|hm_|Key[A-Z]$|Arrow|Shift|source-|"

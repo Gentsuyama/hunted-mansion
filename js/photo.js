@@ -30,10 +30,10 @@ const MOVEL_NOME = { berco: "berço", cama: "cama", espelho: "espelho", piano: "
   relogio: "relógio", escrivaninha: "escrivaninha", poltrona: "poltrona", cadeira: "cadeira",
   sofa: "sofá", mesa: "mesa", estante: "estante", bau: "baú" };
 
-function inFlashCone(ex, ey, dir) {
+function inFlashCone(ex, ey, dir, fator) {
   const dx = ex - player.x, dy = ey - player.y;
   const d = Math.hypot(dx, dy);
-  if (d > FLASH.range * 0.85) return false;
+  if (d > FLASH.range * 0.85 * (fator || 1)) return false;
   let da = Math.atan2(dy, dx) - dir;
   while (da > Math.PI) da -= 2 * Math.PI;
   while (da < -Math.PI) da += 2 * Math.PI;
@@ -50,24 +50,56 @@ function boteCortado() {
   }
 }
 
+// esta foto guarda uma PISTA (vai para as páginas vinho do álbum se for nova)
+function fotoPista(texto, nova) {
+  if (!window._fotoPistas) return;
+  if (!window._fotoPistas.includes(texto)) window._fotoPistas.push(texto);
+  if (nova) window._fotoPistaAuto = true;
+}
+
 function takePhoto() {
   if (flashCd > 0) return;
   const cam = world.flags.cam;
   // FOTO REAL exige: tampa na câmera + filme CARREGADO (R põe/tira) + rolos
   const fotoReal = cam.tampa && world.flags.filmLoaded && film > 0;
+  // o FLASH exige bateria; sem ela, a foto sai no escuro (e sem foto, nada acontece)
+  const comFlash = bateria > 0;
+  if (!comFlash && !fotoReal) {
+    sfxDry(); flashCd = 0.5;
+    toast("SEM BATERIA — e sem filme pra fotografar no escuro", 2.5);
+    return;
+  }
 
-  flashT = 1; flashCd = FLASH.cooldown;
+  flashCd = FLASH.cooldown;
   flashDir = aimAngle();
-  attractT = ECO.atraiFlash;           // o flash SEMPRE atrai — mesmo vazio
-  sfxCamera();
+  if (comFlash) {
+    bateria--;
+    flashT = 1;
+    attractT = ECO.atraiFlash;         // o flash SEMPRE atrai — mesmo vazio
+    sfxCamera();
+    if (bateria <= 0) bateriaAcabou();
+  } else {
+    flashT = 0;
+    sfxObturadorSeco();
+    if (!live.hinted.has("escuro1")) {
+      live.hinted.add("escuro1");
+      livePush(liveRandUser(), "foto no ESCURO… saiu, mas só o que a lanterna pegou. e nada se assustou");
+    }
+  }
 
   if (fotoReal) {
     film--;
     photoCount++;
-    window._espelhoPend = -1; window._pianoPend = -1;
-    const cv = renderPhoto(player.x, player.y, flashDir);
-    album.push({ cv, caption: `FOTO ${photoCount} · ${FLOOR_NAMES[world.cur]}` });
-    if (album.length > ALBUM_MAX) album.shift();
+    window._espelhoPend = -1; window._pianoPend = -1; window._fotoAlmas = [];
+    window._fotoPistas = []; window._fotoPistaAuto = false;
+    const cv = renderPhoto(player.x, player.y, flashDir, !comFlash);
+    const ent = { cv, caption: `FOTO ${photoCount} · ${FLOOR_NAMES[world.cur]}`,
+                  almas: 0, armazenadas: 0, marcas: [], t: world.timeSec,
+                  pistas: window._fotoPistas.slice(), pista: window._fotoPistaAuto,
+                  escuro: !comFlash, sepia: !!window._fotoSepia, quimica: window._fotoQuimica,
+                  semFilme: !!FOTO.rapido };
+    album.push(ent);
+    albumLimita();
     if (typeof polaroidEjeta === "function") polaroidEjeta(cv);
     // a noiva apareceu no reflexo? (desperta DEPOIS da foto renderizada)
     if (window._espelhoPend >= 0) {
@@ -83,13 +115,16 @@ function takePhoto() {
       }
     }
 
-    // CAPTURA ecos no cone (com filme, o eco vai para o filme)
+    // CAPTURA ecos no cone (com filme, o eco vai para o filme; no escuro, só de perto)
     for (const g of fl().ghosts) {
       if (g.respawn > 0) continue;
-      if (inFlashCone(g.x, g.y, flashDir)) {
-        if (g.bote && g.bote.fase === "inspira") boteCortado();
+      if (inFlashCone(g.x, g.y, flashDir, comFlash ? 1 : 0.2)) {
+        if (comFlash && g.bote && g.bote.fase === "inspira") boteCortado();
         g.respawn = ECO.volta[0] + Math.random() * ECO.volta[1];
         g.chase = false; g.bote = null;
+        ent.almas++;                     // essa alma está na foto: dá para GUARDAR
+        const mk = (window._fotoAlmas || []).find(m => m.gh === g);
+        if (mk) ent.marcas.push(mk);
         sfxDissolve();
         soulsOnEcoCaptured();            // 7 ecos no filme despertam a Olívia
         for (let i = 0; i < 26; i++) {
@@ -129,7 +164,7 @@ function takePhoto() {
   }
 
   // almas nomeadas: captura (com retrato+obturador+filme) ou repelão
-  const pegouAlma = soulsOnFlash(flashDir, fotoReal);
+  const pegouAlma = soulsOnFlash(flashDir, fotoReal, comFlash);
   // ELE comenta as fotos em que há gente
   if (pegouAlma && fotoReal && time - live.fixoFotoT > 45 && !soulCaptured()) {
     live.fixoFotoT = time;
@@ -143,7 +178,7 @@ function takePhoto() {
 // textura por andar e são iluminados por um flash preso à câmera
 // (queda com o quadrado da distância + ângulo de incidência).
 // ------------------------------------------------------------------
-function renderRealisticScene(c, px, py, FR, PW, PH, dirX, dirY, planeX, planeY, MAXD, W2) {
+function renderRealisticScene(c, px, py, FR, PW, PH, dirX, dirY, planeX, planeY, MAXD, W2, escuro) {
   const H2 = Math.round(PH * W2 / PW);
   if (!RS_S || RS_S.img.width !== W2 || RS_S.img.height !== H2) {
     RS_S = { img: new ImageData(W2, H2), tmp: document.createElement("canvas") };
@@ -157,7 +192,8 @@ function renderRealisticScene(c, px, py, FR, PW, PH, dirX, dirY, planeX, planeY,
   const fV = (W2 / 2) / tanF;                      // distância focal em px
   const hor = H2 * FOTO.HOR;
   const invD0 = 1 / (FOTO.D0 * FOTO.D0);
-  const K = FOTO.EXPO * 341 / 255;
+  const K0 = FOTO.EXPO * 341 / 255 * (escuro ? 0.17 : 1);
+  let K = K0;
 
   // o andar decide os materiais
   const FL = world.cur, F = fl();
@@ -197,6 +233,11 @@ function renderRealisticScene(c, px, py, FR, PW, PH, dirX, dirY, planeX, planeY,
     const rdx = dirX + planeX * camX, rdy = dirY + planeY * camX;
     const rdLen2 = rdx * rdx + rdy * rdy;
     const axc = camX * tanF, colS = axc * axc;
+    if (escuro) {                        // sem flash: só o facho da lanterna, estreito
+      const ang = Math.abs(Math.atan(axc));
+      const t = Math.max(0, Math.min(1, (ang - 0.30) / 0.30));
+      K = K0 * (1 - t * t * (3 - 2 * t) * 0.8);
+    }
     let mapX = px | 0, mapY = py | 0;
     const dX = Math.abs(1 / (rdx || 1e-9)), dY = Math.abs(1 / (rdy || 1e-9));
     let stepX, stepY, sideX, sideY;
@@ -414,8 +455,15 @@ function renderRealisticScene(c, px, py, FR, PW, PH, dirX, dirY, planeX, planeY,
 // vinheta e os defeitos químicos da revelação. (Sem REC, sem scanline:
 // isso é do celular da live — a polaroid é outro aparelho.)
 // ------------------------------------------------------------------
-function filmePass(cv, x, y, iw, ih, sepia) {
+function filmePass(cv, x, y, iw, ih, sepia, escuro) {
   const c = cv.getContext("2d");
+  filmeHalacao(c, cv, x, y, iw, ih, null);
+  filmePixels(c, x, y, iw, ih, sepia, escuro, null);
+  const q = filmeQuimicaSorteia(x, y, iw, ih);
+  filmeQuimicaDesenha(c, x, y, iw, ih, q, null);
+  window._fotoQuimica = q;               // a foto guarda o sorteio: a conversão repete igual
+}
+function filmeTabelas(iw, ih) {
   if (!FILME_S || FILME_S.w !== iw || FILME_S.h !== ih) {
     const sm = document.createElement("canvas");
     sm.width = Math.max(8, iw >> 3); sm.height = Math.max(8, ih >> 3);
@@ -437,42 +485,77 @@ function filmePass(cv, x, y, iw, ih, sepia) {
     }
     FILME_S = { w: iw, h: ih, sm, vg, lr, lg, lb };
   }
-  const { sm, vg, lr, lg, lb } = FILME_S;
-
-  // 1) halação: as áreas estouradas pelo flash vazam luz em volta
+  return FILME_S;
+}
+// recorte (dentro do vidro) onde a passagem se aplica — null = o vidro todo
+function filmeClip(c, x, y, iw, ih, sub) {
+  c.beginPath();
+  if (sub) c.rect(Math.max(x, sub.x), Math.max(y, sub.y),
+                  Math.min(x + iw, sub.x + sub.w) - Math.max(x, sub.x),
+                  Math.min(y + ih, sub.y + sub.h) - Math.max(y, sub.y));
+  else c.rect(x, y, iw, ih);
+  c.clip();
+}
+// 1) halação: as áreas estouradas pelo flash vazam luz em volta
+function filmeHalacao(c, cv, x, y, iw, ih, sub) {
+  const { sm } = filmeTabelas(iw, ih);
   const sc = sm.getContext("2d");
   sc.globalCompositeOperation = "source-over";
   sc.drawImage(cv, x, y, iw, ih, 0, 0, sm.width, sm.height);
   c.save();
-  c.beginPath(); c.rect(x, y, iw, ih); c.clip();
+  filmeClip(c, x, y, iw, ih, sub);
   c.globalCompositeOperation = "lighter";
   c.globalAlpha = 0.20;
   c.imageSmoothingEnabled = true;
   c.drawImage(sm, 0, 0, sm.width, sm.height, x - 3, y - 3, iw + 6, ih + 6);
   c.restore();
-
-  // 2) cor, grão e vinheta — por pixel
-  const im = c.getImageData(x, y, iw, ih), p = im.data;
+}
+// 2) cor, grão e vinheta — por pixel (a vinheta depende da posição no vidro)
+function filmePixels(c, x, y, iw, ih, sepia, escuro, sub) {
+  const { vg, lr, lg, lb } = filmeTabelas(iw, ih);
+  const sx = sub ? Math.max(x, sub.x) : x, sy = sub ? Math.max(y, sub.y) : y;
+  const sw = sub ? Math.min(x + iw, sub.x + sub.w) - sx : iw;
+  const sh = sub ? Math.min(y + ih, sub.y + sub.h) - sy : ih;
+  if (sw <= 0 || sh <= 0) return;
+  const im = c.getImageData(sx, sy, sw, sh), p = im.data;
   const SAT = sepia ? 0 : 0.5;
-  for (let i = 0, n = 0; i < p.length; i += 4, n++) {
-    let r = p[i], g = p[i + 1], b = p[i + 2];
-    const lum = 0.3 * r + 0.59 * g + 0.11 * b;
-    const gr = (Math.random() - 0.5) * (24 - lum * 0.05);   // mais grão na sombra
-    const v = vg[n];
-    r = (lum + (r - lum) * SAT) * v + gr;
-    g = (lum + (g - lum) * SAT) * v + gr;
-    b = (lum + (b - lum) * SAT) * v + gr;
-    r = lr[r < 0 ? 0 : r > 255 ? 255 : r | 0];
-    g = lg[g < 0 ? 0 : g > 255 ? 255 : g | 0];
-    b = lb[b < 0 ? 0 : b > 255 ? 255 : b | 0];
-    if (sepia) { r = r * 1.05 + 6; g = g * 0.93; b = b * 0.70; }
-    p[i] = r; p[i + 1] = g; p[i + 2] = b;
+  for (let yy = 0, i = 0; yy < sh; yy++) {
+    let n = (sy - y + yy) * iw + (sx - x);
+    for (let xx = 0; xx < sw; xx++, i += 4, n++) {
+      let r = p[i], g = p[i + 1], b = p[i + 2];
+      const lum = 0.3 * r + 0.59 * g + 0.11 * b;
+      const gr = (Math.random() - 0.5) * (24 - lum * 0.05) * (escuro ? 2.3 : 1);   // mais grão na sombra (e no escuro)
+      const v = vg[n];
+      r = (lum + (r - lum) * SAT) * v + gr;
+      g = (lum + (g - lum) * SAT) * v + gr;
+      b = (lum + (b - lum) * SAT) * v + gr;
+      r = lr[r < 0 ? 0 : r > 255 ? 255 : r | 0];
+      g = lg[g < 0 ? 0 : g > 255 ? 255 : g | 0];
+      b = lb[b < 0 ? 0 : b > 255 ? 255 : b | 0];
+      if (sepia) { r = r * 1.05 + 6; g = g * 0.93; b = b * 0.70; }
+      p[i] = r; p[i + 1] = g; p[i + 2] = b;
+    }
   }
-  c.putImageData(im, x, y);
-
-  // 3) química: bordas mal reveladas, nuvens, vazamento de luz, poeira
+  c.putImageData(im, sx, sy);
+}
+// 3) química: bordas mal reveladas, nuvens, vazamento de luz, poeira, fio
+function filmeQuimicaSorteia(x, y, iw, ih) {
+  const q = { nuvens: [], vaza: null, poeira: [], fio: null };
+  for (let i = 0; i < 3; i++)
+    q.nuvens.push({ mx: x + Math.random() * iw, my: y + Math.random() * ih, rad: 60 + Math.random() * 120 });
+  if (Math.random() < 0.2)               // vazamento de luz num canto
+    q.vaza = { cx: x + (Math.random() < 0.5 ? 0 : iw), cy: y + (Math.random() < 0.5 ? 0 : ih),
+               rad: 150 + Math.random() * 110 };
+  for (let i = 0; i < 9; i++)
+    q.poeira.push({ px: x + Math.random() * iw, py: y + Math.random() * ih,
+                    w: 1 + Math.random() * 1.5, h: 1 + Math.random() * 1.5, claro: Math.random() < 0.5 });
+  if (Math.random() < 0.18)              // um fio de cabelo preso no rolo
+    q.fio = { hx: x + Math.random() * iw, hy: y + Math.random() * ih };
+  return q;
+}
+function filmeQuimicaDesenha(c, x, y, iw, ih, q, sub) {
   c.save();
-  c.beginPath(); c.rect(x, y, iw, ih); c.clip();
+  filmeClip(c, x, y, iw, ih, sub);
   for (const [x0, y0, x1, y1] of [[x, 0, x + 26, 0], [x + iw, 0, x + iw - 26, 0],
                                   [0, y, 0, y + 20], [0, y + ih, 0, y + ih - 30]]) {
     const gr = c.createLinearGradient(x0, y0, x1, y1);
@@ -480,30 +563,26 @@ function filmePass(cv, x, y, iw, ih, sepia) {
     gr.addColorStop(1, "rgba(236,222,186,0)");
     c.fillStyle = gr; c.fillRect(x, y, iw, ih);
   }
-  for (let i = 0; i < 3; i++) {
-    const mx = x + Math.random() * iw, my = y + Math.random() * ih;
-    const rad = 60 + Math.random() * 120;
-    const gr = c.createRadialGradient(mx, my, 4, mx, my, rad);
+  for (const nv of q.nuvens) {
+    const gr = c.createRadialGradient(nv.mx, nv.my, 4, nv.mx, nv.my, nv.rad);
     gr.addColorStop(0, "rgba(214,222,190,0.07)");
     gr.addColorStop(1, "rgba(214,222,190,0)");
     c.fillStyle = gr; c.fillRect(x, y, iw, ih);
   }
-  if (Math.random() < 0.2) {             // vazamento de luz num canto
-    const cx = x + (Math.random() < 0.5 ? 0 : iw), cy = y + (Math.random() < 0.5 ? 0 : ih);
-    const gr = c.createRadialGradient(cx, cy, 6, cx, cy, 150 + Math.random() * 110);
+  if (q.vaza) {
+    const gr = c.createRadialGradient(q.vaza.cx, q.vaza.cy, 6, q.vaza.cx, q.vaza.cy, q.vaza.rad);
     gr.addColorStop(0, "rgba(255,150,70,0.26)");
     gr.addColorStop(1, "rgba(255,150,70,0)");
     c.globalCompositeOperation = "screen";
     c.fillStyle = gr; c.fillRect(x, y, iw, ih);
     c.globalCompositeOperation = "source-over";
   }
-  for (let i = 0; i < 9; i++) {
-    c.fillStyle = Math.random() < 0.5 ? "rgba(255,255,255,0.32)" : "rgba(0,0,0,0.4)";
-    c.fillRect(x + Math.random() * iw, y + Math.random() * ih,
-               1 + Math.random() * 1.5, 1 + Math.random() * 1.5);
+  for (const d of q.poeira) {
+    c.fillStyle = d.claro ? "rgba(255,255,255,0.32)" : "rgba(0,0,0,0.4)";
+    c.fillRect(d.px, d.py, d.w, d.h);
   }
-  if (Math.random() < 0.18) {            // um fio de cabelo preso no rolo
-    const hx = x + Math.random() * iw, hy = y + Math.random() * ih;
+  if (q.fio) {
+    const { hx, hy } = q.fio;
     c.strokeStyle = "rgba(18,14,10,0.5)"; c.lineWidth = 0.8;
     c.beginPath(); c.moveTo(hx, hy);
     c.bezierCurveTo(hx + 30, hy - 26, hx + 54, hy + 30, hx + 90, hy + 8);
@@ -514,6 +593,46 @@ function filmePass(cv, x, y, iw, ih, sepia) {
   eg.addColorStop(0, "rgba(0,0,0,0.35)"); eg.addColorStop(1, "rgba(0,0,0,0)");
   c.fillStyle = eg; c.fillRect(x, y, iw, 9);
   c.restore();
+}
+
+// um contexto "duplo": tudo o que se desenha num vai também no outro
+function teeCtx(a, b) {
+  return new Proxy(a, {
+    get(t, k) {
+      const v = t[k];
+      if (typeof v !== "function") return v;
+      return function (...args) { const r = v.apply(a, args); b[k](...args); return r; };
+    },
+    set(t, k, val) { a[k] = val; b[k] = val; return true; },
+  });
+}
+function recorte(src, x, y, w, h) {
+  const cv = document.createElement("canvas");
+  cv.width = w; cv.height = h;
+  cv.getContext("2d").drawImage(src, x, y, w, h, 0, 0, w, h);
+  return cv;
+}
+// a alma foi convertida: o fundo limpo volta para o lugar do vulto, os vultos
+// vizinhos que ainda estão na foto são repostos e a revelação é repetida só
+// ali — a foto fica como se ele nunca tivesse estado nela
+function fotoSomeVulto(e, m) {
+  if (!m.fundo) return false;
+  const cv = e.cv, c = cv.getContext("2d");
+  const FR = FOTO_MOLDURA.FR, PW = cv.width - FR * 2, PH = cv.height - FR - FOTO_MOLDURA.BOT;
+  const sub = { x: m.fx, y: m.fy, w: m.fundo.width, h: m.fundo.height };
+  c.save();
+  c.beginPath(); c.rect(sub.x, sub.y, sub.w, sub.h); c.clip();
+  c.drawImage(m.fundo, m.fx, m.fy);
+  for (const o of e.marcas || [])
+    if (o !== m && !o.guardada && o.vulto) c.drawImage(o.vulto, o.fx, o.fy);
+  c.restore();
+  if (!e.semFilme) {
+    filmeHalacao(c, cv, FR, FR, PW, PH, sub);
+    filmePixels(c, FR, FR, PW, PH, !!e.sepia, !!e.escuro, sub);
+    if (e.quimica) filmeQuimicaDesenha(c, FR, FR, PW, PH, e.quimica, sub);
+  }
+  m.fundo = null; m.vulto = null;
+  return true;
 }
 
 // ------------------------------------------------------------------
@@ -580,10 +699,11 @@ function sombraSprite() {
   return (SOMBRA_SPR = cv);
 }
 
-function renderPhoto(px, py, dir) {
+// POLAROID: borda branca-creme, rodapé largo para a legenda à mão
+const FOTO_MOLDURA = { FR: 22, BOT: 66 };
+function renderPhoto(px, py, dir, escuro) {
   const W = 96, H = 58, CW = 6, CH = 7;
-  // POLAROID: borda branca-creme, rodapé largo para a legenda à mão
-  const FR = 22, BOT = 66;
+  const FR = FOTO_MOLDURA.FR, BOT = FOTO_MOLDURA.BOT;
   const PW = W * CW, PH = H * CH;
   const cv = document.createElement("canvas");
   cv.width = PW + FR * 2; cv.height = PH + FR + BOT;
@@ -617,7 +737,7 @@ function renderPhoto(px, py, dir) {
   const MAXD = FOTO.MAXD;
   const Wc = IS_TOUCH ? 384 : 576, CWc = PW / Wc;
   const zbuf = renderRealisticScene(c, px, py, FR, PW, PH,
-                                    dirX, dirY, planeX, planeY, MAXD, Wc);
+                                    dirX, dirY, planeX, planeY, MAXD, Wc, escuro);
 
   // projeção dos billboards (mesma câmera da cena)
   const fP = (PW / 2) / tanF;                       // focal em px finais
@@ -626,7 +746,12 @@ function renderPhoto(px, py, dir) {
   const luzK = (dep, sxCol) => {                    // brilho sob o flash
     const ax = (sxCol / Wc * 2 - 1) * tanF;
     const L = 1 / (1 + dep * dep / (FOTO.D0 * FOTO.D0)) / (1 + 1.1 * ax * ax);
-    return Math.min(1.12, (1 - Math.exp(-0.5 * L * FOTO.EXPO)) / 0.5 * 0.88);
+    let k = Math.min(1.12, (1 - Math.exp(-0.5 * L * FOTO.EXPO)) / 0.5 * 0.88);
+    if (escuro) {                                   // sem flash: só a lanterna, de perto
+      const ang = Math.abs(Math.atan(ax)), t = Math.max(0, Math.min(1, (ang - 0.3) / 0.3));
+      k *= 0.32 * (1 - t * 0.8) * Math.max(0.15, 1 - dep / 14);
+    }
+    return k;
   };
 
   // --- sprites: fantasmas, refis, MÓVEIS ---
@@ -658,6 +783,9 @@ function renderPhoto(px, py, dir) {
   // a grade do elevador (o poço existe em todo andar)
   { const ec = roomCenter(ELEV_ROOM);
     sprites.push({ x: ec.x, y: ELEV_ROOM.y + 0.6, kind: "prop", tipo: "grade", h: 4.9, base: 0 }); }
+  // candelabros do andar (acesos ou não)
+  for (const cd of fl().candelabros || [])
+    sprites.push({ x: cd.x, y: cd.y, kind: "cande", cd });
   // o hall: a lamparina e os quadros de quem ficou (parede — só a foto mostra)
   if (world.cur === 1 && world.lamp)
     sprites.push({ x: world.lamp.x, y: world.lamp.y, kind: "prop",
@@ -694,9 +822,17 @@ function renderPhoto(px, py, dir) {
   sprites.sort((a, b) =>
     Math.hypot(b.x - px, b.y - py) - Math.hypot(a.x - px, a.y - py));
 
+  // a CÓPIA LIMPA (sem vultos): é o que fica na foto quando uma alma é convertida
+  const temVulto = !!window._fotoAlmas && sprites.some(sp => sp.kind === "ghost");
+  let cv2 = null, cc = c;
+  if (temVulto) {
+    cv2 = document.createElement("canvas"); cv2.width = cv.width; cv2.height = cv.height;
+    cv2.getContext("2d").drawImage(cv, 0, 0);
+    cc = teeCtx(c, cv2.getContext("2d"));
+  }
   const areaH = PH;
-  c.save();
-  c.beginPath(); c.rect(FR, FR, PW, PH); c.clip();   // nada vaza para a moldura
+  cc.save();
+  cc.beginPath(); cc.rect(FR, FR, PW, PH); cc.clip();   // nada vaza para a moldura
   for (const s of sprites) {
     const dx = s.x - px, dy = s.y - py;
     const tx = invDet * (dirY * dx - dirX * dy);
@@ -705,7 +841,7 @@ function renderPhoto(px, py, dir) {
     const sxCol = (Wc / 2) * (1 + tx / ty);
     if (sxCol < -Wc * 0.3 || sxCol > Wc * 1.3) continue;
     const centerX = FR + sxCol * CWc;
-    const bright = Math.max(0, 1 - ty / 24);      // ALCANCE das pistas (lógica)
+    const bright = Math.max(0, 1 - ty / (escuro ? 10 : 24));   // ALCANCE das pistas (lógica)
     if (bright <= 0.03) continue;
     const k = luzK(ty, sxCol);                    // brilho visual sob o flash
     const cell = fP / ty;                         // px por célula nesta distância
@@ -745,18 +881,44 @@ function renderPhoto(px, py, dir) {
       const topY = floorPx - hPx * 0.97;
       const kk = Math.min(1, k);
       const glow = GLOW_SPR || (GLOW_SPR = makeGlowSprite());
-      blitOccluded(c, glow, zbuf, ty, centerX, topY - hPx * 0.04,
+      // o VULTO (eco) não entra na cópia limpa; entra em c e numa camada só dele
+      let lay = null, cg = cc;
+      if (s.kind === "ghost") {
+        cg = c;
+        if (temVulto) {
+          lay = document.createElement("canvas"); lay.width = cv.width; lay.height = cv.height;
+          const lc = lay.getContext("2d");
+          lc.beginPath(); lc.rect(FR, FR, PW, PH); lc.clip();
+          cg = teeCtx(c, lc);
+        }
+      }
+      blitOccluded(cg, glow, zbuf, ty, centerX, topY - hPx * 0.04,
                    wPx * 1.3, hPx * 1.05, 0.14 + kk * 0.22, Wc, CWc, FR);
       // a presença nunca sai nítida: um rastro de exposição dupla
       const rastro = (Math.random() < 0.5 ? -1 : 1) * (3 + Math.random() * 7);
-      blitOccluded(c, spr, zbuf, ty, centerX + rastro, topY + Math.random() * 3,
+      blitOccluded(cg, spr, zbuf, ty, centerX + rastro, topY + Math.random() * 3,
                    wPx * 1.03, hPx, 0.16 + kk * 0.14, Wc, CWc, FR);
-      blitOccluded(c, spr, zbuf, ty, centerX, topY, wPx, hPx,
+      blitOccluded(cg, spr, zbuf, ty, centerX, topY, wPx, hPx,
                    Math.min(1, 0.34 + kk * 0.7), Wc, CWc, FR);
+      if (s.kind === "ghost" && window._fotoAlmas)   // onde a figura ficou na foto
+        window._fotoAlmas.push({ gh: s.gh, x: centerX, y: topY, w: wPx, h: hPx, lay });
+    } else if (s.kind === "cande") {
+      const n = world.flags.velas[s.cd.id] || 0;
+      const spr = candelabroSprite(n);
+      const hPx = Math.min(areaH * 1.5, 3.1 * cell), wPx = hPx * (spr.width / spr.height);
+      const shH = Math.max(3, fP * FOTO.EYE / (ty * ty) * 1.2);
+      blitOccluded(cc, sombraSprite(), zbuf, ty, centerX, floorPx - shH * 0.62,
+                   wPx * 1.1, shH, 0.6, Wc, CWc, FR);
+      blitLit(cc, spr, zbuf, ty, centerX, floorPx - hPx, wPx, hPx, Math.max(k, n ? 0.55 : 0), Wc, CWc, FR);
+      if (n) {                                       // o fogo azul ilumina em volta
+        const gl = GLOW_AZUL || (GLOW_AZUL = makeGlowSprite("azul"));
+        blitOccluded(cc, gl, zbuf, ty, centerX, floorPx - hPx * 1.05,
+                     wPx * (1.6 + n * 0.5), hPx * (0.6 + n * 0.12), 0.18 + n * 0.1, Wc, CWc, FR);
+      }
     } else if (s.kind === "film") {
       const spr = FILM_SPR || (FILM_SPR = makeFilmSprite());
       const hPx = Math.min(areaH * 0.7, 0.9 * cell);
-      blitOccluded(c, spr, zbuf, ty, centerX, floorPx - hPx, hPx, hPx,
+      blitOccluded(cc, spr, zbuf, ty, centerX, floorPx - hPx, hPx, hPx,
                    Math.min(1, 0.3 + k * 0.7), Wc, CWc, FR);
     } else if (s.kind === "furn") {
       const ft = FURN_TYPES[s.furn.type];
@@ -773,9 +935,9 @@ function renderPhoto(px, py, dir) {
       // sombra de contato: o móvel PISA no chão
       const fundoCells = (ft.w * Math.abs(ux2) + ft.h * Math.abs(uy2)) * 0.5 + 0.3;
       const shH = Math.max(3, fP * FOTO.EYE / (ty * ty) * fundoCells * 2);
-      blitOccluded(c, sombraSprite(), zbuf, ty, centerX, floorPx - shH * 0.62,
+      blitOccluded(cc, sombraSprite(), zbuf, ty, centerX, floorPx - shH * 0.62,
                    wPx * 1.16, shH, 0.7, Wc, CWc, FR);
-      blitLit(c, spr, zbuf, ty, centerX, floorPx - hPx, wPx, hPx, k, Wc, CWc, FR);
+      blitLit(cc, spr, zbuf, ty, centerX, floorPx - hPx, wPx, hPx, k, Wc, CWc, FR);
       // MODO PUZZLE (sem ecos): fotografar O piano desperta a Olívia
       if (typeof noGhosts !== "undefined" && noGhosts &&
           world.pianoOlivia && s.furn.type === "piano" &&
@@ -791,9 +953,10 @@ function renderPhoto(px, py, dir) {
           world.flags.souls.cecilia &&
           world.flags.souls.cecilia.state === "dormant" && bright > 0.25) {
         if (ty < zAqui + 0.6) {
+          fotoPista("o reflexo no espelho", true);
           const gspr = soulSprite("cecilia");
           const ghPx = hPx * 0.85;
-          blitOccluded(c, gspr, zbuf, ty, centerX, floorPx - hPx * 0.95,
+          blitOccluded(cc, gspr, zbuf, ty, centerX, floorPx - hPx * 0.95,
                        ghPx * (gspr._aspect || 0.72), ghPx,
                        0.30, Wc, CWc, FR);
           window._espelhoPend = world.cur;
@@ -805,18 +968,20 @@ function renderPhoto(px, py, dir) {
       const wPx = hPx * (spr.width / spr.height);
       if (s.base === 0) {
         const shH = Math.max(3, fP * FOTO.EYE / (ty * ty) * 1.6);
-        blitOccluded(c, sombraSprite(), zbuf, ty, centerX, floorPx - shH * 0.62,
+        blitOccluded(cc, sombraSprite(), zbuf, ty, centerX, floorPx - shH * 0.62,
                      wPx * 1.16, shH, 0.7, Wc, CWc, FR);
       }
-      blitLit(c, spr, zbuf, ty, centerX, yAt(s.base + s.h, ty), wPx, hPx, k, Wc, CWc, FR);
+      blitLit(cc, spr, zbuf, ty, centerX, yAt(s.base + s.h, ty), wPx, hPx, k, Wc, CWc, FR);
     } else if (s.kind === "mark") {
       // sem a LENTE NOVA a foto sai rachada: dá pra ver QUE tem algo, não O QUÊ
       const nitida = world.flags.cam.lente;
       const spr = nitida ? digitSprite(s.mk.digit, s.mk.ord) : smudgeSprite();
       const hPx = Math.min(areaH * 0.9, 2.3 * cell);
       const wPx = hPx * 0.73;
-      blitOccluded(c, spr, zbuf, ty, centerX, yAt(4.1, ty), wPx, hPx,
+      blitOccluded(cc, spr, zbuf, ty, centerX, yAt(4.1, ty), wPx, hPx,
                    Math.min(1, 0.3 + k * 0.7), Wc, CWc, FR);
+      if (nitida && bright > 0.25 && Math.abs(sxCol - Wc / 2) < Wc * 0.45 && ty < zAqui + 0.6)
+        fotoPista(tf("dígito nº {0} do cofre", s.mk.ord), !s.mk.seen);
       if (nitida && bright > 0.25 && Math.abs(sxCol - Wc / 2) < Wc * 0.45 &&
           ty < zAqui + 0.6 && !s.mk.seen) {        // só conta se a marca saiu na foto
         s.mk.seen = true;                          // o chat para de dar essa dica
@@ -832,8 +997,10 @@ function renderPhoto(px, py, dir) {
       const wPx = hPx * 0.78;
       // o autorretrato do Blackwood está NO cavalete; os outros, no chão
       const topRet = s.ret.soul === "blackwood" ? yAt(2.95, ty) : floorPx - hPx * 1.02;
-      blitLit(c, spr, zbuf, ty, centerX, topRet, wPx, hPx,
+      blitLit(cc, spr, zbuf, ty, centerX, topRet, wPx, hPx,
               Math.max(k, 0.35), Wc, CWc, FR);
+      if (bright > 0.2 && ty < zAqui + 0.6)
+        fotoPista(tf("retrato de {0}", tr(SOUL_DEFS[s.ret.soul].nome)), !world.flags.retSeen.includes(s.ret.id));
       if (bright > 0.2 && ty < zAqui + 0.6 &&
           !world.flags.retSeen.includes(s.ret.id)) {
         world.flags.retSeen.push(s.ret.id);
@@ -846,7 +1013,8 @@ function renderPhoto(px, py, dir) {
       const spr = molduraSprite(s.alma, est);
       const hPx = Math.min(areaH * 0.9, 1.9 * cell);
       const wPx = hPx * (spr.width / spr.height);
-      blitLit(c, spr, zbuf, ty, centerX, yAt(4.4, ty), wPx, hPx, Math.max(k, 0.3), Wc, CWc, FR);
+      blitLit(cc, spr, zbuf, ty, centerX, yAt(4.4, ty), wPx, hPx, Math.max(k, 0.3), Wc, CWc, FR);
+      if (bright > 0.25 && ty < zAqui + 0.9) fotoPista("as molduras do ateliê", false);
       if (bright > 0.25 && ty < zAqui + 0.9 && !live.hinted.has("molduras")) {
         live.hinted.add("molduras");
         livePush(liveRandUser(), "SETE molduras na parede do estúdio. uma pra cada um deles");
@@ -856,8 +1024,9 @@ function renderPhoto(px, py, dir) {
       const spr = quadroAntSprite();
       const hPx = Math.min(areaH * 0.9, 1.95 * cell);
       const wPx = hPx * (spr.width / spr.height);
-      blitLit(c, spr, zbuf, ty, centerX, yAt(4.35, ty), wPx, hPx,
+      blitLit(cc, spr, zbuf, ty, centerX, yAt(4.35, ty), wPx, hPx,
               Math.max(k, 0.3), Wc, CWc, FR);
+      if (bright > 0.2 && ty < zAqui + 0.9) fotoPista("quem veio antes", !world.flags.antVistos.includes(s.q.id));
       if (bright > 0.2 && ty < zAqui + 0.9 && !world.flags.antVistos.includes(s.q.id)) {
         world.flags.antVistos.push(s.q.id);
         quadroAntVisto(s.q);
@@ -866,8 +1035,9 @@ function renderPhoto(px, py, dir) {
       const spr = chainsSprite(chainsBroken());
       const wPx = cell * 3.4;
       const hPx = FOTO.DOOR_H * cell;
-      blitOccluded(c, spr, zbuf, ty, centerX, floorPx - hPx, wPx, hPx,
+      blitOccluded(cc, spr, zbuf, ty, centerX, floorPx - hPx, wPx, hPx,
                    Math.min(1, 0.4 + k * 0.6), Wc, CWc, FR);
+      if (bright > 0.2 && ty < zAqui + 1.2) fotoPista("as correntes da porta", !live.hinted.has("chainsSeen"));
       if (bright > 0.2 && ty < zAqui + 1.2 && !live.hinted.has("chainsSeen")) {
         live.hinted.add("chainsSeen");
         livePush(liveRandUser(), "A PORTA TÁ ACORRENTADA NA FOTO?!?!");
@@ -878,10 +1048,11 @@ function renderPhoto(px, py, dir) {
       const spr = stairSprite(s.up);
       const wPx = cell * 2.1;
       const hPx = 4.8 * cell;
-      blitLit(c, spr, zbuf, ty, centerX, floorPx - hPx, wPx, hPx,
+      blitLit(cc, spr, zbuf, ty, centerX, floorPx - hPx, wPx, hPx,
               Math.max(k, 0.3), Wc, CWc, FR);
       if (bright > 0.2 && ty < zAqui + 0.8) {
         if (!world.flags.stairsSeen) world.flags.stairsSeen = [];
+        fotoPista("a escada escondida", !world.flags.stairsSeen.includes(s.key));
         if (!world.flags.stairsSeen.includes(s.key)) {
           world.flags.stairsSeen.push(s.key);   // a FOTO denunciou a escada
           livePush(liveRandUser(), "TEM UMA ESCADA NA FOTO!! dentro da parede!!");
@@ -892,13 +1063,26 @@ function renderPhoto(px, py, dir) {
       // o olho riscado: só sai com a LENTE NOVA (a rachada borra tudo)
       const spr = world.flags.cam.lente ? sinalSprite() : smudgeSprite();
       const hPx = Math.min(areaH * 0.7, 1.9 * cell);
-      blitOccluded(c, spr, zbuf, ty, centerX, yAt(4.15, ty),
+      blitOccluded(cc, spr, zbuf, ty, centerX, yAt(4.15, ty),
                    hPx, hPx, Math.min(1, 0.3 + k * 0.7), Wc, CWc, FR);
-      if (world.flags.cam.lente && bright > 0.25 && ty < zAqui + 0.6)
+      if (world.flags.cam.lente && bright > 0.25 && ty < zAqui + 0.6) {
+        fotoPista("o sinal do Hóspede", world.flags.souls.hospede.state === "dormant");
         soulsOnSinal(world.cur);
+      }
     }
   }
-  c.restore();
+  cc.restore();
+  // cada vulto guarda o fundo limpo sob ele e os próprios pixels (para sumir depois)
+  if (cv2) for (const m of window._fotoAlmas) {
+    const fx = Math.max(FR, Math.round(m.x - m.w * 0.8)), fy = Math.max(FR, Math.round(m.y - m.h * 0.12));
+    const fx1 = Math.min(FR + PW, Math.round(m.x + m.w * 0.8)), fy1 = Math.min(FR + PH, Math.round(m.y + m.h * 1.08));
+    if (m.lay && fx1 - fx > 2 && fy1 - fy > 2) {
+      m.fx = fx; m.fy = fy;
+      m.fundo = recorte(cv2, fx, fy, fx1 - fx, fy1 - fy);
+      m.vulto = recorte(m.lay, fx, fy, fx1 - fx, fy1 - fy);
+    }
+    m.lay = null;
+  }
 
   // LENTE DO PASSADO: perto do lugar de uma alma, a foto volta décadas
   let passadoSpot = null;
@@ -915,7 +1099,8 @@ function renderPhoto(px, py, dir) {
     }
   }
 
-  if (!FOTO.rapido) filmePass(cv, FR, FR, PW, PH, !!passadoSpot);
+  window._fotoSepia = !!passadoSpot; window._fotoQuimica = null;
+  if (!FOTO.rapido) filmePass(cv, FR, FR, PW, PH, !!passadoSpot, escuro);
 
   // a legenda do passado: escrita à mão sobre a emulsão, como num verso de foto
   if (passadoSpot) {
@@ -927,6 +1112,7 @@ function renderPhoto(px, py, dir) {
     c.fillText(PASSADO_TXT[passadoSpot.soul] || "", FR + 10, FR + PH - 16);
     c.restore();
     const hid = "pass_" + passadoSpot.soul;
+    fotoPista(tf("legenda do passado: {0}", tr(PASSADO_TXT[passadoSpot.soul] || "")), !live.hinted.has(hid));
     if (!live.hinted.has(hid)) {
       live.hinted.add(hid);
       livePush(liveRandUser(), tf("a legenda da foto… “{0}”",
@@ -942,7 +1128,8 @@ function renderPhoto(px, py, dir) {
   c.textAlign = "left"; c.textBaseline = "middle";
   c.font = "italic 21px 'Segoe Script', 'Comic Sans MS', cursive";
   c.fillStyle = "rgba(68,60,52,0.88)";
-  c.fillText(tf("foto {0} — {1}", photoCount, tr(FLOOR_NAMES[world.cur]).toLowerCase()), 0, 0);
+  c.fillText(tf(escuro ? "foto {0} — {1} · sem flash" : "foto {0} — {1}",
+                photoCount, tr(FLOOR_NAMES[world.cur]).toLowerCase()), 0, 0);
   c.restore();
   return cv;
 }

@@ -523,7 +523,7 @@ function ghostSprite(seed) {
 // ------------------------------------------------------------------
 // Itens e efeitos
 // ------------------------------------------------------------------
-let FILM_SPR = null, GLOW_SPR = null;
+let FILM_SPR = null, GLOW_SPR = null, GLOW_AZUL = null;
 
 function makeFilmSprite() {
   const s = 120;
@@ -602,15 +602,16 @@ function digitSprite(digit, ord) {
   return cv;
 }
 
-function makeGlowSprite() {
+function makeGlowSprite(cor) {
   const s = 128;
   const cv = document.createElement("canvas");
   cv.width = s; cv.height = s;
   const g = cv.getContext("2d");
   const rad = g.createRadialGradient(s / 2, s / 2, 4, s / 2, s / 2, s / 2 - 2);
-  rad.addColorStop(0, "rgba(255,250,235,0.60)");
-  rad.addColorStop(0.6, "rgba(255,250,235,0.22)");
-  rad.addColorStop(1, "rgba(255,250,235,0)");
+  const c = cor === "azul" ? "120,170,255" : "255,250,235";
+  rad.addColorStop(0, `rgba(${c},0.60)`);
+  rad.addColorStop(0.6, `rgba(${c},0.22)`);
+  rad.addColorStop(1, `rgba(${c},0)`);
   g.fillStyle = rad; g.fillRect(0, 0, s, s);
   return cv;
 }
@@ -1117,7 +1118,7 @@ function hospedeSprite() {
 // ==================================================================
 const PROP_IMGS = {}, PROP_SPRS = {};
 (function loadPropImgs() {
-  for (const k of ["cofre", "quadro", "bancada", "cavalete", "cadeira", "lamparina", "grade"]) {
+  for (const k of ["cofre", "quadro", "bancada", "cavalete", "cadeira", "lamparina", "grade", "candelabro"]) {
     const im = new Image();
     im.onload = () => { PROP_IMGS[k] = keyBlackToAlpha(im); };
     im.onerror = () => {};

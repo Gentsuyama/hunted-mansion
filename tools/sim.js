@@ -110,6 +110,7 @@ function simTick(st, dt) {
       const pouparFilme = ehEco && (world.flags.ecosFotografados || 0) >= 7;
       const estava = world.flags.filmLoaded;
       if (pouparFilme && estava && world.flags.cam.tampa) toggleFilm();
+      simEnergia(st);
       takePhoto();
       if (pouparFilme && estava && !world.flags.filmLoaded) toggleFilm();
     }
@@ -122,6 +123,13 @@ function simTick(st, dt) {
 }
 
 // descansa na lamparina quando a cabeça está baixa (ela cobra um eco a mais)
+// energia do flash: alma do álbum vira bateria; sem alma, repõe e anota
+function simEnergia(st) {
+  if (bateria > 2) return;
+  if (world.flags.cam.ampola) armazenarTodas();
+  while (bateria <= BAT.max - BAT.porAlma && world.flags.almas > 0) recarregar();
+  if (bateria <= 0) { bateria = 1; st.bateriaReposta = (st.bateriaReposta || 0) + 1; }
+}
 function simDescansa(st) {
   if (state !== "play" || (sanity >= 45 && sanTeto() > 36)) return;
   if (world.flags.lampOleo <= 0 || world.flags.lampApagada) return;
@@ -219,6 +227,7 @@ function simPhotoAt(st, tx, ty2, pronto) {
     aimDirStick = Math.atan2(ty2 - player.y, tx - player.x);
     flashCd = 0;
     if (film <= 0) film = 1;            // reposição anotada nas métricas
+    simEnergia(st);
     if (!world.flags.filmLoaded) toggleFilm();
     takePhoto();
     if (state === "vinheta") vinhetaAdvance();
@@ -286,6 +295,7 @@ function simCaca(st, id) {
       aimDirStick = Math.atan2(e.y - player.y, e.x - player.x);
       if (flashCd <= 0) {
         if (film <= 0) film = 1;        // reposição anotada nas métricas
+        simEnergia(st);
         if (!world.flags.filmLoaded) toggleFilm();
         takePhoto(); st.fotosDeAlma++;
         if (state === "vinheta") vinhetaAdvance();
@@ -366,6 +376,7 @@ function simCacaEcos(st) {
     aimSource = "stick";
     aimDirStick = Math.atan2(g.y - player.y, g.x - player.x);
     flashCd = 0; if (film <= 0) film = 1;
+    simEnergia(st);
     if (!world.flags.filmLoaded) toggleFilm();
     takePhoto();
   }
@@ -491,6 +502,7 @@ function simRun(policy, useNoGhosts) {
       simGotoPoint(st, ss1.x + ss1.w / 2, ss1.y + ss1.h / 2, B);
       simPegaItem(st, "lente");
     }
+    if (state === "play" && !world.flags.cam.ampola) simPegaItem(st, "ampola");
     marcasECofre();
     // ATO 2: porão (fusíveis, Bento, obturador, chave) — ANTES de acordar
     // mais almas, para já poder capturar cada uma assim que despertar

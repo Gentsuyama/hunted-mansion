@@ -425,6 +425,8 @@ function liveProximoPasso() {
     return { m: "a TAMPA da câmera tá no hall de entrada, brilhando no chão", f: 1 };
   if (it("lente"))
     return { m: tf("pesquisei a casa: a LENTE nova ficou no {0}, numa sala atrás de PAREDE FALSA. fotografa as paredes", an(1)), f: 1 };
+  if (it("ampola") && bateria <= 2)
+    return { m: tf("a AMPOLA de prata (a que guarda almas) ficou numa sala do {0}", an(2)), f: 2 };
   if (it("key") || it("obturador"))
     return { m: tf("a CHAVE e o OBTURADOR ficaram no {0}, numa sala atrás de parede falsa", an(0)), f: 0 };
   // uma alma já no retrato vem antes de tudo

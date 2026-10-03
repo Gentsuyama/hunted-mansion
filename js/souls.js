@@ -136,7 +136,7 @@ function soulsInit() {
   if (!world.flags.souls) world.flags.souls = {};
   if (!world.flags.retSeen) world.flags.retSeen = [];
   if (!world.flags.cam)
-    world.flags.cam = { tampa: false, lente: false, obturador: false };
+    world.flags.cam = { tampa: false, lente: false, obturador: false, ampola: false };
   if (world.flags.filmLoaded === undefined) world.flags.filmLoaded = true;
   if (world.flags.filmBonus === undefined) world.flags.filmBonus = 0;
   for (const id of SOUL_IDS_ACTIVE)
@@ -467,15 +467,18 @@ function soulsUpdate(dt) {
 
 // --- FLASH sobre uma alma ------------------------------------------
 // Retorna true se alguma alma estava no cone (p/ feedback).
-function soulsOnFlash(dir, fotoReal) {
+function soulsOnFlash(dir, fotoReal, comFlash) {
+  if (comFlash === undefined) comFlash = true;
   let hit = false;
   // Seu Bento OUVE o flash no andar inteiro e vai atrás da luz
-  for (const e of soulEnts)
-    if (e.id === "bento" && e.floor === world.cur) e.rageT = 6;
+  if (comFlash)
+    for (const e of soulEnts)
+      if (e.id === "bento" && e.floor === world.cur) e.rageT = 6;
   for (let i = soulEnts.length - 1; i >= 0; i--) {
     const e = soulEnts[i];
     if (e.floor !== world.cur) continue;
-    if (!inFlashCone(e.x, e.y, dir)) continue;
+    // sem flash, a foto só alcança perto
+    if (!inFlashCone(e.x, e.y, dir, comFlash ? 1 : 0.2)) continue;
     hit = true;
     const temRetrato = world.taken.has("ret_" + e.id);
     if (fotoReal && temRetrato && world.flags.cam.obturador &&
@@ -515,6 +518,7 @@ function soulsOnFlash(dir, fotoReal) {
       live.viewers += 80;
       saveRun();
     } else {
+      if (!comFlash) continue;         // no escuro não há clarão: nada é empurrado
       // só ARREMESSA para trás (sem retrato/obturador/filme não prende);
       // recua o empurrão até NÃO terminar dentro de parede (senão a alma
       // fica sem linha de visão e vira incapturável)

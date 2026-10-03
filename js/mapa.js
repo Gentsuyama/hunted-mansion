@@ -39,6 +39,11 @@ function mapaLuzChao(c0, c1, r0, r1) {
   const RG = fl().rugGrid;
   const porao = world.cur === 0;
   const lp = lampAcesa() ? world.lamp : null;
+  const CANDS = [];                                // fogo azul: candelabros acesos deste andar
+  for (const cd of fl().candelabros || []) {
+    const n = world.flags.velas[cd.id] || 0;
+    if (n) CANDS.push({ x: cd.x, y: cd.y, r: velaRaio(n) + 1 });
+  }
   for (let cy = r0; cy <= r1; cy++)
     for (let cx = c0; cx <= c1; cx++) {
       const idx = cy * COLS + cx, o = ((cy - r0) * w + (cx - c0)) << 2;
@@ -67,6 +72,10 @@ function mapaLuzChao(c0, c1, r0, r1) {
       } else if (porao) { r = 128; g = 130; b = 126; k = 0.40; }
       if (porao && cx >= DARKROOM.x && cx < DARKROOM.x + DARKROOM.w &&
           cy >= DARKROOM.y && cy < DARKROOM.y + DARKROOM.h) { r = 206; g = 50; b = 42; k = 0.5; }
+      for (const cd of CANDS) {                      // o fogo azul esfria o chão
+        const q = 1 - Math.hypot(cx + 0.5 - cd.x, cy + 0.5 - cd.y) / cd.r;
+        if (q > 0) { r += (96 - r) * q * 0.75; g += (150 - g) * q * 0.75; b += (255 - b) * q * 0.75; k += 0.12 * q; }
+      }
       if (lp) {                                      // a lamparina aquece o chão
         const q = 1 - Math.hypot(cx + 0.5 - lp.x, cy + 0.5 - lp.y) / LAMP_RAIO;
         if (q > 0) { r += (236 - r) * q * 0.8; g += (168 - g) * q * 0.8; b += (84 - b) * q * 0.8; k += 0.14 * q; }
@@ -162,95 +171,18 @@ function mapaParedes(c0, c1, r0, r1) {
 // ------------------------------------------------------------------
 function mapaMoveis() {
   const C = CELL;
-  ctx.lineCap = "round"; ctx.lineJoin = "round";
   for (const fu of fl().furn) {
     let L = 0;
     for (const [ci, cj] of fu.cells) L = Math.max(L, light[cj * COLS + ci]);
     if (L <= 0.03) continue;
-    L = Math.min(1, L * 1.25);
     const ft = FURN_TYPES[fu.type];
-    const x = (fu.x - ft.w / 2) * C + 1.4, y = (fu.y - ft.h / 2) * C + 1.4;
-    const w = ft.w * C - 2.8, h = ft.h * C - 2.8;
-    const b = 70 + 185 * L;
-    ctx.fillStyle = `rgba(14,11,7,${(0.5 + 0.35 * L).toFixed(2)})`;
-    ctx.strokeStyle = `rgb(${b | 0},${(b * 0.8) | 0},${(b * 0.42) | 0})`;
-    ctx.lineWidth = 1.35;
-    ctx.beginPath();
-    switch (fu.type) {
-      case "sofa":
-        mapaRR(x, y, w, h, 2.5); ctx.fill();
-        ctx.moveTo(x + 1.5, y + h * 0.36); ctx.lineTo(x + w - 1.5, y + h * 0.36);
-        ctx.moveTo(x + w / 3, y + h * 0.36); ctx.lineTo(x + w / 3, y + h);
-        ctx.moveTo(x + 2 * w / 3, y + h * 0.36); ctx.lineTo(x + 2 * w / 3, y + h);
-        break;
-      case "mesa":
-        mapaRR(x, y, w, h, 2); ctx.fill();
-        ctx.rect(x + 3.2, y + 3.2, w - 6.4, h - 6.4);
-        break;
-      case "estante":
-        ctx.rect(x, y, w, h); ctx.fill();
-        for (let i = 1; i < 6; i++) {
-          ctx.moveTo(x + w * i / 6, y + 1.5); ctx.lineTo(x + w * i / 6, y + h - 1.5);
-        }
-        break;
-      case "cadeira":
-        mapaRR(x + 0.6, y + 2, w - 1.2, h - 2.4, 1.6); ctx.fill();
-        ctx.moveTo(x + 0.6, y + 0.4); ctx.lineTo(x + w - 0.6, y + 0.4);
-        break;
-      case "piano":
-        ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + h * 0.5);
-        ctx.quadraticCurveTo(x + w * 0.95, y + h, x + w * 0.48, y + h);
-        ctx.quadraticCurveTo(x, y + h, x, y + h * 0.62);
-        ctx.closePath(); ctx.fill();
-        ctx.rect(x + 1.8, y + 1.6, w - 3.6, 3);
-        for (let i = 1; i < 7; i++) {
-          ctx.moveTo(x + 1.8 + (w - 3.6) * i / 7, y + 1.6);
-          ctx.lineTo(x + 1.8 + (w - 3.6) * i / 7, y + 4.6);
-        }
-        break;
-      case "cama":
-        mapaRR(x, y, w, h, 2); ctx.fill();
-        mapaRR(x + 1.6, y + 1.6, w / 2 - 2.4, 5, 1.2);
-        mapaRR(x + w / 2 + 0.8, y + 1.6, w / 2 - 2.4, 5, 1.2);
-        ctx.moveTo(x, y + h * 0.36); ctx.lineTo(x + w, y + h * 0.36);
-        ctx.moveTo(x + w * 0.62, y + h * 0.36); ctx.lineTo(x + w, y + h * 0.5);
-        break;
-      case "poltrona":
-        mapaRR(x, y, w, h, 2.6); ctx.fill();
-        mapaRR(x + 2, y + 2.6, w - 4, h - 3.4, 1.4);
-        break;
-      case "bau":
-        mapaRR(x, y, w, h, 1.4); ctx.fill();
-        ctx.moveTo(x, y + h / 2); ctx.lineTo(x + w, y + h / 2);
-        ctx.moveTo(x + w / 2 + 1.3, y + h / 2); ctx.arc(x + w / 2, y + h / 2, 1.3, 0, 7);
-        break;
-      case "escrivaninha":
-        ctx.rect(x, y, w, h); ctx.fill();
-        ctx.moveTo(x + w * 0.58, y); ctx.lineTo(x + w * 0.58, y + h);
-        ctx.moveTo(x + w * 0.58, y + h / 2); ctx.lineTo(x + w, y + h / 2);
-        break;
-      case "relogio":
-        ctx.arc(x + w / 2, y + h / 2, w / 2, 0, 7); ctx.fill();
-        ctx.moveTo(x + w / 2, y + h / 2); ctx.lineTo(x + w / 2, y + 1.6);
-        ctx.moveTo(x + w / 2, y + h / 2); ctx.lineTo(x + w * 0.76, y + h * 0.6);
-        break;
-      case "espelho":
-        ctx.ellipse(x + w / 2, y + h / 2, w / 2, h * 0.24, 0, 0, 7); ctx.fill();
-        ctx.moveTo(x + w * 0.3, y + h / 2); ctx.lineTo(x + w * 0.7, y + h / 2);
-        break;
-      case "berco":
-        ctx.rect(x, y, w, h); ctx.fill();
-        for (let i = 1; i < 6; i++) {
-          ctx.moveTo(x + w * i / 6, y); ctx.lineTo(x + w * i / 6, y + 2.6);
-          ctx.moveTo(x + w * i / 6, y + h - 2.6); ctx.lineTo(x + w * i / 6, y + h);
-        }
-        ctx.rect(x + 2.6, y + 2.6, w - 5.2, h - 5.2);
-        break;
-      default:
-        ctx.rect(x, y, w, h); ctx.fill();
-    }
-    ctx.stroke();
+    // móvel pequeno é desenhado um pouco maior que o footprint: símbolo tem que ler
+    const esc = ft.w * ft.h <= 1 ? 1.4 : ft.w * ft.h <= 2 ? 1.2 : 1.06;
+    ctx.globalAlpha = Math.min(1, L * 1.3);
+    ctx.drawImage(plantaSprite(fu.type), (fu.x - ft.w * esc / 2) * C, (fu.y - ft.h * esc / 2) * C,
+                  ft.w * esc * C, ft.h * esc * C);
   }
+  ctx.globalAlpha = 1;
 }
 
 // ------------------------------------------------------------------

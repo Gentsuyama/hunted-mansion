@@ -380,3 +380,61 @@ function sfxMotivo(id, vol, pan) {
   if (!AC || !MOTIVO[id]) return;
   MOTIVO[id](saidaEm(Math.max(0.05, Math.min(1, vol)), pan), AC.currentTime);
 }
+
+// a alma sai da foto e entra na câmera: um sopro para dentro e um sino abafado
+function sfxGuarda() {
+  if (!AC) return;
+  const t = AC.currentTime;
+  const n = AC.createBufferSource(); n.buffer = noiseBuf(0.7);
+  const f = AC.createBiquadFilter(); f.type = "bandpass"; f.Q.value = 2.5;
+  f.frequency.setValueAtTime(2600, t);
+  f.frequency.exponentialRampToValueAtTime(260, t + 0.6);
+  n.connect(f); f.connect(envGain(0.2, 0.65)); n.start(t);
+  for (const fr of [1046.5, 1568]) {
+    const o = AC.createOscillator(); o.type = "sine"; o.frequency.value = fr;
+    const g = AC.createGain();
+    g.gain.setValueAtTime(0.0001, t + 0.45);
+    g.gain.exponentialRampToValueAtTime(0.05, t + 0.5);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.6);
+    o.connect(g); g.connect(master); o.start(t + 0.45); o.stop(t + 1.65);
+  }
+}
+// a alma vira bateria: zumbido elétrico que sobe e trava
+function sfxRecarga() {
+  if (!AC) return;
+  const t = AC.currentTime;
+  const o = AC.createOscillator(); o.type = "sawtooth";
+  o.frequency.setValueAtTime(90, t);
+  o.frequency.exponentialRampToValueAtTime(420, t + 0.5);
+  const lp = AC.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 900;
+  const g = AC.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.08, t + 0.08);
+  g.gain.setValueAtTime(0.08, t + 0.5);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.62);
+  o.connect(lp); lp.connect(g); g.connect(master); o.start(t); o.stop(t + 0.65);
+  const c = AC.createOscillator(); c.type = "square"; c.frequency.value = 1800;
+  c.connect(envGain(0.04, 0.05)); c.start(t + 0.5); c.stop(t + 0.56);
+}
+// a vela acende com fogo azul: um sopro e uma nota que fica
+function sfxVela() {
+  if (!AC) return;
+  const t = AC.currentTime;
+  const n = AC.createBufferSource(); n.buffer = noiseBuf(0.4);
+  const f = AC.createBiquadFilter(); f.type = "highpass"; f.frequency.value = 1800;
+  n.connect(f); f.connect(envGain(0.12, 0.3)); n.start(t);
+  const o = AC.createOscillator(); o.type = "sine"; o.frequency.value = 659;
+  const g = AC.createGain();
+  g.gain.setValueAtTime(0.0001, t + 0.1);
+  g.gain.exponentialRampToValueAtTime(0.06, t + 0.3);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 2.2);
+  o.connect(g); g.connect(master); o.start(t + 0.1); o.stop(t + 2.3);
+}
+// obturador sem flash: só o clique mecânico
+function sfxObturadorSeco() {
+  if (!AC) return;
+  const o = AC.createOscillator(); o.type = "square"; o.frequency.value = 700;
+  o.connect(envGain(0.07, 0.04)); o.start(); o.stop(AC.currentTime + 0.04);
+  const o2 = AC.createOscillator(); o2.type = "square"; o2.frequency.value = 520;
+  o2.connect(envGain(0.05, 0.03)); o2.start(AC.currentTime + 0.07); o2.stop(AC.currentTime + 0.1);
+}

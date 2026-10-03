@@ -24,6 +24,13 @@ const PLAYER_SPEED  = 10;
 const PLAYER_RADIUS = 0.42;
 // a câmera é achada SEM TAMPA, mas o bolso já tem UM rolo
 const FILM_START = 1, FILM_MAX = 12, FILM_REFILL = 3;
+const FILME_RESPAWN = 60;                    // segundos até a casa repor um rolo pego
+// BATERIA do flash: cada disparo gasta uma carga; sem carga a foto sai NO ESCURO.
+// Alma guardada na câmera recarrega (porAlma); a câmera guarda até almasMax
+const BAT = { max: 10, inicio: 10, porAlma: 5, almasMax: 12 };
+// CANDELABROS: até 5 almas viram fogo azul; 1 vela acende só o castiçal,
+// 5 alcançam metade do facho da lanterna
+const VELAS = { max: 5, raio0: 2.5, passo: 3.6, porAndar: 2 };
 const ALBUM_MAX  = 24;
 const GHOST_SPEED = 3.6, GHOST_DMG = 40;
 // pressão dos ecos (ajustável para testes de balanceamento):
@@ -85,7 +92,7 @@ const cam    = { x: 750, y: 480 };
 let camZoom  = IS_TOUCH ? 2.0 : 1.7;
 const keys   = new Set();
 
-let film = FILM_START, sanity = 100;
+let film = FILM_START, sanity = 100, bateria = BAT.inicio;
 let flashT = 0, flashDir = 0, flashCd = 0;
 let attractT = 0, shake = 0, flickDip = 0, eventT = 14, hbT = 0, dmgSfxT = 0;
 let particles = [];
@@ -149,7 +156,7 @@ function hasLOS(x0, y0, x1, y1) {
 const SAVE_KEY = "hm_run";
 // muda quando a GERAÇÃO da casa muda: a mesma seed passa a dar outra mobília,
 // então um save antigo recolocaria o jogador dentro de um móvel
-const SAVE_V = 3;
+const SAVE_V = 4;
 
 function saveRun() {
   if (!world) return;
@@ -157,7 +164,7 @@ function saveRun() {
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       v: SAVE_V, seed: world.seed, cur: world.cur,
       px: player.x, py: player.y,
-      film, sanity, photoCount,
+      film, sanity, bateria, photoCount,
       taken: [...world.taken],
       flags: world.flags,
       timeSec: world.timeSec,

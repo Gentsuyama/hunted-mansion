@@ -33,7 +33,9 @@ function genWorld(seed) {
              key: false, secretsFound: [], marksSeen: [],
              // a lamparina do hall, a primeira queda e os que vieram antes
              lampOleo: LAMP_OLEO, lampApagada: false, ecosExtras: [],
-             quase: false, feridas: 0, anteriores: [], antVistos: [], liveN: 1 },
+             quase: false, feridas: 0, anteriores: [], antVistos: [], liveN: 1,
+             // energia das almas: guardadas na câmera, velas acesas, rolos a repor
+             almas: 0, velas: {}, filmePend: [] },
   };
   const rng = mulberry32(seed ^ 0x51f3a9);
   // código do cofre da run
@@ -93,6 +95,10 @@ function genWorld(seed) {
                   : world.floors[1].freeSpot();
     world.items.push({ id: "lente", kind: "campart", part: "lente",
       floor: 1, x: lp.x, y: lp.y, taken: false }); }
+  // AMPOLA de prata: onde ele guardava o que a câmera tirava — 1º andar, sala comum
+  { const p = world.floors[2].freeSpot();
+    world.items.push({ id: "ampola", kind: "campart", part: "ampola", floor: 2,
+      x: p.x, y: p.y, taken: false }); }
   // lente do PASSADO: num canto do ateliê, no último andar
   world.items.push({ id: "passado", kind: "campart", part: "passado",
     floor: NFLOORS - 1, x: ATELIER.x + ATELIER.w - 4,
@@ -550,8 +556,15 @@ function genFloor(seed, f) {
   }
   floor.freeSpot = freeSpot;
 
-  // --- refis de filme ---
-  const nFilm = f === 1 ? 3 : 2;
+  // --- CANDELABROS: dois por andar, nas salas comuns (acendem com almas) ---
+  floor.candelabros = [];
+  for (let i = 0; i < VELAS.porAndar; i++) {
+    const p = freeSpot();
+    floor.candelabros.push({ id: f + ":" + i, x: (p.x | 0) + 0.5, y: (p.y | 0) + 0.5 });
+  }
+
+  // --- refis de filme (poucos: a casa repõe, mas devagar) ---
+  const nFilm = f === 1 ? 2 : 1;
   for (let i = 0; i < nFilm; i++) {
     const p = freeSpot();
     floor.films.push({ id: `${f}:${i}`, x: p.x, y: p.y, taken: false });
@@ -589,7 +602,7 @@ function newRun() {
   if (typeof noGhosts !== "undefined" && noGhosts)
     for (const flo of world.floors) flo.ghosts.length = 0;   // modo puzzle
   casaNovaRun();           // lamparina, quadros e o vulto de quem veio antes
-  film = FILM_START; sanity = 100;
+  film = FILM_START; sanity = 100; bateria = BAT.inicio;
   album = []; albumIdx = 0; photoCount = 0;
   albumReturn = "play";
   flashT = 0; flashCd = 0; attractT = 0; particles = [];
@@ -627,6 +640,7 @@ function continueRun() {
   }
   cam.x = player.x * CELL; cam.y = player.y * CELL;
   film = s.film; sanity = s.sanity; photoCount = s.photoCount || 0;
+  bateria = s.bateria === undefined ? BAT.inicio : s.bateria;
   album = []; albumIdx = 0;
   flashT = 0; flashCd = 0; attractT = 0; particles = [];
   if (typeof liveReset === "function") liveReset();

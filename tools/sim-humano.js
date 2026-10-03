@@ -40,17 +40,20 @@ const PERFIS = {
   novato: { nome: "NOVATO", reacao: 0.55, erroMira: 0.28, panico: 0.45, notar: 0.25,
             chat: [0.30, 0.60, 0.92], leitura: 4.5, verFoto: 3.4, curiosa: 0.20,
             perdido: 0.20, ejeta: false, banho: 0.11, fotosDica: 2, olhada: 0.5,
-            sabeLente: false, distFlash: 7.5, lamp: 25, soBote: false, atento: 0.72 },
+            sabeLente: false, distFlash: 7.5, lamp: 25, soBote: false, atento: 0.72,
+            guarda: 0.35, bateriaMin: 0 },
   medio:  { nome: "MÉDIO", reacao: 0.38, erroMira: 0.17, panico: 0.20, notar: 0.40,
             chat: [0.55, 0.85, 0.98], leitura: 3.0, verFoto: 2.4, curiosa: 0.10,
             perdido: 0.10, ejeta: true, banho: 0.08, fotosDica: 3, olhada: 0.75,
-            sabeLente: false, distFlash: 5, lamp: 35, soBote: false, atento: 0.86 },
+            sabeLente: false, distFlash: 5, lamp: 35, soBote: false, atento: 0.86,
+            guarda: 0.70, bateriaMin: 1 },
   // já zerou: sabe as REGRAS (não a planta, que muda a cada run)
   veterano: { nome: "VETERANO", reacao: 0.26, erroMira: 0.10, panico: 0.06, notar: 0.60,
             chat: [0.92, 0.98, 1.0], leitura: 1.2, verFoto: 0.8, curiosa: 0.03,
             perdido: 0.04, ejeta: true, banho: 0.055, fotosDica: 4, olhada: 0.95,
             // sabe que o eco só fere no BOTE: não gasta flash em vulto que só ronda
-            sabeLente: true, distFlash: 4, lamp: 45, soBote: true, atento: 0.95 },
+            sabeLente: true, distFlash: 4, lamp: 45, soBote: true, atento: 0.95,
+            guarda: 0.95, bateriaMin: 2 },
 };
 
 let H = null;
@@ -417,11 +420,27 @@ function tirarFoto(dir, real) {
     if (!world.flags.filmLoaded) toggleFilm();
   } else if (world.flags.cam.tampa && world.flags.filmLoaded && H.p.ejeta) toggleFilm();
   H.mira = dir; aimSource = "stick"; aimDirStick = dir;
-  const antes = film;
+  const antes = film, batAntes = bateria;
   takePhoto();
-  if (film < antes) { H.st.fotos++; revelaFalsas(dir); }
-  else H.st.flashes++;
+  if (film < antes) {
+    H.st.fotos++; revelaFalsas(dir);
+    if (batAntes <= 0) H.st.fotosEscuras = (H.st.fotosEscuras || 0) + 1;
+    // a foto pegou um vulto: com a ampola, ele guarda a alma (olhando a foto no álbum)
+    const e = album[album.length - 1];
+    if (e && almasSoltas(e) > 0 && world.flags.cam.ampola && rnd() < H.p.guarda) {
+      armazenarFoto(e); H.st.almasGuardadas = (H.st.almasGuardadas || 0) + 1;
+      H.espera += H.p.verFoto; L("guardou alma da foto");
+    }
+  } else H.st.flashes++;
   return true;
+}
+// bateria baixa: alma guardada vira carga (B); sem alma, converte o que o álbum tem
+function humEnergia() {
+  if (state !== "play" || bateria > H.p.bateriaMin) return;
+  if (world.flags.almas <= 0 && world.flags.cam.ampola && album.some(e => almasSoltas(e) > 0)) {
+    armazenarTodas(); H.espera += H.p.verFoto; L("converteu almas do álbum");
+  }
+  if (world.flags.almas > 0 && recarregar()) { H.st.recargas = (H.st.recargas || 0) + 1; L("recarregou"); }
 }
 // a foto mostra o VÃO onde o mapa mostra parede: ele passa a saber
 function revelaFalsas(dir) {
@@ -1104,6 +1123,7 @@ const EXEC = {
 function agir() {
   if (!H.tarefa || H.tReal >= H.tDecide) {
     H.tDecide = H.tReal + 0.8;
+    humEnergia();
     const nova = decidir();
     const T = H.tarefa;
     if (!T || nova.prio > T.prio + 4 || (nova.tipo !== T.tipo && T.prio <= 12)) {

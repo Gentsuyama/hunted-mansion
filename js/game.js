@@ -290,6 +290,24 @@ function updatePrompt() {
                  action: lampDescansa };
     return;
   }
+  // candelabros: alma guardada vira fogo azul
+  for (const cd of fl().candelabros || []) {
+    if (Math.hypot(cd.x - player.x, cd.y - player.y) >= 2.2) continue;
+    const n = world.flags.velas[cd.id] || 0;
+    if (n >= VELAS.max)
+      prompt = { text: "CANDELABRO ACESO — as cinco velas", action: null };
+    else if (world.flags.almas > 0)
+      prompt = { text: tf("ACENDER UMA VELA COM UMA ALMA ({0}/{1})", n, VELAS.max),
+                 action: () => acenderVela(cd) };
+    else
+      prompt = { text: tf("CANDELABRO — {0}/{1} velas (precisa de alma guardada)", n, VELAS.max),
+                 action: null };
+    if (!live.hinted.has("cande1")) {
+      live.hinted.add("cande1");
+      livePush(liveRandUser(), "esse CASTIÇAL de cinco velas acende com alma guardada. quanto mais velas, mais longe ilumina");
+    }
+    return;
+  }
   // retrato aprisionador (depois que a foto o revelou)
   for (const r of world.retratos) {
     if (r.floor !== world.cur || world.taken.has(r.id)) continue;
@@ -464,6 +482,7 @@ function update(dt) {
   }
   if (floorFadeT > 0) floorFadeT -= dt;
 
+  filmePendentes();
   // timers
   if (flashCd > 0) flashCd -= dt;
   if (toastT > 0) toastT -= dt;
@@ -642,7 +661,7 @@ function update(dt) {
       world.taken.add(f.id);
       film = Math.min(filmMax(), film + FILM_REFILL);
       sfxPickup();
-      spawnFilm(world.cur);
+      agendaFilme(world.cur);
       saveRun();
     }
   }
@@ -665,6 +684,10 @@ function update(dt) {
           toast(touchUI.seen
             ? "TAMPA + FILME!  toque na câmera do canto para pôr/tirar o rolo"
             : "TAMPA + FILME!  [R] põe/tira o rolo — sem filme o flash só espanta", 8);
+        } else if (it.part === "ampola") {
+          livePush(liveRandUser(), "a AMPOLA!! é nela que ele guardava o que a câmera tirava das pessoas");
+          livePush(liveRandUser(), "agora dá pra CONVERTER a alma de uma foto (clica no vulto, no álbum) e virar bateria");
+          toast("AMPOLA DE PRATA — no álbum, clique no vulto de uma foto para guardar a alma", 7);
         } else if (it.part === "obturador") liveEvent("obturador");
         else if (it.part === "lente") liveEvent("lente");
         else if (it.part === "passado") {
@@ -811,6 +834,7 @@ function render() {
   // quarto escuro (porão): a luz de segurança nunca apagou
   if (world.cur === 0)
     addGlow(DARKROOM.x + DARKROOM.w / 2, DARKROOM.y + DARKROOM.h / 2, 7, 0.34);
+  luzDosCandelabros();                   // fogo azul das almas
   // a lamparina do hall: luz própria, quente, que treme
   if (lampAcesa())
     addGlow(world.lamp.x, world.lamp.y,
@@ -862,6 +886,12 @@ function render() {
     const L = Math.min(1, lightAt(r.x, r.y) * 1.8);
     mapaIcone("ret", r.x * CELL, r.y * CELL, 4.6, "232,222,184",
               L * (0.55 + 0.45 * Math.sin(time * 5)));
+  }
+  // candelabros (acesos, mostram-se sozinhos)
+  for (const cd of fl().candelabros || []) {
+    const n = world.flags.velas[cd.id] || 0;
+    mapaCandelabro(cd.x * CELL, cd.y * CELL, n,
+                   n ? 1 : Math.min(1, lightAt(cd.x, cd.y) * 1.8));
   }
   // a lamparina (acesa, ela se mostra sozinha)
   if (world.cur === 1 && world.lamp) {
@@ -1109,7 +1139,7 @@ function drawCamHUD() {
   if (CAM_IMGS.corpo) {
     // MONTAGEM com a arte do Gemini: cada peça encaixa no corpo; a que
     // falta aparece como fantasma apagado (o jogador vê o que procurar)
-    const area = { x: r.x + 10, y: r.y + 22, w: r.w - 20, h: r.h - 48 };
+    const area = { x: r.x + 10, y: r.y + 22, w: r.w - 20, h: r.h - 62 };
     const slots = [
       ["corpo",     0.50, 0.56, 0.66, true],
       ["lente",     0.40, 0.66, 0.25, cm.lente],
@@ -1190,12 +1220,44 @@ function drawCamHUD() {
   }
   }   // fim do fallback procedural
 
-  // reserva de rolos + como pôr/tirar
+  // reserva de rolos
   ctx.textAlign = "left";
   ctx.font = "bold 11px 'Courier New', monospace";
   ctx.fillStyle = film > 0 ? "rgba(185,215,185,0.9)" : "rgba(230,90,80,0.9)";
   ctx.fillText(tr("ROLOS") + " " + "▮".repeat(film) +
-               "▯".repeat(Math.max(0, filmMax() - film)), r.x + 10, r.y + r.h - 10);
+               "▯".repeat(Math.max(0, filmMax() - film)), r.x + 10, r.y + r.h - 24);
+  // bateria do flash (segmentos) e almas guardadas (chamas azuis)
+  const by = r.y + r.h - 10, bx = r.x + 10;
+  ctx.fillStyle = bateria > 0 ? "rgba(200,205,215,0.85)" : "rgba(230,90,80,0.9)";
+  ctx.fillText(tr("BATERIA"), bx, by);
+  const bw0 = bx + ctx.measureText(tr("BATERIA")).width + 6, segW = 6, segH = 8;
+  for (let i = 0; i < BAT.max; i++) {
+    const on = i < bateria;
+    ctx.fillStyle = on ? (bateria <= 2 ? "rgba(240,120,90,0.95)" : "rgba(214,224,236,0.9)")
+                       : "rgba(120,124,132,0.3)";
+    ctx.fillRect(bw0 + i * (segW + 1), by - segH / 2, segW, segH);
+  }
+  ctx.strokeStyle = "rgba(200,205,215,0.5)"; ctx.lineWidth = 1;
+  ctx.strokeRect(bw0 - 1.5, by - segH / 2 - 1.5, BAT.max * (segW + 1) + 1, segH + 3);
+  ctx.fillRect(bw0 + BAT.max * (segW + 1) + 0.5, by - 2, 2, 4);     // o polo
+  const nA = world.flags.almas || 0;
+  { // a AMPOLA de prata: apagada enquanto não for achada; azul quando tem alma dentro
+    const ax = bw0 + BAT.max * (segW + 1) + 14, tem = !!world.flags.cam.ampola;
+    ctx.strokeStyle = tem ? "rgba(214,224,236,0.95)" : "rgba(120,124,132,0.35)"; ctx.lineWidth = 1.3;
+    ctx.fillStyle = tem && nA > 0 ? "rgba(110,170,255,0.6)" : "rgba(0,0,0,0)";
+    ctx.beginPath(); ctx.moveTo(ax - 2.5, by - 6); ctx.lineTo(ax + 2.5, by - 6); ctx.lineTo(ax + 2.5, by - 3);
+    ctx.lineTo(ax + 4.5, by + 1); ctx.lineTo(ax + 4.5, by + 6); ctx.lineTo(ax - 4.5, by + 6);
+    ctx.lineTo(ax - 4.5, by + 1); ctx.lineTo(ax - 2.5, by - 3); ctx.closePath(); ctx.fill(); ctx.stroke();
+    if (tem && nA > 0) {                   // o brilho da alma dentro do vidro
+      const fg = ctx.createRadialGradient(ax, by + 1.5, 0.5, ax, by + 1.5, 6);
+      fg.addColorStop(0, "rgba(220,240,255,0.9)"); fg.addColorStop(1, "rgba(90,160,255,0)");
+      ctx.fillStyle = fg; ctx.fillRect(ax - 6, by - 5, 12, 12);
+    }
+  }
+  // a contagem (no cartão estreito do toque, só o número)
+  ctx.textAlign = "right";
+  ctx.fillStyle = nA > 0 ? "rgba(140,196,255,0.95)" : "rgba(120,124,132,0.5)";
+  ctx.fillText(r.w >= 200 ? nA + " " + tr(nA === 1 ? "alma" : "almas") : String(nA), r.x + r.w - 8, by);
   ctx.restore();
   ctx.textAlign = "left";
 }
@@ -1260,6 +1322,7 @@ function drawHUD() {
   ctx.fillText(
     flashCd > 0        ? (M ? "RECARREGANDO…" : "CÂMERA [ RECARREGANDO ]") :
     !cm.tampa          ? (M ? "SEM TAMPA" : "CÂMERA [ SEM TAMPA — SÓ FLASH ]") :
+    bateria <= 0       ? (M ? "SEM BATERIA" : "CÂMERA [ SEM BATERIA — FOTO NO ESCURO ]") :
     !world.flags.filmLoaded ? (M ? "FILME FORA" : "CÂMERA [ FILME FORA — SÓ ESPANTA ]") :
     film <= 0          ? (M ? "SEM ROLOS" : "CÂMERA [ ROLOS ACABARAM ]") :
                          (M ? "CÂMERA PRONTA" : "CÂMERA [ PRONTA ]"),
@@ -1397,180 +1460,7 @@ function drawHUD() {
   }
 }
 
-// --- ÁLBUM COMO LIVRO: páginas duplas com 4 polaroids, clique dá zoom ---
-let albumPage = 0, albumZoom = -1;
-function openAlbum(ret) {
-  state = "album"; albumReturn = ret;
-  albumZoom = -1;
-  albumPage = Math.max(0, Math.ceil(album.length / 4) - 1);   // última página
-}
-function albumBookRect() {
-  return { x: canvas.width / 2 - 505, y: 64, w: 1010, h: 578 };
-}
-function albumSlots() {
-  const b = albumBookRect();
-  const out = [];
-  const tw = 300, th = tw * 0.80;
-  for (let i = 0; i < 4; i++) {
-    const col = i % 2, row = (i / 2) | 0;
-    out.push({
-      x: b.x + (col === 0 ? 92 : b.w / 2 + 102) + (row === 1 ? 10 - col * 16 : 0),
-      y: b.y + 38 + row * 262,
-      w: tw, h: th,
-      rot: [-0.028, 0.024, 0.02, -0.023][i],
-    });
-  }
-  return out;
-}
-function drawAlbum() {
-  ctx.fillStyle = "rgba(0,0,0,0.9)";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.textAlign = "center"; ctx.textBaseline = "middle";
-
-  const b = albumBookRect();
-  const pages = Math.max(1, Math.ceil(album.length / 4));
-  if (albumPage > pages - 1) albumPage = pages - 1;
-
-  if (albumZoom < 0) {
-    // o livro aberto
-    if (ALBUM_IMG) {
-      // a foto do livro de couro cobre a área com uma sangria generosa
-      ctx.drawImage(ALBUM_IMG, b.x - 56, b.y - 42, b.w + 112, b.h + 84);
-    } else {
-      // capa de couro + páginas creme + vinco central
-      ctx.fillStyle = "#241b13";
-      ctx.fillRect(b.x - 16, b.y - 12, b.w + 32, b.h + 24);
-      ctx.fillStyle = "#e6dec9";
-      ctx.fillRect(b.x, b.y, b.w / 2 - 3, b.h);
-      ctx.fillRect(b.x + b.w / 2 + 3, b.y, b.w / 2 - 3, b.h);
-      const sp = ctx.createLinearGradient(b.x + b.w / 2 - 36, 0, b.x + b.w / 2 + 36, 0);
-      sp.addColorStop(0, "rgba(60,45,30,0)");
-      sp.addColorStop(0.5, "rgba(60,45,30,0.5)");
-      sp.addColorStop(1, "rgba(60,45,30,0)");
-      ctx.fillStyle = sp;
-      ctx.fillRect(b.x + b.w / 2 - 36, b.y, 72, b.h);
-    }
-
-    if (album.length === 0) {
-      ctx.font = "italic 24px 'Segoe Script', 'Comic Sans MS', cursive";
-      ctx.fillStyle = "rgba(90,78,62,0.75)";
-      ctx.fillText("nenhuma foto colada ainda…", canvas.width / 2, b.y + b.h / 2);
-    }
-
-    // as polaroids da página (com sombra e leve rotação)
-    const slots = albumSlots();
-    for (let i = 0; i < 4; i++) {
-      const idx = albumPage * 4 + i;
-      if (idx >= album.length) break;
-      const s = slots[i], ph = album[idx].cv;
-      const hov = albumZoom < 0 && mouse.x > s.x && mouse.x < s.x + s.w &&
-                  mouse.y > s.y && mouse.y < s.y + s.h;
-      ctx.save();
-      ctx.translate(s.x + s.w / 2, s.y + s.h / 2);
-      ctx.rotate(s.rot + (hov ? 0.012 : 0));
-      ctx.shadowColor = "rgba(0,0,0,0.45)";
-      ctx.shadowBlur = 14; ctx.shadowOffsetY = 5;
-      const sc = (hov ? 1.045 : 1) * s.w / ph.width;
-      ctx.drawImage(ph, -ph.width * sc / 2, -ph.height * sc / 2,
-                    ph.width * sc, ph.height * sc);
-      ctx.restore();
-    }
-
-    // virar páginas
-    if (pages > 1) {
-      ctx.font = "bold 70px 'Courier New', monospace";
-      ctx.fillStyle = albumPage > 0
-        ? `rgba(255,255,255,${0.5 + 0.25 * Math.sin(time * 4)})` : "rgba(255,255,255,0.1)";
-      ctx.fillText("<", 56, canvas.height / 2);
-      ctx.fillStyle = albumPage < pages - 1
-        ? `rgba(255,255,255,${0.5 + 0.25 * Math.sin(time * 4)})` : "rgba(255,255,255,0.1)";
-      ctx.fillText(">", canvas.width - 56, canvas.height / 2);
-    }
-    ctx.font = "italic 17px 'Segoe Script', 'Comic Sans MS', cursive";
-    ctx.fillStyle = "rgba(200,190,170,0.8)";
-    ctx.fillText(tf("página {0} de {1}", albumPage + 1, pages),
-                 canvas.width / 2, canvas.height - 16);
-  } else {
-    // ZOOM numa foto
-    const ph = album[albumZoom].cv;
-    const sc = Math.min(560 / ph.height, 980 / ph.width);
-    ctx.save();
-    ctx.shadowColor = "rgba(0,0,0,0.6)";
-    ctx.shadowBlur = 26; ctx.shadowOffsetY = 8;
-    ctx.drawImage(ph, canvas.width / 2 - ph.width * sc / 2, 54,
-                  ph.width * sc, ph.height * sc);
-    ctx.restore();
-    if (album.length > 1) {
-      ctx.font = "bold 70px 'Courier New', monospace";
-      ctx.fillStyle = albumZoom > 0 ? "rgba(255,255,255,0.65)" : "rgba(255,255,255,0.1)";
-      ctx.fillText("<", 56, canvas.height / 2);
-      ctx.fillStyle = albumZoom < album.length - 1
-        ? "rgba(255,255,255,0.65)" : "rgba(255,255,255,0.1)";
-      ctx.fillText(">", canvas.width - 56, canvas.height / 2);
-    }
-    ctx.font = "bold 13px 'Courier New', monospace";
-    ctx.fillStyle = "rgba(170,170,170,0.8)";
-    ctx.fillText(`${albumZoom + 1} / ${album.length}   ·   ` +
-                 tr(touchUI.seen ? "toque fora para voltar ao álbum"
-                                 : "clique fora volta ao álbum · ← →"),
-                 canvas.width / 2, canvas.height - 20);
-  }
-
-  const hovC = mouse.x >= ALB_CLOSE.x && mouse.x <= ALB_CLOSE.x + ALB_CLOSE.w &&
-               mouse.y >= ALB_CLOSE.y && mouse.y <= ALB_CLOSE.y + ALB_CLOSE.h;
-  ctx.fillStyle = "rgba(0,0,0,0.5)";
-  ctx.fillRect(ALB_CLOSE.x, ALB_CLOSE.y, ALB_CLOSE.w, ALB_CLOSE.h);
-  ctx.lineWidth = hovC ? 3 : 2;
-  ctx.strokeStyle = hovC ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.5)";
-  ctx.strokeRect(ALB_CLOSE.x, ALB_CLOSE.y, ALB_CLOSE.w, ALB_CLOSE.h);
-  ctx.font = "bold 19px 'Courier New', monospace";
-  ctx.fillStyle = "rgba(230,230,230,0.9)";
-  ctx.fillText("FECHAR", ALB_CLOSE.x + ALB_CLOSE.w / 2, ALB_CLOSE.y + ALB_CLOSE.h / 2 + 1);
-}
-
-// ------------------------------------------------------------------
-// Input
-// ------------------------------------------------------------------
-function albumHit(px2, py2) {
-  if (px2 >= ALB_CLOSE.x && px2 <= ALB_CLOSE.x + ALB_CLOSE.w &&
-      py2 >= ALB_CLOSE.y && py2 <= ALB_CLOSE.y + ALB_CLOSE.h) {
-    if (albumZoom >= 0) albumZoom = -1;
-    else state = albumReturn;
-    return;
-  }
-  if (albumZoom >= 0) {
-    // no zoom: laterais navegam, o resto volta ao livro
-    if (px2 > canvas.width * 0.8 && albumZoom < album.length - 1) albumZoom++;
-    else if (px2 < canvas.width * 0.2 && albumZoom > 0) albumZoom--;
-    else albumZoom = -1;
-    return;
-  }
-  // clicou numa polaroid? → zoom
-  const slots = albumSlots();
-  for (let i = 0; i < 4; i++) {
-    const idx = albumPage * 4 + i;
-    if (idx >= album.length) break;
-    const s = slots[i];
-    if (px2 > s.x - 8 && px2 < s.x + s.w + 8 &&
-        py2 > s.y - 8 && py2 < s.y + s.h + 8) {
-      albumZoom = idx; return;
-    }
-  }
-  // laterais viram a página
-  const pages = Math.max(1, Math.ceil(album.length / 4));
-  if (px2 > canvas.width - 120) {
-    if (albumPage < pages - 1) { albumPage++; sfxPage(); }
-    return;
-  }
-  if (px2 < 120) {
-    if (albumPage > 0) { albumPage--; sfxPage(); }
-    return;
-  }
-  // fora do livro: fecha
-  const b = albumBookRect();
-  if (px2 < b.x || px2 > b.x + b.w || py2 < b.y || py2 > b.y + b.h)
-    state = albumReturn;
-}
+// (o álbum vive em js/album.js)
 
 function enterFullscreen() {
   try {
@@ -1619,25 +1509,12 @@ window.addEventListener("keydown", e => {
     else if (state === "album") state = albumReturn;
     return;
   }
-  if (state === "album") {
-    const pages = Math.max(1, Math.ceil(album.length / 4));
-    if (e.code === "Escape") {
-      if (albumZoom >= 0) albumZoom = -1;
-      else state = albumReturn;
-    }
-    if (albumZoom >= 0) {
-      if (e.code === "ArrowLeft"  && albumZoom > 0) albumZoom--;
-      if (e.code === "ArrowRight" && albumZoom < album.length - 1) albumZoom++;
-    } else {
-      if (e.code === "ArrowLeft"  && albumPage > 0) { albumPage--; sfxPage(); }
-      if (e.code === "ArrowRight" && albumPage < pages - 1) { albumPage++; sfxPage(); }
-    }
-    return;
-  }
+  if (state === "album") { albumTecla(e.code); return; }
   if (e.code === "KeyE" && state === "play" && prompt && prompt.action) {
     prompt.action(); return;
   }
   if (e.code === "KeyR" && state === "play") { toggleFilm(); return; }
+  if (e.code === "KeyB" && state === "play") { recarregar(); return; }
   keys.add(e.code);
 });
 window.addEventListener("keyup", e => keys.delete(e.code));
@@ -1679,10 +1556,11 @@ canvas.addEventListener("mousedown", e => {
   if (state === "win")   { winHit(mx, my); return; }
   if (state !== "play") return;
   if (e.button === 0 && liveInPanel(mx, my)) { state = "chat"; live.scroll = 0; return; }
-  if (e.button === 0 && polaroidHit(mx, my)) {
-    openAlbum("play"); albumZoom = album.length - 1; return;
+  if (e.button === 0 && polaroidHit(mx, my)) { openAlbum("play", album[album.length - 1]); return; }
+  if (e.button === 0 && camHudHit(mx, my)) {
+    if (my > camHudRect().y + camHudRect().h - 30) recarregar(); else toggleFilm();
+    return;
   }
-  if (e.button === 0 && camHudHit(mx, my)) { toggleFilm(); return; }
   if (e.button === 2) takePhoto();
 });
 
@@ -1740,8 +1618,11 @@ canvas.addEventListener("touchstart", e => {
     if (state === "darkroom") { darkroomHit(p.x, p.y); return; }
     if (state === "win")   { winHit(p.x, p.y); return; }
     if (liveInPanel(p.x, p.y)) { state = "chat"; live.scroll = 0; return; }
-    if (polaroidHit(p.x, p.y)) { openAlbum("play"); albumZoom = album.length - 1; return; }
-    if (camHudHit(p.x, p.y)) { toggleFilm(); continue; }
+    if (polaroidHit(p.x, p.y)) { openAlbum("play", album[album.length - 1]); return; }
+    if (camHudHit(p.x, p.y)) {
+      if (p.y > camHudRect().y + camHudRect().h - 30) recarregar(); else toggleFilm();
+      continue;
+    }
     if (Math.hypot(p.x - BTN_PHOTO.x, p.y - BTN_PHOTO.y) < BTN_PHOTO.r + 10) {
       takePhoto(); continue;
     }
