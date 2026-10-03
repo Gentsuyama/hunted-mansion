@@ -108,6 +108,7 @@ function lampDescansa() {
   world.flags.lampOleo--;
   world.flags.feridas = 0;
   sanity = 100; tremor = 0;
+  bateria = Math.min(BAT.max, bateria + BAT.lamparina);   // o calor dela também acorda as pilhas
   sfxLamparina(); floorFadeT = 0.5;
   // o preço: enquanto você descansa, a casa acorda mais um
   const cands = [2, 3, 4, 0].filter(f => !world.floors[f].pacified);

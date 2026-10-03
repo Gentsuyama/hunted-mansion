@@ -210,7 +210,7 @@ const CHAT_REACT = {
   elevator: ["ELEVADOR LIGADO, chique", "agora ficou fácil andar na casa"],
   safe:     ["ABRIU O COFRE!!", "o que tinha dentro?? mostra"],
   tampa:    ["ACHOU A TAMPA DA CÂMERA!!", "agora dá pra pôr FILME e salvar foto",
-             "aperta R pra pôr/tirar o rolo (no celular toca na câmera)"],
+             "dá pra tirar o rolo da câmera, né? aí o flash não gasta nada"],
   obturador:["o OBTURADOR DE PRATA…", "é com ISSO que a câmera prende espírito forte",
              "igual ao do Blackwood. arrepiei"],
   lente:    ["uma LENTE NOVA!! troca AGORA", "adeus lente rachada!!",
@@ -425,8 +425,10 @@ function liveProximoPasso() {
     return { m: "a TAMPA da câmera tá no hall de entrada, brilhando no chão", f: 1 };
   if (it("lente"))
     return { m: tf("pesquisei a casa: a LENTE nova ficou no {0}, numa sala atrás de PAREDE FALSA. fotografa as paredes", an(1)), f: 1 };
+  if (bateria <= 2 && it("pilha1")) return { m: tf("tinha umas PILHAS largadas no {0}, será que prestam?", an(1)), f: 1 };
+  if (bateria <= 2 && it("pilha2")) return { m: tf("tinha umas PILHAS largadas no {0}, será que prestam?", an(2)), f: 2 };
   if (it("ampola") && bateria <= 2)
-    return { m: tf("a AMPOLA de prata (a que guarda almas) ficou numa sala do {0}", an(2)), f: 2 };
+    return { m: tf("tinha um frasco de prata numa sala do {0}… parecia peça da câmera", an(2)), f: 2 };
   if (it("key") || it("obturador"))
     return { m: tf("a CHAVE e o OBTURADOR ficaram no {0}, numa sala atrás de parede falsa", an(0)), f: 0 };
   // uma alma já no retrato vem antes de tudo

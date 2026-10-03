@@ -1206,7 +1206,7 @@ const PROP_IMGS = {}, PROP_SPRS = {};
 function propSprite(name) {
   if (PROP_IMGS[name]) return PROP_IMGS[name];
   if (PROP_SPRS[name]) return PROP_SPRS[name];
-  const dims = { cofre: [150, 170], quadro: [130, 170], bancada: [260, 150],
+  const dims = { cofre: [150, 170], quadro: [130, 170], bancada: [300, 170],
                  cavalete: [130, 220], cadeira: [140, 210],
                  lamparina: [120, 220], grade: [200, 300] }[name] || [150, 150];
   const cv = document.createElement("canvas");
@@ -1258,19 +1258,36 @@ function propSprite(name) {
     linha(114, 20, 126, 30, 2.2); linha(126, 30, 126, 150, 2.2);    // tampa aberta
     linha(126, 150, 114, 156, 2.2);
   } else if (name === "bancada") {
-    box(10, 62, 240, 16, 92);                        // tampo
-    box(22, 78, 12, 66, 66); box(226, 78, 12, 66, 66);
-    box(34, 110, 192, 8, 60);                        // travessa
-    for (let i = 0; i < 3; i++) {                    // três bandejas
-      box(30 + i * 70, 46, 56, 16, 132);
-      g.fillStyle = "rgba(20,24,26,0.75)";
-      g.fillRect(34 + i * 70, 49, 48, 9);
+    // a bancada de revelação: tampo claro, três bandejas com líquido, vidros, a
+    // lâmpada vermelha pendurada e o varal com fotos secando
+    box(8, 74, 284, 18, 118);                         // tampo
+    box(20, 92, 14, 74, 82); box(266, 92, 14, 74, 82); // pernas
+    box(34, 130, 232, 8, 72);                         // travessa
+    for (let i = 0; i < 3; i++) {                     // bandejas com líquido
+      const bx = 26 + i * 86;
+      box(bx, 56, 72, 20, 152);
+      const liq = g.createLinearGradient(bx, 58, bx, 74);
+      liq.addColorStop(0, "rgba(96,74,64,0.95)"); liq.addColorStop(1, "rgba(28,22,20,0.98)");
+      g.fillStyle = liq; g.fillRect(bx + 4, 60, 64, 12);
+      g.fillStyle = "rgba(255,240,230,0.35)"; g.fillRect(bx + 8, 61, 30, 2);   // o reflexo da lâmpada
     }
-    linha(14, 14, 246, 20, 1.6);                     // o varal
-    for (let i = 0; i < 4; i++) {
-      const hx = 44 + i * 54;
-      g.fillStyle = "rgb(168,162,148)"; g.fillRect(hx, 20, 22, 26);
-      g.strokeStyle = "rgba(8,7,6,0.9)"; g.lineWidth = 1.4; g.strokeRect(hx, 20, 22, 26);
+    for (const [vx, vh, vw] of [[232, 46, 14], [252, 36, 12], [10, 30, 10]]) {   // vidros de química
+      box(vx, 74 - vh, vw, vh, 98);
+      box(vx + vw / 2 - 3, 74 - vh - 8, 6, 9, 72);
+    }
+    linha(150, 0, 150, 20, 1.4);                      // o fio da lâmpada vermelha
+    box(145, 20, 10, 8, 60);
+    const halo = g.createRadialGradient(150, 34, 2, 150, 34, 44);
+    halo.addColorStop(0, "rgba(255,90,70,0.95)"); halo.addColorStop(0.3, "rgba(255,60,40,0.45)");
+    halo.addColorStop(1, "rgba(255,60,40,0)");
+    g.fillStyle = halo; g.fillRect(104, -10, 92, 90);
+    g.fillStyle = "rgb(255,130,110)"; g.beginPath(); g.arc(150, 33, 6, 0, 7); g.fill();
+    linha(10, 12, 112, 16, 1.4);                      // o varal, à esquerda
+    for (let i = 0; i < 3; i++) {
+      const hx = 16 + i * 32;
+      g.fillStyle = "rgb(178,172,158)"; g.fillRect(hx, 16, 22, 26);
+      g.strokeStyle = "rgba(8,7,6,0.9)"; g.lineWidth = 1.2; g.strokeRect(hx, 16, 22, 26);
+      g.fillStyle = "rgba(20,18,16,0.8)"; g.fillRect(hx + 3, 19, 16, 14);
     }
   } else if (name === "cavalete") {
     linha(64, 10, 20, 212, 6, "rgb(92,82,66)");      // as três pernas

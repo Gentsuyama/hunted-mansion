@@ -155,8 +155,9 @@ function mapaParedes(c0, c1, r0, r1) {
         ctx.beginPath(); ctx.moveTo(x, y + 2); ctx.lineTo(x + C, y + 2);
         ctx.moveTo(x, y + C - 2); ctx.lineTo(x + C, y + C - 2); ctx.stroke();
       } else {
-        // o ELEVADOR: a grade pantográfica na parede acima e a placa de chamada no piso
-        const gx = x - C, gy = y - C + C * 0.42, gw = 3 * C, gh = C * 0.58;
+        // o ELEVADOR: a grade pantográfica na parede (acima ou abaixo) e a placa de chamada no piso
+        const sul = fl().elev && fl().elev.lado === "S";
+        const gx = x - C, gy = sul ? y + C : y - C + C * 0.42, gw = 3 * C, gh = C * 0.58;
         ctx.save();
         ctx.beginPath(); ctx.rect(gx, gy, gw, gh); ctx.clip();
         ctx.fillStyle = `rgba(150,160,180,${(0.25 + 0.6 * b).toFixed(2)})`;
@@ -173,7 +174,7 @@ function mapaParedes(c0, c1, r0, r1) {
         ctx.strokeStyle = `rgba(232,196,120,${b.toFixed(2)})`; ctx.lineWidth = 1.2;
         ctx.strokeRect(gx + 0.6, gy + 0.6, gw - 1.2, gh - 1.2);
         ctx.fillStyle = `rgba(232,196,120,${(0.3 + 0.6 * b).toFixed(2)})`;
-        ctx.fillRect(x + C * 0.32, y + C * 0.12, C * 0.36, C * 0.2);     // a placa de chamada
+        ctx.fillRect(x + C * 0.32, sul ? y + C * 0.68 : y + C * 0.12, C * 0.36, C * 0.2);   // a placa de chamada
       }
     }
 }
@@ -214,6 +215,14 @@ function mapaIcone(kind, x, y, s, rgb, a) {
   ctx.fillRect(-s * 2.4, -s * 2.4, s * 4.8, s * 4.8);
   ctx.lineWidth = 1.5; ctx.lineCap = "round"; ctx.lineJoin = "round";
   ctx.strokeStyle = `rgb(${rgb})`;
+  if (kind === "pilha") {                          // duas pilhas deitadas, com o polo
+    ctx.fillStyle = `rgba(${rgb},0.25)`;
+    for (const dy of [-2.6, 2.6]) {
+      ctx.fillRect(-s * 0.9, dy - 1.9, s * 1.6, 3.8); ctx.strokeRect(-s * 0.9, dy - 1.9, s * 1.6, 3.8);
+      ctx.fillRect(s * 0.7, dy - 0.9, 1.6, 1.8);
+    }
+    ctx.restore(); return;
+  }
   ctx.fillStyle = "rgba(8,8,10,0.9)";
   ctx.beginPath();
   switch (kind) {
@@ -556,50 +565,8 @@ function hudChave(x, y, tem) {
 // ------------------------------------------------------------------
 // (as pegadas até a parede falsa foram retiradas em 2026-10-03: facilitavam demais)
 
-// ------------------------------------------------------------------
-// MEMÓRIA DE PLANTA: parede já iluminada fica como um fantasma fraco,
-// que apodrece em alguns minutos. Diz POR ONDE você já passou — nunca o
-// que há na parede (parede falsa é lembrada igualzinha às outras).
-// ------------------------------------------------------------------
-let MEMO_T = 0;
-// as paredes (anel) das salas secretas deste andar — ficam fora da memória
-function mapaSegredo() {
-  const F = fl();
-  if (F.segredoParede) return F.segredoParede;
-  const m = new Uint8Array(COLS * ROWS);
-  for (const sr of F.secretRooms || [])
-    for (let cy = sr.y - 1; cy <= sr.y + sr.h; cy++)
-      for (let cx = sr.x - 1; cx <= sr.x + sr.w; cx++)
-        if (cx >= 0 && cy >= 0 && cx < COLS && cy < ROWS) m[cy * COLS + cx] = 1;
-  return (F.segredoParede = m);
-}
-function mapaMemoria(c0, c1, r0, r1) {
-  if (!world.memo) world.memo = [];
-  let M = world.memo[world.cur];
-  if (!M) M = world.memo[world.cur] = new Uint8Array(COLS * ROWS);
-  // apodrece: ~1 ponto por segundo (255 = pouco mais de 4 minutos)
-  if (time - MEMO_T > 1) {
-    MEMO_T = time;
-    for (const m of world.memo) if (m) for (let i = 0; i < m.length; i++) if (m[i]) m[i]--;
-  }
-  const P = [new Path2D(), new Path2D(), new Path2D()], n = [0, 0, 0], C = CELL;
-  for (let cy = r0; cy <= r1; cy++)
-    for (let cx = c0; cx <= c1; cx++) {
-      const idx = cy * COLS + cx, t = grid[idx];
-      if (t !== T_WALL && t !== T_FAKE && t !== T_DOOR) continue;
-      if (mapaSegredo()[idx]) continue;                        // parede de sala secreta: nunca lembrada
-      if (light[idx] > 0.05) { M[idx] = 255; continue; }      // vista agora: grava
-      const m = M[idx];
-      if (m < 24) continue;
-      const k = m > 170 ? 2 : m > 90 ? 1 : 0;
-      P[k].rect(cx * C, cy * C, C, C); n[k]++;
-    }
-  for (let k = 0; k < 3; k++) {
-    if (!n[k]) continue;
-    ctx.fillStyle = `rgba(64,60,52,${[0.10, 0.17, 0.25][k]})`;
-    ctx.fill(P[k]);
-  }
-}
+// (a memória de planta — paredes já vistas em cinza — foi retirada em 2026-10-03)
+
 // a cabeça no chão vê o que não está lá: um par de olhos no escuro
 function mapaOlhosFalsos(f) {
   const a = Math.min(1, f.t / 0.25) * Math.min(1, (f.dur - f.t) / 0.3);

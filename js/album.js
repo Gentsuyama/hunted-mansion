@@ -135,7 +135,7 @@ function albumDesenhaSpread(g, page, b, hover) {
       g.lineTo(ph.width * sc / 2, -ph.height * sc / 2); g.lineTo(ph.width * sc / 2, -ph.height * sc / 2 + 26);
       g.closePath(); g.fill();
     }
-    if (almasSoltas(e) > 0) {
+    if (almasSoltas(e) > 0 && world.flags.cam.ampola) {
       const fx = -ph.width * sc / 2 + 16, fy = -ph.height * sc / 2 + 16;
       const fg = g.createRadialGradient(fx, fy, 1, fx, fy, 11);
       fg.addColorStop(0, "rgba(225,242,255,0.95)"); fg.addColorStop(0.45, "rgba(110,170,255,0.8)");
@@ -165,13 +165,17 @@ function albumVira(dir) {
   albumPage = nova;
   sfxPage();
 }
+// a área de PAPEL de cada página dentro da arte do livro (a capa fica parada)
+function albumPapel(b) {
+  return { dx0: 10, dx1: b.w / 2 - 70, y0: b.y + 24, y1: b.y + b.h - 10 };
+}
 function albumDesenhaFlip(b) {
   const F = albumFlip, X = b.x - 56, Y = b.y - 42, W = b.w + 112, H = b.h + 84;
   const w2 = W / 2, meio = X + w2;
   const u = Math.min(1, F.t / ALB_FLIP_T), t = u * u * (3 - 2 * u);      // arranca e assenta macio
   const th = t * Math.PI, c = Math.cos(th), s = Math.sin(th), k = Math.abs(c);
-  // as páginas que ficam paradas: a VELHA do lado de onde a folha sai (a folha cai por cima
-  // dela no fim) e a NOVA do lado para onde ela vai (aparece conforme a folha levanta)
+  // o livro parado por baixo: do lado de onde a folha sai fica a página VELHA (a folha
+  // cai por cima dela no fim); do lado para onde ela vai, a página NOVA
   if (F.dir > 0) {
     ctx.drawImage(F.antes, 0, 0, w2, H, X, Y, w2, H);
     ctx.drawImage(F.depois, w2, 0, w2, H, meio, Y, w2, H);
@@ -179,30 +183,32 @@ function albumDesenhaFlip(b) {
     ctx.drawImage(F.depois, 0, 0, w2, H, X, Y, w2, H);
     ctx.drawImage(F.antes, w2, 0, w2, H, meio, Y, w2, H);
   }
-  // a FOLHA que vira: frente até 90°, depois o verso (que é a página nova)
+  // a FOLHA que vira é só o papel: do vinco (dx0) até a borda do papel (dx1)
+  const P = albumPapel(b), pw = P.dx1 - P.dx0, ph = P.y1 - P.y0;
   const frente = t < 0.5;
-  let src, srcX0, lado;                   // lado +1: a folha está à direita do vinco
-  if (F.dir > 0) { if (frente) { src = F.antes; srcX0 = w2; lado = 1; } else { src = F.depois; srcX0 = 0; lado = -1; } }
-  else           { if (frente) { src = F.antes; srcX0 = 0; lado = -1; } else { src = F.depois; srcX0 = w2; lado = 1; } }
-  const N = 28, sw = w2 / N;
+  let src, lado;                           // lado +1: a folha está à direita do vinco
+  if (F.dir > 0) { if (frente) { src = F.antes; lado = 1; } else { src = F.depois; lado = -1; } }
+  else           { if (frente) { src = F.antes; lado = -1; } else { src = F.depois; lado = 1; } }
+  const N = 26, sw = pw / N;
   for (let i = 0; i < N; i++) {           // tiras verticais: a borda livre vem para perto (cresce)
     const u0 = i / N, u1 = (i + 1) / N;
-    const p0 = 1 + 0.17 * u0 * s, p1 = 1 + 0.17 * u1 * s;
-    const sx = lado > 0 ? srcX0 + u0 * w2 : srcX0 + (1 - u1) * w2;
-    const x0 = lado > 0 ? meio + u0 * w2 * k : meio - u1 * w2 * k;
-    const x1 = lado > 0 ? meio + u1 * w2 * k : meio - u0 * w2 * k;
-    const hh = H * (p0 + p1) / 2;
-    ctx.drawImage(src, sx, 0, sw, H, x0, Y - (hh - H) / 2, Math.max(1, x1 - x0 + 0.8), hh);
+    const p0 = 1 + 0.15 * u0 * s, p1 = 1 + 0.15 * u1 * s;
+    // coluna u da folha na arte: para a página da direita fica em meio + dx0 + u*pw; da esquerda, espelhado
+    const sx = (lado > 0 ? w2 + P.dx0 + u0 * pw : w2 - P.dx0 - u1 * pw);
+    const x0 = lado > 0 ? meio + (P.dx0 + u0 * pw) * k : meio - (P.dx0 + u1 * pw) * k;
+    const x1 = lado > 0 ? meio + (P.dx0 + u1 * pw) * k : meio - (P.dx0 + u0 * pw) * k;
+    const hh = ph * (p0 + p1) / 2;
+    ctx.drawImage(src, sx, P.y0 - Y, sw, ph, x0, P.y0 - (hh - ph) / 2, Math.max(1, x1 - x0 + 0.8), hh);
   }
   // a folha escurece ao se levantar e a luz volta quando assenta
-  const xa = lado > 0 ? meio : meio - w2 * k, xb = lado > 0 ? meio + w2 * k : meio;
+  const xa = lado > 0 ? meio + P.dx0 * k : meio - P.dx1 * k, xb = lado > 0 ? meio + P.dx1 * k : meio - P.dx0 * k;
   if (xb - xa > 1) {
     const g = ctx.createLinearGradient(xa, 0, xb, 0), e = 0.5 * s;
     g.addColorStop(0, `rgba(0,0,0,${(lado > 0 ? e : e * 0.2).toFixed(3)})`);
     g.addColorStop(1, `rgba(0,0,0,${(lado > 0 ? e * 0.2 : e).toFixed(3)})`);
-    ctx.fillStyle = g; ctx.fillRect(xa, Y - H * 0.1, xb - xa, H * 1.2);
+    ctx.fillStyle = g; ctx.fillRect(xa, P.y0 - ph * 0.08, xb - xa, ph * 1.16);
   }
-  albumSombraDobra(lado > 0 ? xb : xa, Y, H, lado > 0 ? 1 : -1, t);   // sombra na página de baixo
+  albumSombraDobra(lado > 0 ? xb : xa, P.y0, ph, lado > 0 ? 1 : -1, t);   // sombra na página de baixo
 }
 function albumSombraDobra(x, y, h, lado, t) {
   const k = Math.sin(t * Math.PI);        // mais sombra no meio da virada
@@ -283,28 +289,33 @@ function drawAlbum() {
     ctx.shadowBlur = 26; ctx.shadowOffsetY = 8;
     ctx.drawImage(ph, R.x, R.y, R.w, R.h);
     ctx.restore();
-    // os vultos que ainda têm alma: contorno azul; o do mouse, pedindo o clique
+    // COM a ampola, os vultos que ainda têm alma tremem num azul fraco e o mouse
+    // em cima revela o que dá para fazer. SEM ela, a foto é só uma foto.
     const temAmpola = !!world.flags.cam.ampola;
-    for (const m of e.marcas || []) {
+    if (temAmpola) for (const m of e.marcas || []) {
       if (m.guardada) continue;
       const q = albumMarcaRect(R, m);
       const hov = mouse.x >= q.x && mouse.x <= q.x + q.w && mouse.y >= q.y && mouse.y <= q.y + q.h;
-      ctx.save();
-      ctx.setLineDash([6, 5]);
-      ctx.lineWidth = hov ? 2.5 : 1.5;
-      ctx.strokeStyle = temAmpola ? `rgba(120,180,255,${(hov ? 0.95 : 0.45 + 0.25 * Math.sin(time * 4)).toFixed(2)})`
-                                  : "rgba(200,200,200,0.35)";
-      ctx.strokeRect(q.x - 4, q.y - 4, q.w + 8, q.h + 8);
-      ctx.restore();
+      const cx = q.x + q.w / 2, cy = q.y + q.h / 2, rr = Math.max(q.w, q.h) * 0.62;
+      const g = ctx.createRadialGradient(cx, cy, rr * 0.2, cx, cy, rr);
+      const a = hov ? 0.34 : 0.12 + 0.08 * Math.sin(time * 3 + cx);
+      g.addColorStop(0, `rgba(120,180,255,${a.toFixed(3)})`); g.addColorStop(1, "rgba(120,180,255,0)");
+      ctx.fillStyle = g; ctx.fillRect(cx - rr, cy - rr, rr * 2, rr * 2);
       if (hov) {
         ctx.font = "bold 13px 'Courier New', monospace";
         ctx.fillStyle = "rgba(0,0,0,0.75)";
-        const tx = tr(temAmpola ? "CONVERTER ALMA" : "PRECISA DA AMPOLA");
+        const tx = tr("CONVERTER ALMA");
         const tw = ctx.measureText(tx).width;
         ctx.fillRect(q.x + q.w / 2 - tw / 2 - 8, q.y - 28, tw + 16, 22);
-        ctx.fillStyle = temAmpola ? "rgba(190,220,255,0.95)" : "rgba(200,200,200,0.8)";
+        ctx.fillStyle = "rgba(190,220,255,0.95)";
         ctx.fillText(tx, q.x + q.w / 2, q.y - 17);
       }
+    }
+    // a primeira vez que a ampola encontra uma foto com vulto: ela avisa
+    if (temAmpola && almasSoltas(e) > 0 && !live.hinted.has("ampolaVibra")) {
+      live.hinted.add("ampolaVibra");
+      toast("a ampola vibra perto desta foto", 4);
+      livePush(liveRandUser(), "o frasco da câmera tá… tremendo?");
     }
     if (ord.length > 1) {
       ctx.font = "bold 70px 'Courier New', monospace";
@@ -328,13 +339,13 @@ function drawAlbum() {
                  canvas.width / 2, canvas.height - 20);
     // botões: converter alma(s), fixar/soltar das pistas, jogar fora
     const nS = almasSoltas(e), hv = (B) => mouse.x >= B.x && mouse.x <= B.x + B.w && mouse.y >= B.y && mouse.y <= B.y + B.h;
-    albumBotao(ALB_GUARDA,
-      nS > 0 ? tr(temAmpola ? "CONVERTER A ALMA DA FOTO" : "PRECISA DA AMPOLA")
-             : tr((e.armazenadas || 0) > 0 ? "alma convertida" : "sem alma nesta foto"),
-      nS > 0 && temAmpola, "rgba(20,40,70,0.75)", hv(ALB_GUARDA), "A");
+    if (temAmpola)
+      albumBotao(ALB_GUARDA,
+        nS > 0 ? tr("CONVERTER A ALMA DA FOTO") : tr((e.armazenadas || 0) > 0 ? "alma convertida" : "sem alma nesta foto"),
+        nS > 0, "rgba(20,40,70,0.75)", hv(ALB_GUARDA), "A");
     albumBotao(ALB_PISTA, tr(e.pista ? "SOLTAR DAS PISTAS" : "FIXAR NAS PISTAS"), true,
       e.pista ? "rgba(70,30,30,0.75)" : "rgba(40,30,20,0.75)", hv(ALB_PISTA), "P");
-    albumBotao(ALB_FORA, tr(albumJogaFora > time ? (nS > 0 ? "TEM ALMA NA FOTO! JOGAR FORA MESMO?" : "JOGAR FORA MESMO?") : "JOGAR FORA"),
+    albumBotao(ALB_FORA, tr(albumJogaFora > time ? (nS > 0 && temAmpola ? "TEM ALMA NA FOTO! JOGAR FORA MESMO?" : "JOGAR FORA MESMO?") : "JOGAR FORA"),
       true, albumJogaFora > time ? "rgba(90,20,16,0.85)" : "rgba(30,30,30,0.7)", hv(ALB_FORA), "DEL");
   }
 
@@ -386,12 +397,12 @@ function albumHit(px2, py2) {
   if (albumZoom >= 0) {
     const e = ord[albumZoom];
     const em = (B) => px2 >= B.x && px2 <= B.x + B.w && py2 >= B.y && py2 <= B.y + B.h;
-    if (em(ALB_GUARDA)) { armazenarFoto(e); return; }
+    if (em(ALB_GUARDA) && world.flags.cam.ampola) { armazenarFoto(e); return; }
     if (em(ALB_PISTA)) { albumAlternaPista(e); return; }
     if (em(ALB_FORA)) { albumJogarFora(e); return; }
-    // clicou num vulto da foto: converte aquela alma
+    // clicou num vulto da foto (com a ampola): converte a alma da foto
     const R = albumRetZoom(e.cv);
-    for (const m of e.marcas || []) {
+    if (world.flags.cam.ampola) for (const m of e.marcas || []) {
       if (m.guardada) continue;
       const q = albumMarcaRect(R, m);
       if (px2 >= q.x - 6 && px2 <= q.x + q.w + 6 && py2 >= q.y - 6 && py2 <= q.y + q.h + 6) {

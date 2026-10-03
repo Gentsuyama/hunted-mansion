@@ -159,7 +159,7 @@ function takePhoto() {
     }
     if (bateu && cam.tampa && !live.hinted.has("flashvazio")) {
       live.hinted.add("flashvazio");
-      livePush(liveRandUser(), "o flash EMPURROU mas não prendeu — sem filme não registra nada");
+      livePush(liveRandUser(), "ele VOLTOU pra trás com o clarão!! mas não sumiu…");
     }
   }
 
@@ -770,7 +770,7 @@ function renderPhoto(px, py, dir, escuro) {
   if (fl().fusebox) sprites.push({ x: fl().fusebox.x, y: fl().fusebox.y, kind: "prop",
                                    tipo: "quadro", h: 2.0, base: 1.5 });
   if (fl().bench) sprites.push({ x: fl().bench.x, y: fl().bench.y, kind: "prop",
-                                 tipo: "bancada", h: 2.1, base: 0 });
+                                 tipo: "bancada", h: 2.7, base: 0 });
   if (world.cur === NFLOORS - 1) {
     sprites.push({ x: ATELIER_CAVALETE.x, y: ATELIER_CAVALETE.y, kind: "prop",
                    tipo: "cavalete", h: 3.4, base: 0 });
@@ -781,8 +781,8 @@ function renderPhoto(px, py, dir, escuro) {
       x: ATELIER.x + 4.5 + i * 3.5, y: ATELIER.y + 0.55, kind: "moldura", alma: id }));
   }
   // a grade do elevador (o poço existe em todo andar)
-  { const ec = roomCenter(ELEV_ROOM);
-    sprites.push({ x: (ec.x | 0) + 0.5, y: ELEV_ROOM.y + 0.3, kind: "prop", tipo: "grade", h: 4.9, base: 0 }); }
+  if (fl().elev)
+    sprites.push({ x: fl().elev.cx, y: fl().elev.wy, kind: "prop", tipo: "grade", h: 4.9, base: 0 });
   // candelabros do andar (acesos ou não)
   for (const cd of fl().candelabros || [])
     sprites.push({ x: cd.x, y: cd.y, kind: "cande", cd });

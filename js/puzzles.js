@@ -282,7 +282,8 @@ function elevGo(f) {
   if (f === world.cur) return;
   setFloor(f);
   const ec = roomCenter(ELEV_ROOM);
-  player.x = (ec.x | 0) + 0.5; player.y = ELEV_ROOM.y + 1.6;   // sai do elevador: em frente à grade
+  const fr = fl().elev ? fl().elev.frente : { x: ec.x, y: ELEV_ROOM.y + 1.6 };
+  player.x = fr.x; player.y = fr.y;                            // sai do elevador: em frente à grade
   cam.x = player.x * CELL; cam.y = player.y * CELL;
   floorFadeT = 0.6; stairCd = 0.6;
   sfxStairs(); setTimeout(sfxSlam, 400);

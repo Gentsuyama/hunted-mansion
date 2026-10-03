@@ -27,12 +27,12 @@ const FILM_START = 1, FILM_MAX = 12, FILM_REFILL = 3;
 const FILME_RESPAWN = 60;                    // segundos até a casa repor um rolo pego
 // BATERIA do flash: cada disparo gasta uma carga; sem carga a foto sai NO ESCURO.
 // Alma guardada na câmera recarrega (porAlma); a câmera guarda até almasMax
-const BAT = { max: 10, inicio: 10, porAlma: 5, almasMax: 12 };
+const BAT = { max: 10, inicio: 10, porAlma: 5, almasMax: 12, pilha: 4, lamparina: 4 };
 // CANDELABROS: até 5 almas viram fogo azul; 1 vela acende só o castiçal,
 // 5 alcançam metade do facho da lanterna
-const VELAS = { max: 5, raio0: 2.5, passo: 3.6, porAndar: 2 };
+const VELAS = { max: 5, raio0: 2.5, passo: 3.6, porAndar: 6 };
 const ALBUM_MAX  = 24;
-const GHOST_SPEED = 3.2, GHOST_DMG = 40;
+const GHOST_SPEED = 2.4, GHOST_DMG = 40;
 // pressão dos ecos (ajustável para testes de balanceamento):
 //   atraiFlash = segundos que TODO o andar persegue depois de qualquer flash
 //   deriva     = fração da velocidade com que o eco se arrasta até você enquanto
@@ -40,16 +40,14 @@ const GHOST_SPEED = 3.2, GHOST_DMG = 40;
 //   volta      = segundos [mín, extra] até um eco fotografado reaparecer
 //   atraiRaio  = até onde o clarão é visto (antes era o andar inteiro)
 //   ouve       = raio em que ele percebe você: parado/pé ante pé, andando, correndo
-const ECO = { vem: 0.42,   // sem ouvir você, o eco ainda vem: fração da velocidade de caça
- atraiFlash: 4, atraiRaio: 34, deriva: 0.18, volta: [50, 30],
+const ECO = { vem: 0.45,   // sem ouvir nem ver você, o eco ainda vem: fração da velocidade de caça
+              ve: 16,      // VENDO você (linha de visada) até esta distância, ele vem direto
+              atraiFlash: 4, atraiRaio: 34, volta: [50, 30],
               ouve: [6, 14, 22] };
-// O BOTE: o eco não fere por encostar. Ele chega perto, INSPIRA (os olhos
-// acendem, o som cresce) e salta em linha reta. Flash durante a inspiração
-// cancela; sair da frente também. Um de cada vez — os outros esperam a vez.
-// (pausa curta de propósito: com DOIS ecos, o segundo salta antes de o flash
-// recarregar — um você corta, do outro você tem que sair da frente)
-const BOTE = { dist: 4.8, inspira: 1.15, vel: 15, dur: 0.45, dano: 26,
-               gasto: 16, pausa: 0.25, desiste: 11 };
+// O GOLPE: o eco não fere por encostar. Ele chega colado, INSPIRA (os olhos
+// acendem, o som cresce) e golpeia no lugar — sem salto. Flash durante a
+// inspiração cancela; dar dois passos para trás também. Um de cada vez.
+const BOTE = { dist: 1.9, inspira: 0.9, alcance: 2.4, dano: 24, gasto: 14, pausa: 0.5, desiste: 4 }
 // SANIDADE: sozinha ela só volta até o TETO; acima disso, só a lamparina do hall
 // …e cada GOLPE (bote de eco, flash do Blackwood) deixa uma ferida que baixa esse teto
 const SAN_TETO = 60, SAN_VOLTA = 2.5, SAN_FERIDA = 10, SAN_PISO = 20;
@@ -157,7 +155,7 @@ function hasLOS(x0, y0, x1, y1) {
 const SAVE_KEY = "hm_run";
 // muda quando a GERAÇÃO da casa muda: a mesma seed passa a dar outra mobília,
 // então um save antigo recolocaria o jogador dentro de um móvel
-const SAVE_V = 5;
+const SAVE_V = 6;
 
 function saveRun() {
   if (!world) return;

@@ -21,18 +21,18 @@ function filmePendentes() {
 
 // --- BATERIA ----------------------------------------------------------
 function bateriaAcabou() {
-  toast("BATERIA ACABOU — a foto sai no escuro; alma guardada recarrega [B]", 6);
+  toast(world.flags.almas > 0 ? "BATERIA ACABOU — a ampola tem alma: [B] recarrega"
+                              : "BATERIA ACABOU — a foto sai no escuro", 6);
   if (!live.hinted.has("bat0")) {
     live.hinted.add("bat0");
-    livePush(liveRandUser(), "a bateria do flash ACABOU. sem flash a foto sai escura e não espanta nada");
-    if (world.flags.almas > 0)
-      livePush(liveRandUser(), "você tem alma guardada na câmera: aperta B que ela vira bateria");
+    livePush(liveRandUser(), "o flash MORREU?? a última saiu preta");
+    if (!world.flags.cam.ampola) livePush(liveRandUser(), "não tem pilha nessa casa? alguma coisa que guarde energia?");
   }
 }
 function recarregar() {
   if (state !== "play" && state !== "album") return false;
   if (world.flags.almas <= 0) {
-    toast("SEM ALMAS GUARDADAS — fotografe vultos e ARMAZENE no álbum", 3.5);
+    toast(world.flags.cam.ampola ? "A AMPOLA ESTÁ VAZIA" : "NADA PARA RECARREGAR", 2.5);
     sfxDry(); return false;
   }
   if (bateria >= BAT.max) { toast("BATERIA CHEIA", 2); return false; }
@@ -54,10 +54,7 @@ function almasSoltas(e) { return Math.max(0, (e.almas || 0) - (e.armazenadas || 
 // (regra do Rodolfo: uma foto, uma carga, mesmo com vários fantasmas)
 function armazenarAlma(e) {
   if (!e || almasSoltas(e) <= 0) return false;
-  if (!world.flags.cam.ampola) {
-    toast("SEM A AMPOLA a câmera não guarda alma nenhuma — procure a peça", 3.5);
-    sfxDry(); return false;
-  }
+  if (!world.flags.cam.ampola) return false;        // sem a ampola, não existe conversão
   if (world.flags.almas >= BAT.almasMax) {
     toast("A AMPOLA ESTÁ CHEIA — gaste almas antes", 3.5); sfxDry(); return false;
   }
@@ -71,8 +68,8 @@ function armazenarAlma(e) {
                           : "ALMA CONVERTIDA — o vulto saiu da foto; +1 carga na ampola", 3.5);
   if (!live.hinted.has("guardou1")) {
     live.hinted.add("guardou1");
-    livePush(liveRandUser(), "GUARDOU a alma na câmera?? isso vira BATERIA. aperta B pra recarregar");
-    livePush(liveRandUser(), "e os CASTIÇAIS de cinco velas pela casa acendem com elas");
+    livePush(liveRandUser(), "O VULTO SUMIU DA FOTO. pra onde ele foi??");
+    livePush(liveRandUser(), "o frasco da câmera acendeu azul. tem alguma coisa dentro dele agora");
     liveFixo("colecionador.");
   }
   saveRun();
@@ -167,7 +164,7 @@ function acenderVela(cd) {
   sfxVela();
   if (!live.hinted.has("vela1")) {
     live.hinted.add("vela1");
-    livePush(liveRandUser(), "FOGO AZUL. a alma virou luz… e essa luz não apaga");
+    livePush(liveRandUser(), "FOGO AZUL?? isso não é fogo normal… e não apaga");
     liveFixo("luz bonita. desperdício.");
   }
   saveRun();

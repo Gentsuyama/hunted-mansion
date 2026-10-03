@@ -89,7 +89,10 @@ function aimAngle() {
 // ------------------------------------------------------------------
 // Corpo do streamer: peso, três ritmos, fôlego, passos, tremor
 // ------------------------------------------------------------------
-const MOV = { andar: 8.5, correr: 12, furtivo: 4, acel: 13, freio: 17 };
+const MOV = { andar: 6.5, correr: 11.5, acel: 13, freio: 17 };   // dois ritmos: andar (quieto) e correr (barulho)
+// toque duplo numa tecla de direção = correr enquanto segurar
+let corridaTap = false, ultimoTap = { code: "", t: -9 };
+const TECLAS_MOV = ["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
 let pvx = 0, pvy = 0;                // velocidade atual (células/s)
 let passoFase = 0, passoDist = 0;    // ciclo do passo: anima os pés e dispara o som
 let folego = 1, folegoT = 0, semFolego = false;
@@ -127,7 +130,7 @@ function ferida() {
   world.flags.feridas = (world.flags.feridas || 0) + 1;
   if (!live.hinted.has("ferida1")) {
     live.hinted.add("ferida1");
-    livePush(liveRandUser(), "cada golpe deixa MARCA: a barra não volta mais até onde voltava. só a LAMPARINA do hall cura");
+    livePush(liveRandUser(), "cada golpe deixa MARCA… você não volta mais a ser o que era");
   }
 }
 function corpoReset() {
@@ -151,7 +154,7 @@ function chaoSobOsPes() {
 }
 function somPasso(modo) {
   const sup = chaoSobOsPes();
-  const vol = modo === "correr" ? 1 : modo === "furtivo" ? 0.28 : 0.6;
+  const vol = modo === "correr" ? 1 : 0.35;        // andar é quieto; correr é o barulho
   sfxPasso(sup, vol);
   // há algo por perto, no escuro? às vezes um SEGUNDO passo responde ao seu
   let perto = false;
@@ -304,7 +307,7 @@ function updatePrompt() {
                  action: null };
     if (!live.hinted.has("cande1")) {
       live.hinted.add("cande1");
-      livePush(liveRandUser(), "esse CASTIÇAL de cinco velas acende com alma guardada. quanto mais velas, mais longe ilumina");
+      livePush(liveRandUser(), "será que não dá pra acender aquele castiçal? tá muito escuro!");
     }
     return;
   }
@@ -402,17 +405,16 @@ function update(dt) {
   let mag = Math.hypot(ix, iy);
   if (mag > 0) { ix /= mag; iy /= mag; mag = 1; }
   const jm = Math.hypot(touchUI.jx, touchUI.jy);
-  if (jm > 0.2) {                       // analógico: a inclinação É o ritmo
+  let toqueCorre = false;
+  if (jm > 0.2) {                       // analógico: só DOIS ritmos — arrastou fundo, corre
     ix = touchUI.jx / jm; iy = touchUI.jy / jm;
-    mag = Math.min(1, (jm - 0.2) / 0.68);
+    mag = 1; toqueCorre = jm > 0.72;
   }
-  const querCorrer = mag > 0.9 &&
-    (keys.has("ShiftLeft") || keys.has("ShiftRight") || touchUI.correr);
-  const querFurtivo = keys.has("Space") || keys.has("KeyC");
+  if (mag === 0) corridaTap = false;
+  const querCorrer = mag > 0 &&
+    (keys.has("ShiftLeft") || keys.has("ShiftRight") || corridaTap || toqueCorre);
   let alvoV = MOV.andar * mag, modo = "andar";
   if (querCorrer && !semFolego) { alvoV = MOV.correr; modo = "correr"; }
-  else if (querFurtivo) { alvoV = MOV.furtivo * mag; modo = "furtivo"; }
-  else if (alvoV <= MOV.furtivo * 1.35) modo = "furtivo";
   const kAc = Math.min(1, (mag > 0 ? MOV.acel : MOV.freio) * dt);
   pvx += (ix * alvoV - pvx) * kAc;
   pvy += (iy * alvoV - pvy) * kAc;
@@ -423,7 +425,7 @@ function update(dt) {
     if (!collides(player.x + pvx * dt, player.y)) player.x += pvx * dt; else pvx = 0;
     if (!collides(player.x, player.y + pvy * dt)) player.y += pvy * dt; else pvy = 0;
     andou = Math.hypot(player.x - x0, player.y - y0);
-    const passada = modo === "correr" ? 2.3 : modo === "furtivo" ? 1.2 : 1.75;
+    const passada = modo === "correr" ? 2.3 : 1.5;
     passoFase += andou * Math.PI / passada;
     passoDist += andou;
     if (passoDist >= passada) { passoDist = 0; somPasso(modo); }
@@ -527,13 +529,13 @@ function update(dt) {
   // o eco OUVE: pé ante pé ele quase não percebe; correndo, ouve de longe —
   // e só se arrasta na sua direção enquanto você faz barulho
   // (parado é tão silencioso quanto pé ante pé)
-  const percep = ECO.ouve[movModo === "correr" ? 2 : movModo === "andar" ? 1 : 0];
-  const ruido = movModo === "correr" ? 1.5 : movModo === "andar" ? 1 : 0;
+  const percep = ECO.ouve[movModo === "correr" ? 2 : 0];
+  const ruido = movModo === "correr" ? 1.5 : 0;
   const lamp = lampAcesa() ? world.lamp : null;
   const naLamp = !!lamp && Math.hypot(lamp.x - player.x, lamp.y - player.y) < LAMP_RAIO;
   for (const g of gs) {
     if (g.respawn > 0) {
-      g.respawn -= dt;
+      g.respawn -= dt * (movModo === "correr" ? 2.2 : 1);   // correr acorda a casa
       if (g.respawn <= 0) {
         let p = fl().freeSpot();
         for (let k = 0; k < 20 && Math.hypot(p.x - player.x, p.y - player.y) < 18; k++) p = fl().freeSpot();
@@ -556,42 +558,34 @@ function update(dt) {
     nearest = Math.min(nearest, d);
     g.bob += dt * 2.2;
     if (pac) g.bote = null;
-    if (g.bote) {                       // ele INSPIRA… e salta
+    if (g.bote) {                       // ele INSPIRA, parado, colado em você… e golpeia
       const b = g.bote;
       b.t -= dt;
-      if (b.fase === "inspira") {
-        if (d > BOTE.desiste) { g.bote = null; boteLivreT = 0.5; }   // você abriu distância
-        else if (b.t <= 0) {
-          b.fase = "salto"; b.t = BOTE.dur; b.acertou = false;
-          b.dx = (player.x - g.x) / d; b.dy = (player.y - g.y) / d;   // direção TRAVADA
-          sfxBote();
-        }
-      } else {
-        g.x = Math.max(2, Math.min(COLS - 2, g.x + b.dx * BOTE.vel * dt));
-        g.y = Math.max(2, Math.min(ROWS - 2, g.y + b.dy * BOTE.vel * dt));
-        if (!b.acertou && Math.hypot(player.x - g.x, player.y - g.y) < 1.3) {
-          b.acertou = true;
+      if (d > BOTE.desiste) { g.bote = null; boteLivreT = 0.5; continue; }   // você abriu distância
+      if (b.t <= 0) {
+        sfxBote();
+        if (d < BOTE.alcance) {         // ainda colado: o golpe pega
           sanity -= BOTE.dano; shake = 1.2; tremor = 1; danoT = 0.5;
           ferida();
           sfxDamage(); dmgSfxT = 0.5;
           if (!live.hinted.has("bote2")) {
             live.hinted.add("bote2");
-            livePush(liveRandUser(), "ele AVISA antes de pular: os olhos acendem. FLASH nessa hora, ou sai da frente");
+            livePush(liveRandUser(), "ELE TE PEGOU. os olhos dele acenderam antes… você viu?");
           } else if (Math.random() < 0.4) liveEvent("damage");
         }
-        if (b.t <= 0) {                 // passou: fica gasto e some no escuro
-          g.wx = g.x + b.dx * 7; g.wy = g.y + b.dy * 7;
-          g.bote = null; g.gasto = BOTE.gasto; g.chase = false;
-          boteLivreT = BOTE.pausa;
-        }
+        // pegou ou não: fica gasto e se afasta para o escuro
+        g.wx = g.x + (g.x - player.x) / d * 7; g.wy = g.y + (g.y - player.y) / d * 7;
+        g.bote = null; g.gasto = BOTE.gasto; g.chase = false;
+        boteLivreT = BOTE.pausa;
       }
       continue;
     }
     if (g.gasto > 0) g.gasto -= dt;
     // Uma vez atrás de você, só larga se a distância abrir um pouco (+2).
     const antes = g.chase;
+    const ve = d < ECO.ve && hasLOS(g.x, g.y, player.x, player.y);
     g.chase = !pac && !(g.gasto > 0) &&
-              ((attractT > 0 && d < ECO.atraiRaio) || d < (antes ? percep + 2 : percep));
+              ((attractT > 0 && d < ECO.atraiRaio) || ve || d < (antes ? percep + 2 : percep));
     if (g.chase && !antes && attractT <= 0 && vistoCd <= 0) {
       sfxVisto(); vistoCd = 8; sinalT = 1.3;   // UM som, UM significado: fui visto
     }
@@ -603,17 +597,18 @@ function update(dt) {
       sfxInspira(Math.max(-1, Math.min(1, (g.x - player.x) / 6)));
       if (!live.hinted.has("bote1")) {
         live.hinted.add("bote1");
-        livePush(liveRandUser(), "ele tá PUXANDO O AR… vai pular!! FLASH NELE ou sai da frente");
+        livePush(liveRandUser(), "os olhos dele ACENDERAM. ele tá puxando o ar… SAI DAÍ");
       }
       continue;
     }
     let tx, ty, sp;
     const vagueia = pac || g.gasto > 0;    // andar manso, ou eco gasto depois do bote: vagueia
     if (g.chase) {
-      if (d < BOTE.dist) {              // colado, mas não é a vez dele: ronda
+      const suaVez = !emBote && boteLivreT <= 0 && !naLamp;
+      if (!suaVez && d < BOTE.dist + 1.2) {   // perto, mas não é a vez dele: ronda em volta
         const a = Math.atan2(g.y - player.y, g.x - player.x) + 0.5;
-        tx = player.x + Math.cos(a) * BOTE.dist; ty = player.y + Math.sin(a) * BOTE.dist;
-      } else { tx = player.x; ty = player.y; }
+        tx = player.x + Math.cos(a) * (BOTE.dist + 1.2); ty = player.y + Math.sin(a) * (BOTE.dist + 1.2);
+      } else { tx = player.x; ty = player.y; }   // é a vez dele: vem colar
       sp = GHOST_SPEED;
     } else if (vagueia) {
       if (Math.hypot(g.wx - g.x, g.wy - g.y) < 1.5) {
@@ -685,6 +680,11 @@ function update(dt) {
       world.taken.add(it.id);
       if (it.kind === "fuse") { world.flags.fuses++; liveEvent("fuse"); }
       else if (it.kind === "key") { world.flags.key = true; liveEvent("key"); }
+      else if (it.kind === "pilha") {
+        bateria = Math.min(BAT.max, bateria + BAT.pilha);
+        toast(tf("PILHAS — o flash ganhou {0} cargas", BAT.pilha), 3);
+        livePush(liveRandUser(), "pilha?? essa casa ainda tem coisa que funciona");
+      }
       else if (it.kind === "campart") {
         world.flags.cam[it.part] = true;
         if (it.part === "tampa") {
@@ -696,9 +696,9 @@ function update(dt) {
             ? "TAMPA + FILME!  toque na câmera do canto para pôr/tirar o rolo"
             : "TAMPA + FILME!  [R] põe/tira o rolo — sem filme o flash só espanta", 8);
         } else if (it.part === "ampola") {
-          livePush(liveRandUser(), "a AMPOLA!! é nela que ele guardava o que a câmera tirava das pessoas");
-          livePush(liveRandUser(), "agora dá pra CONVERTER a alma de uma foto (clica no vulto, no álbum) e virar bateria");
-          toast("AMPOLA DE PRATA — no álbum, clique no vulto de uma foto para guardar a alma", 7);
+          livePush(liveRandUser(), "que frasco é esse?? o vidro tá embaçado por dentro…");
+          livePush(liveRandUser(), "encaixou na câmera. ele guardava alguma coisa aí. alguma coisa que a câmera TIRAVA");
+          toast("AMPOLA DE PRATA — gelada, com um resíduo azul no fundo. Encaixa na câmera", 6);
         } else if (it.part === "obturador") liveEvent("obturador");
         else if (it.part === "lente") liveEvent("lente");
         else if (it.part === "passado") {
@@ -861,7 +861,6 @@ function render() {
   // PLANTA A NANQUIM: chão em mancha de luz, paredes em bloco hachurado,
   // móveis em símbolo. O que há NAS paredes continua sendo só da foto.
   mapaLuzChao(c0, c1, r0, r1);
-  mapaMemoria(c0, c1, r0, r1);
   mapaParedes(c0, c1, r0, r1);
   mapaMoveis();
   ctx.font = "bold 11px 'Courier New', monospace";
@@ -880,7 +879,7 @@ function render() {
     if (it.taken || it.floor !== world.cur) continue;
     const L = Math.min(1, lightAt(it.x, it.y) * 1.8);
     mapaIcone(it.kind === "campart" ? "campart" : it.kind, it.x * CELL, it.y * CELL, 4.6,
-      it.kind === "key" ? "244,214,116" : it.kind === "campart" ? "150,222,238"
+      it.kind === "key" ? "244,214,116" : it.kind === "campart" ? "150,222,238" : it.kind === "pilha" ? "214,224,236"
                                                                : "255,172,96", L * pul);
   }
   // retrato aprisionador: só ganha ícone DEPOIS da foto denunciar
@@ -1099,14 +1098,13 @@ function toggleFilm() {
   if (!world.flags.cam.tampa) return;
   world.flags.filmLoaded = !world.flags.filmLoaded;
   toast(world.flags.filmLoaded
-    ? "FILME NA CÂMERA — a foto registra e captura (gasta rolo)"
-    : "FILME FORA — o flash só espanta, de graça", 2.8);
+    ? "FILME NA CÂMERA" : "FILME FORA — só o flash", 2.8);
   sfxPickup();
   if (!live.hinted.has("filmtoggle")) {
     live.hinted.add("filmtoggle");
     livePush(liveRandUser(), world.flags.filmLoaded
-      ? "filme DENTRO: a foto registra e captura (e gasta rolo)"
-      : "tirou o filme: o flash vira espanta-fantasma de graça, mas não salva NADA");
+      ? "filme dentro. agora cada clique come um pedaço de rolo"
+      : "tirou o filme?? então é só o clarão. não vai sair foto nenhuma");
   }
   saveRun();
 }
@@ -1340,7 +1338,7 @@ function drawHUD() {
       ctx.fillRect(96, canvas.height - 39, 138 * folego, 3);
     }
     ctx.fillStyle = "rgba(160,160,160,0.55)";
-    ctx.fillText(tr("WASD mover · SHIFT correr · ESPAÇO pé ante pé · mouse lanterna · botão direito FOTO · R filme · F álbum · E usar")
+    ctx.fillText(tr("WASD mover · toque duplo = correr (faz barulho) · mouse lanterna · botão direito FOTO · R filme · F álbum · E usar")
                    .replace("WASD", TECLAS_ANDAR),
                  12, canvas.height - 14, canvas.width - 250);
   }
@@ -1545,12 +1543,20 @@ window.addEventListener("keydown", e => {
   }
   if (e.code === "KeyR" && state === "play") { toggleFilm(); return; }
   if (e.code === "KeyB" && state === "play") { recarregar(); return; }
+  if (!e.repeat && TECLAS_MOV.includes(e.code)) {    // duas vezes a mesma direção = correr
+    const agora = performance.now() / 1000;
+    if (ultimoTap.code === e.code && agora - ultimoTap.t < 0.3) corridaTap = true;
+    ultimoTap = { code: e.code, t: agora };
+  }
   keys.add(e.code);
 });
-window.addEventListener("keyup", e => keys.delete(e.code));
+window.addEventListener("keyup", e => {
+  keys.delete(e.code);
+  if (!TECLAS_MOV.some(k => keys.has(k))) corridaTap = false;
+});
 // alt-tab com tecla pressionada: o keyup se perde e o jogador andaria sozinho
 function limpaEntradas() {
-  keys.clear();
+  keys.clear(); corridaTap = false;
   touchUI.joyId = null; touchUI.jx = 0; touchUI.jy = 0;
   touchUI.jkx = 0; touchUI.jky = 0; touchUI.correr = false;
   touchUI.aimId = null; touchUI.akx = 0; touchUI.aky = 0;
@@ -1672,9 +1678,7 @@ canvas.addEventListener("touchstart", e => {
       updateAimStick(p);
     } else if (touchUI.joyId === null &&
                Math.hypot(p.x - MOVE_STICK.x, p.y - MOVE_STICK.y) < MOVE_STICK.r + 50) {
-      touchUI.joyId = t.identifier;
-      // toque duplo no analógico = CORRER enquanto segurar
-      touchUI.correr = performance.now() - (touchUI.joyUp || 0) < 320;
+      touchUI.joyId = t.identifier;        // no toque, o ritmo é o quanto se arrasta o botão
       updateMoveStick(p);
     }
   }

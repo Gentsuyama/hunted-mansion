@@ -5,7 +5,7 @@
 
 // posições FIXAS verticais (iguais em todos os andares)
 const STAIR_ROOM = { x: 68, y: 40, w: 14, h: 12 };   // hall da escadaria
-const ELEV_ROOM  = { x: 86, y: 42, w: 6,  h: 8 };    // poço do elevador
+const ELEV_ROOM  = { x: 84, y: 42, w: 8,  h: 8 };    // poço do elevador (8 de largura: a grade cabe fora do corredor)
 const ENTRY_HALL = { x: 60, y: 74, w: 28, h: 16 };   // hall de entrada (térreo)
 const DARKROOM   = { x: 94, y: 42, w: 9,  h: 8 };    // quarto escuro (só porão)
 const ATELIER    = { x: 56, y: 18, w: 30, h: 16 };   // ateliê (só último andar)
@@ -60,8 +60,9 @@ function genWorld(seed) {
     const c = roomCenter(r); flo.safe = { x: c.x, y: c.y };
     clearFurnAround(flo, c.x, c.y, 2); }
   // quadro de fusíveis no porão, dentro do poço do elevador
-  { const ec = roomCenter(ELEV_ROOM);
-    world.floors[0].fusebox = { x: ec.x - 1.5, y: ELEV_ROOM.y + 1.2 }; }
+  { const el = world.floors[0].elev;
+    const fx = el.cx > roomCenter(ELEV_ROOM).x ? ELEV_ROOM.x + 1.5 : ELEV_ROOM.x + ELEV_ROOM.w - 1.5;
+    world.floors[0].fusebox = { x: fx, y: el.lado === "N" ? ELEV_ROOM.y + 1.2 : ELEV_ROOM.y + ELEV_ROOM.h - 1.2 }; }
   // fusível 1: sala secreta de um andar aleatório (1..4); fusível 2: sala do porão
   world.items = [];
   const sf = 1 + (rng() * 4 | 0);
@@ -95,6 +96,11 @@ function genWorld(seed) {
                   : world.floors[1].freeSpot();
     world.items.push({ id: "lente", kind: "campart", part: "lente",
       floor: 1, x: lp.x, y: lp.y, taken: false }); }
+  // PILHAS para o flash: duas por run (térreo e 1º andar), não voltam
+  for (const f2 of [1, 2]) {
+    const p = world.floors[f2].freeSpot();
+    world.items.push({ id: "pilha" + f2, kind: "pilha", floor: f2, x: p.x, y: p.y, taken: false });
+  }
   // AMPOLA de prata: onde ele guardava o que a câmera tirava — 1º andar, sala comum
   { const p = world.floors[2].freeSpot();
     world.items.push({ id: "ampola", kind: "campart", part: "ampola", floor: 2,
@@ -350,9 +356,30 @@ function genFloor(seed, f) {
   }
   if (temUp) sealNiche(STAIR_UP_RECT, true);     // boca ao sul (hall)
   if (temDown) sealNiche(STAIR_DOWN_RECT, false);// boca ao norte (hall)
-  const ec = roomCenter(ELEV_ROOM);
-  // o piso de chamada fica EM FRENTE À GRADE (parede norte do poço), não no meio da sala
-  g[ELEV_ROOM.y * COLS + (ec.x | 0)] = T_ELEV;
+  // a GRADE do elevador fica num trecho de parede SÓLIDA (3 células) da parede norte do
+  // poço — nunca em cima de um corredor; se a norte não tiver, vai para a sul.
+  // O piso de chamada (T_ELEV) fica em frente à grade.
+  {
+    const R = ELEV_ROOM, ec = roomCenter(R);
+    const solido = (row, gx) => [0, 1, 2].every(i => g[row * COLS + gx + i] === T_WALL);
+    const acha = (row) => {
+      let best = -1, bd = 99;
+      for (let gx = R.x; gx <= R.x + R.w - 3; gx++)
+        if (solido(row, gx) && Math.abs(gx + 1.5 - ec.x) < bd) { bd = Math.abs(gx + 1.5 - ec.x); best = gx; }
+      return best;
+    };
+    let gx = acha(R.y - 1), lado = "N";
+    if (gx < 0) { gx = acha(R.y + R.h); lado = "S"; }
+    if (gx < 0) {                                  // (raríssimo) força a parede no canto esquerdo
+      gx = R.x; lado = "N";
+      for (let i = 0; i < 3; i++) g[(R.y - 1) * COLS + gx + i] = T_WALL;
+    }
+    const ty = lado === "N" ? R.y : R.y + R.h - 1;
+    g[ty * COLS + gx + 1] = T_ELEV;
+    floor.elev = { cx: gx + 1.5, lado, tile: { x: gx + 1, y: ty },
+                   wy: lado === "N" ? R.y + 0.3 : R.y + R.h - 0.3,     // onde a grade fica na foto
+                   frente: { x: gx + 1.5, y: lado === "N" ? R.y + 1.6 : R.y + R.h - 1.6 } };
+  }
 
   // --- porta da frente (só térreo): parede sul do hall de entrada ---
   if (f === 1) {
@@ -559,13 +586,24 @@ function genFloor(seed, f) {
 
   // --- CANDELABROS: dois por andar, nas salas comuns (acendem com almas) ---
   floor.candelabros = [];
-  for (let i = 0; i < VELAS.porAndar; i++) {
-    const p = freeSpot();
-    floor.candelabros.push({ id: f + ":" + i, x: (p.x | 0) + 0.5, y: (p.y | 0) + 0.5 });
+  {                                                  // um por sala, em salas diferentes (sorteadas)
+    const salas = rooms.filter(r => r.fixed !== "elev" && r.w >= 6 && r.h >= 6);
+    for (let i = salas.length - 1; i > 0; i--) { const j = rng() * (i + 1) | 0; [salas[i], salas[j]] = [salas[j], salas[i]]; }
+    for (const r of salas) {
+      if (floor.candelabros.length >= VELAS.porAndar) break;
+      let p = null;
+      for (let t = 0; t < 30 && !p; t++) {           // perto de uma parede, nunca no meio do caminho
+        const x = r.x + 1 + (rng() * (r.w - 2) | 0), y = r.y + 1 + (rng() * (r.h - 2) | 0);
+        const id = y * COLS + x;
+        const beira = x === r.x + 1 || x === r.x + r.w - 2 || y === r.y + 1 || y === r.y + r.h - 2;
+        if (beira && g[id] === T_FLOOR && !furnGrid[id]) p = { x, y };
+      }
+      if (p) floor.candelabros.push({ id: f + ":" + floor.candelabros.length, x: p.x + 0.5, y: p.y + 0.5 });
+    }
   }
 
   // --- refis de filme (poucos: a casa repõe, mas devagar) ---
-  const nFilm = f === 1 ? 2 : 1;
+  const nFilm = 2;                                   // dois por andar (+ o das salas secretas vazias)
   for (let i = 0; i < nFilm; i++) {
     const p = freeSpot();
     floor.films.push({ id: `${f}:${i}`, x: p.x, y: p.y, taken: false });
