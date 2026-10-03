@@ -937,11 +937,12 @@ function keyLumToAlpha(im) {
       }
     }
   g.putImageData(d, 0, 0);
-  if (maxX < 0) return cv;
+  if (maxX < 0) { cv._x0 = 0; cv._y0 = 0; cv._w0 = w; cv._h0 = h; return cv; }
   const cw2 = maxX - minX + 1, ch2 = maxY - minY + 1;
   const out = document.createElement("canvas");
   out.width = cw2; out.height = ch2;
   out.getContext("2d").drawImage(cv, minX, minY, cw2, ch2, 0, 0, cw2, ch2);
+  out._x0 = minX; out._y0 = minY; out._w0 = w; out._h0 = h;   // onde o recorte caiu na imagem original
   return out;
 }
 const SOUL_IMGS = {};
@@ -958,6 +959,49 @@ const SOUL_IMGS = {};
   }
 })();
 function soulArt(id) { return SOUL_IMGS[id] || null; }
+// o que a arte NÃO traz e o jogo põe por cima (frações da imagem original do guia):
+// o Hóspede usa o rosto do STREAMER; a lente do Blackwood dispara; a lamparina do
+// Bento e o camafeu da Aurora brilham. Ajustar se a arte vier com a pose diferente.
+const SOUL_ARTE_PONTOS = {
+  hospede:   { rosto: [0.500, 0.144, 0.092] },        // x, y e largura do rosto
+  blackwood: { lente: [0.500, 0.268] },
+  bento:     { lamparina: [0.705, 0.305] },
+  aurora:    { camafeu: [0.505, 0.265] },
+};
+const SOUL_ARTE_CACHE = {};
+function soulArtMontado(id) {
+  const art = soulArt(id);
+  if (!art) return null;
+  const P = SOUL_ARTE_PONTOS[id];
+  if (!P) return art;
+  const temRosto = typeof STREAMER_IMG !== "undefined" && !!STREAMER_IMG;
+  const chave = id + (temRosto ? "r" : "s");
+  if (SOUL_ARTE_CACHE[chave]) return SOUL_ARTE_CACHE[chave];
+  const cv = document.createElement("canvas");
+  cv.width = art.width; cv.height = art.height;
+  const g = cv.getContext("2d");
+  g.drawImage(art, 0, 0);
+  const X = (fx) => fx * art._w0 - art._x0, Y = (fy) => fy * art._h0 - art._y0;
+  if (P.rosto && temRosto && HOSPEDE_SEU_ROSTO) {     // ele não tem rosto. NA FOTO, usa o SEU
+    const f = bustoEspectral(STREAMER_IMG, STREAMER_ROSTO, (P.rosto[2] * art._w0) | 0,
+                             { corte: 84, oval: true, forca: 0.8 });
+    if (f) g.drawImage(f, X(P.rosto[0]) - f.width / 2, Y(P.rosto[1]) - f.height / 2);
+  }
+  const brilho = (fx, fy, r, cor) => {
+    const x = X(fx), y = Y(fy);
+    const gr = g.createRadialGradient(x, y, 1, x, y, r);
+    gr.addColorStop(0, cor[0]); gr.addColorStop(0.35, cor[1]); gr.addColorStop(1, cor[2]);
+    g.fillStyle = gr; g.fillRect(x - r, y - r, 2 * r, 2 * r);
+  };
+  if (P.lente) brilho(P.lente[0], P.lente[1], art._w0 * 0.045,
+                      ["rgba(255,255,255,0.98)", "rgba(255,255,255,0.4)", "rgba(255,255,255,0)"]);
+  if (P.lamparina) brilho(P.lamparina[0], P.lamparina[1], art._w0 * 0.06,
+                          ["rgba(255,246,214,0.85)", "rgba(240,224,180,0.3)", "rgba(240,224,180,0)"]);
+  if (P.camafeu) brilho(P.camafeu[0], P.camafeu[1], art._w0 * 0.02,
+                        ["rgba(255,250,236,0.95)", "rgba(255,250,236,0.4)", "rgba(255,250,236,0)"]);
+  cv._aspect = art._aspect; cv._hscale = art._hscale;
+  return (SOUL_ARTE_CACHE[chave] = cv);
+}
 
 // correntes espectrais da porta: 7 no total, as quebradas pendem soltas
 const CHAIN_SPRS = {};
@@ -1443,7 +1487,7 @@ function bustoEspectral(im, B, larg, opts) {
 let HOSPEDE_SEU_ROSTO = true;
 const SOUL_SPRS = {};
 function soulSprite(id) {
-  const art = soulArt(id);
+  const art = soulArtMontado(id);
   if (art) return art;
   const im = RET_ORIG[id] || null;
   const key = id + ((Math.random() * 2) | 0) + (im ? "a" : "p");
