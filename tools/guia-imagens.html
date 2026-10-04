@@ -68,6 +68,10 @@ Gere no Gemini/Nano Banana, 1 passo por vez, <b>conversa nova a cada passo</b>.<
 <nav id="sumario"></nav>
 
 <div class="licoes"><b>Regras aprendidas</b><br>
+· <b>Anexo com moldura vira figura com moldura:</b> o 3º eco saiu dentro de um oval dourado
+porque a referência de tom era um RETRATO emoldurado. Referência de estilo tem que ter o
+mesmo RECORTE do que se quer (vulto inteiro sobre preto, sem moldura) e o prompt diz “no
+picture frame, no oval frame, no border — the black runs to the edges”.<br>
 · <b>Âncoras saem da ARTE APROVADA, nunca da memória:</b> a 1ª folha do protagonista
 saiu com cabelo enrolado curto e sem mochila porque o prompt descreveu um personagem
 imaginado — o certo é abrir a imagem canônica (intro1), extrair as âncoras DELA e
@@ -425,9 +429,9 @@ const ETAPAS = [
     "a figure made mostly of smoke, only the head and one hand still solid"].map((desc, i) => ({
       id:"ECO-" + String(i + 1).padStart(3, "0"), titulo:"eco" + String(i + 1).padStart(2, "0"),
       ctx:"Vulto nº " + (i + 1) + " · 9:16 em pé · fundo preto puro · corpo inteiro",
-      anexos:[["Tom fotográfico da casa (retrato aprovado)", "Assets/Retratos/bento.jpg"]],
-      prompt:"Photograph, vertical 9:16 (portrait), of a single ghostly human figure isolated on a pure solid black background, the whole body visible from head to feet with black margin around it, facing or turned as described: " + desc + ". Clothing from the 1940s. Skin and cloth pale grey like an old silver-gelatin print, slightly translucent, the edges smeared by a long exposure as if the figure moved during the shot. Hair hanging over the face, eyes as dark hollows, mouth closed or hidden — never smiling, never cartoonish. Lit harshly from the front by an on-camera flash, monochrome, heavy film grain, same old-photograph look as the attached image. No text, no watermark, no floor, no furniture, nothing else in the frame.",
-      qc:["fundo PRETO PURO, nada de chão","UM vulto só, corpo inteiro com margem","sem sorriso, sem cara de desenho, sem olhos redondos brilhantes","borrado de longa exposição, cinza-prata, sem cor","roupa de época, proporção estranha"],
+      anexos:[["Tom e recorte: aparição de corpo inteiro sobre preto, SEM moldura (não anexe retrato com moldura)", "Assets/Almas/hospede.jpg"]],
+      prompt:"Photograph, vertical 9:16 (portrait), of a single ghostly human figure standing directly on a pure solid black background — NO picture frame, NO oval frame, NO border, NO vignette: the black background runs to the edges of the image. The whole body visible from head to feet with black margin around it, facing or turned as described: " + desc + ". Clothing from the 1940s. Skin and cloth pale grey like an old silver-gelatin print, slightly translucent, the edges smeared by a long exposure as if the figure moved during the shot. Hair hanging over the face, eyes as dark hollows, mouth closed or hidden — never smiling, never cartoonish. Lit harshly from the front by an on-camera flash, monochrome, heavy film grain, same look and same framing as the attached image. No text, no watermark, no floor, no furniture, nothing else in the frame.",
+      qc:["fundo PRETO PURO até as bordas — SEM moldura, quadro ou vinheta oval","nada de chão","UM vulto só, corpo inteiro com margem","sem sorriso, sem cara de desenho, sem olhos redondos brilhantes","borrado de longa exposição, cinza-prata, sem cor","roupa de época, proporção estranha"],
       salvar:"Assets\\Ecos\\eco" + String(i + 1).padStart(2, "0") + ".jpg" })) },
 ];
 // ============================================================================
