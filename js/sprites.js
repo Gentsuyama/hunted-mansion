@@ -553,6 +553,15 @@ function ecoEspectral(im, espelha) {
   cv._aspect = w / h; cv._hscale = 1.0; cv._img = im;
   return cv;
 }
+// semente de arte para um eco novo: tenta não repetir a imagem dos outros ecos do andar
+function ecoSemente(outros) {
+  let seed = Math.random();
+  if (ECO_IMGS.length > 1 && outros) {
+    const usados = new Set(outros.map(g => (g.artSeed * ECO_IMGS.length) | 0));
+    for (let k = 0; k < 8 && usados.has((seed * ECO_IMGS.length) | 0); k++) seed = Math.random();
+  }
+  return seed;
+}
 function ghostSprite(seed) {
   if (ECO_IMGS.length) {
     const spr = ECO_IMGS[(seed * ECO_IMGS.length) | 0];

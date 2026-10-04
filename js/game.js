@@ -541,7 +541,7 @@ function update(dt) {
         for (let k = 0; k < 20 && Math.hypot(p.x - player.x, p.y - player.y) < 18; k++) p = fl().freeSpot();
         g.x = p.x; g.y = p.y;
         g.wx = g.x; g.wy = g.y; g.chase = false; g.bote = null; g.gasto = 0;
-        g.artSeed = Math.random(); g.sprCv = null;
+        g.artSeed = ecoSemente(gs.filter(o => o !== g)); g.sprCv = null;
       }
       continue;
     }
