@@ -192,9 +192,13 @@ function mapaMoveis() {
     const ft = FURN_TYPES[fu.type];
     // móvel pequeno é desenhado um pouco maior que o footprint: símbolo tem que ler
     const esc = ft.w * ft.h <= 1 ? 1.4 : ft.w * ft.h <= 2 ? 1.2 : 1.06;
+    const spr = plantaSprite(fu.type);
+    // a imagem cabe no footprint SEM deformar (um berço 9:16 num footprint 2×2 fica estreito)
+    let dw = ft.w * esc, dh = ft.h * esc;
+    const ar = spr.width / spr.height;
+    if (ar > dw / dh) dh = dw / ar; else dw = dh * ar;
     ctx.globalAlpha = Math.min(1, L * 1.3);
-    ctx.drawImage(plantaSprite(fu.type), (fu.x - ft.w * esc / 2) * C, (fu.y - ft.h * esc / 2) * C,
-                  ft.w * esc * C, ft.h * esc * C);
+    ctx.drawImage(spr, (fu.x - dw / 2) * C, (fu.y - dh / 2) * C, dw * C, dh * C);
   }
   ctx.globalAlpha = 1;
 }
