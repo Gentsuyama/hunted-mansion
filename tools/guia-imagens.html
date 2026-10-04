@@ -401,7 +401,7 @@ const ETAPAS = [
       qc:["fundo PRETO PURO","visto EXATAMENTE de cima (ortogonal)","traço claro sobre corpo escuro — lê como símbolo de planta","gerada em " + RATIO[0]],
       salvar:"Assets\\Planta\\" + tipo + ".jpg" }; }) },
 { id:"ecos", titulo:"Etapa 8 — Os ECOS (24 vultos de corpo inteiro, fundo preto)",
-  nota:"Os ecos são os mortos sem nome que vagam pela casa. Hoje são desenhos por código; estas imagens os substituem sozinhas (Assets/Ecos/eco01.jpg, eco02.jpg… em sequência, sem buraco na numeração). O jogo tira a cor, deixa os pés sumindo no chão e espelha metade deles — então: UM vulto por imagem, corpo inteiro da cabeça aos pés, fundo PRETO PURO, nada de chão nem cenário. O que NÃO pode: sorriso, cara de desenho animado, olhos redondos brilhantes, cor. Pode e deve: borrado de longa exposição, cabelo na cara, roupa dos anos 1940, proporções erradas.",
+  nota:"Os ecos são os mortos sem nome que vagam pela casa. Hoje são desenhos por código; estas imagens os substituem sozinhas. FLUXO: o original vai para Originais/Ecos/ecoNN-<carimbo>.jpg (sequência sem buraco) e o recorte é feito por python tools/recorta-ecos.py --folhas, que grava Assets/Ecos/ecoNN.webp já com alfa e folhas de contato em tools/recorte-ecos/ para CONFERIR cada vulto antes de aceitar (o recorte no navegador comia paletó e batina). O jogo tira a cor, deixa os pés sumindo no chão e espelha metade deles — então: UM vulto por imagem, corpo inteiro da cabeça aos pés, fundo PRETO PURO, nada de chão nem cenário. O que NÃO pode: sorriso, cara de desenho animado, olhos redondos brilhantes, cor. Pode e deve: borrado de longa exposição, cabelo na cara, roupa dos anos 1940, proporções erradas.",
   passos: [
     "a tall gaunt man in a dark suit standing very still, his arms hanging too long for his body",
     "a woman in a long white nightgown, wet hair covering her whole face, head tilted to one shoulder",
@@ -432,7 +432,7 @@ const ETAPAS = [
       anexos:[["Tom e recorte: aparição de corpo inteiro sobre preto, SEM moldura (não anexe retrato com moldura)", "Assets/Almas/hospede.jpg"]],
       prompt:"Photograph, vertical 9:16 (portrait), of a single ghostly human figure standing directly on a pure solid black background — NO picture frame, NO oval frame, NO border, NO vignette: the black background runs to the edges of the image. The whole body visible from head to feet with black margin around it, facing or turned as described: " + desc + ". Clothing from the 1940s. Skin and cloth pale grey like an old silver-gelatin print, slightly translucent, the edges smeared by a long exposure as if the figure moved during the shot. Hair hanging over the face, eyes as dark hollows, mouth closed or hidden — never smiling, never cartoonish. Lit harshly from the front by an on-camera flash, monochrome, heavy film grain, same look and same framing as the attached image. No text, no watermark, no floor, no furniture, nothing else in the frame.",
       qc:["fundo PRETO PURO até as bordas — SEM moldura, quadro ou vinheta oval","nada de chão","UM vulto só, corpo inteiro com margem","sem sorriso, sem cara de desenho, sem olhos redondos brilhantes","borrado de longa exposição, cinza-prata, sem cor","roupa de época, proporção estranha"],
-      salvar:"Assets\\Ecos\\eco" + String(i + 1).padStart(2, "0") + ".jpg" })) },
+      salvar:"Originais\\Ecos\\eco" + String(i + 1).padStart(2, "0") + "-<carimbo>.jpg  →  python tools/recorta-ecos.py --folhas" })) },
 ];
 // ============================================================================
 

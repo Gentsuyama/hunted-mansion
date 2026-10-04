@@ -520,19 +520,25 @@ const GHOST_POOL_N = 12;
   GHOST_POOL.push(makeGhostSprite((GHOST_POOL.length + Math.random()) / GHOST_POOL_N));
   setTimeout(warmGhostPool, 40);
 })();
-// --- ECOS do Gemini (Assets/Ecos/eco01.jpg, eco02.jpg, … — guia, Etapa 8): corpo inteiro
-// sobre preto. Carrega em sequência até faltar um. Cada imagem vira um sprite ESPECTRAL:
-// fundo transparente, sem cor (prata), pés dissolvendo no chão; metade sai espelhada.
+// --- ECOS do Gemini (guia, Etapa 8): corpo inteiro sobre preto. O recorte é feito FORA do
+// jogo (tools/recorta-ecos.py → Assets/Ecos/ecoNN.webp, já com alfa e conferido imagem a
+// imagem); o recorte no navegador comia paletó, batina e olhos fundos. Carrega em sequência
+// até faltar um (cai no .jpg + recorte antigo se só houver o jpg). Cada imagem vira um sprite
+// ESPECTRAL: sem cor (prata), pés dissolvendo no chão; metade sai espelhada.
 const ECO_IMGS = [];
 (function loadEcoImgs(n) {
   if (n > 60) return;
-  const im = new Image();
-  im.onload = () => { ECO_IMGS.push(ecoEspectral(im)); loadEcoImgs(n + 1); };
-  im.onerror = () => {};
-  im.src = "Assets/Ecos/eco" + String(n).padStart(2, "0") + ".jpg";
+  const nome = "Assets/Ecos/eco" + String(n).padStart(2, "0");
+  const tenta = (ext, senao) => {
+    const im = new Image();
+    im.onload = () => { ECO_IMGS.push(ecoEspectral(im, false, ext === "webp")); loadEcoImgs(n + 1); };
+    im.onerror = senao;
+    im.src = nome + "." + ext;
+  };
+  tenta("webp", () => tenta("jpg", () => {}));
 })(1);
-// recorte SUAVE para os ecos: só o preto quase absoluto (≤ 8) ligado à borda vira fundo,
-// e o que fica perto dele esmaece em vez de sumir — chapéu e batina escuros sobrevivem
+// recorte no navegador (só para um .jpg sem o .webp): o preto quase absoluto (≤ 8) ligado à
+// borda vira fundo e o que fica perto dele esmaece — vaza o que é escuro de propósito
 function keyBlackToAlphaSuave(im) {
   const w = im.naturalWidth, h = im.naturalHeight;
   const cv = document.createElement("canvas");
@@ -557,8 +563,10 @@ function keyBlackToAlphaSuave(im) {
   g.putImageData(d, 0, 0);
   return cv;
 }
-function ecoEspectral(im, espelha) {
-  const base = keyBlackToAlphaSuave(im), w = base.width, h = base.height;
+function ecoEspectral(im, espelha, pronto) {
+  // pronto = já veio recortado (webp com alfa): não mexe no recorte
+  const base = pronto ? im : keyBlackToAlphaSuave(im);
+  const w = pronto ? im.naturalWidth : base.width, h = pronto ? im.naturalHeight : base.height;
   const cv = document.createElement("canvas");
   cv.width = w; cv.height = h;
   const g = cv.getContext("2d");
@@ -576,7 +584,7 @@ function ecoEspectral(im, espelha) {
     }
   }
   g.putImageData(d, 0, 0);
-  cv._aspect = w / h; cv._hscale = 1.0; cv._img = im;
+  cv._aspect = w / h; cv._hscale = 1.0; cv._img = im; cv._pronto = !!pronto;
   return cv;
 }
 // semente de arte para um eco novo: tenta não repetir a imagem dos outros ecos do andar
@@ -592,7 +600,7 @@ function ghostSprite(seed) {
   if (ECO_IMGS.length) {
     const spr = ECO_IMGS[(seed * ECO_IMGS.length) | 0];
     if ((seed * 977) % 1 < 0.5) return spr;
-    return spr._esp || (spr._esp = ecoEspectral(spr._img, true));
+    return spr._esp || (spr._esp = ecoEspectral(spr._img, true, spr._pronto));
   }
   if (GHOST_POOL.length) return GHOST_POOL[(seed * GHOST_POOL.length) | 0];
   return makeGhostSprite(seed);
@@ -1174,32 +1182,46 @@ function stairSprite(up) {
     trap(y, w, y - 56, w * 0.9, pg);                                   // o patamar some no escuro
     corrimao(vx - W0 / 2 + 5, H - 58, vx - w / 2 + 3, y - 34, H - 6, y);
   } else {
-    // DESCE: um buraco no chão. O flash pega a quina do patamar e os três primeiros
-    // degraus; dali para baixo é breu — a escada some antes de chegar ao fundo
-    const tg = g.createLinearGradient(0, 0, 0, H * 0.4);
-    tg.addColorStop(0, "rgba(30,28,25,0.95)"); tg.addColorStop(1, "rgba(8,8,8,0.98)");
-    g.fillStyle = tg; g.fillRect(vx - W0 / 2, 0, W0, H * 0.4);          // a parede do fundo do poço, no escuro
-    // paredes laterais do poço, em perspectiva (duas faixas que escurecem para baixo)
-    for (const sd of [-1, 1]) {
-      const lg = g.createLinearGradient(0, H * 0.3, 0, H);
-      lg.addColorStop(0, cor(0.22)); lg.addColorStop(1, "rgba(0,0,0,0)");
+    // DESCE: só o que se vê de verdade do alto de uma escada que desce — um TETO que
+    // desce reto para o escuro e um corrimão BAIXO pela parede. Nada de degraus claros.
+    const VPY = H * 0.8, prof = 0.6;                     // para onde a descida converge; até onde o flash chega
+    const px = (x, t) => x + (vx - x) * t, py = (y, t) => y + (VPY - y) * t;
+    for (const sd of [-1, 1]) {                           // paredes laterais do poço: escurecem depressa
+      const x0 = vx + sd * W0 / 2;
+      const lg = g.createLinearGradient(x0, 0, px(x0, prof), 0);
+      lg.addColorStop(0, cor(0.16)); lg.addColorStop(1, "rgba(0,0,0,0)");
       g.fillStyle = lg; g.beginPath();
-      g.moveTo(vx + sd * W0 / 2, H * 0.3); g.lineTo(vx + sd * W0 * 0.34, H);
-      g.lineTo(vx + sd * W0 * 0.22, H); g.lineTo(vx + sd * W0 * 0.38, H * 0.3); g.closePath(); g.fill();
+      g.moveTo(x0, 0); g.lineTo(px(x0, prof), py(0, prof));
+      g.lineTo(px(x0, prof), py(H, prof)); g.lineTo(x0, H); g.closePath(); g.fill();
     }
-    g.fillStyle = cor(0.62); g.fillRect(vx - W0 / 2, H * 0.30, W0, 5);  // a quina do patamar, a parte mais clara
-    let y = H * 0.30 + 5, w = W0 * 0.96, l = 0.42;
-    for (let i = 0; i < 6; i++) {                                       // degraus: largos e logo engolidos
-      const ht = 16 * Math.pow(0.78, i), hr = 9 * Math.pow(0.78, i);
-      const w1 = w * 0.9;
-      trap(y, w, y + ht, w1, cor(l));                                   // o piso (pega luz)
-      trap(y + ht, w1, y + ht + hr, w1 * 0.985, cor(l * 0.22));         // o espelho, quase negro
-      y += ht + hr; w = w1 * 0.985; l *= 0.58;
+    // o TETO: um plano reto do lintel para baixo, com as tábuas do forro cada vez mais juntas
+    const tg = g.createLinearGradient(0, 0, 0, py(0, prof));
+    tg.addColorStop(0, cor(0.5)); tg.addColorStop(0.45, cor(0.2)); tg.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = tg; g.beginPath();
+    g.moveTo(vx - W0 / 2, 0); g.lineTo(vx + W0 / 2, 0);
+    g.lineTo(px(vx + W0 / 2, prof), py(0, prof)); g.lineTo(px(vx - W0 / 2, prof), py(0, prof));
+    g.closePath(); g.fill();
+    g.strokeStyle = "rgba(0,0,0,0.35)"; g.lineWidth = 1;
+    for (let i = 1; i <= 7; i++) {
+      const t = 1 - Math.pow(0.78, i); if (t > prof) break;
+      g.beginPath(); g.moveTo(px(vx - W0 / 2, t), py(0, t)); g.lineTo(px(vx + W0 / 2, t), py(0, t)); g.stroke();
     }
-    const pg = g.createLinearGradient(0, y - 10, 0, H);
-    pg.addColorStop(0, cor(0.04)); pg.addColorStop(1, "rgba(0,0,0,0)");
-    trap(y - 10, w * 1.1, H, w * 0.8, pg);
-    corrimao(vx + W0 / 2 - 5, H * 0.3 - 30, vx + W0 * 0.3, y - 2, H * 0.3 + 4, y + 10);
+    // a soleira pega o flash; o segundo degrau já é um fio — dali para baixo, breu
+    g.fillStyle = cor(0.7); g.fillRect(vx - W0 / 2, H - 4, W0, 4);
+    g.strokeStyle = cor(0.3, 0.8); g.lineWidth = 1.5;
+    g.beginPath(); g.moveTo(px(vx - W0 / 2, 0.1), py(H, 0.1)); g.lineTo(px(vx + W0 / 2, 0.1), py(H, 0.1)); g.stroke();
+    // o corrimão BAIXO, pela parede da direita, descendo reto junto com a escada
+    const xr = vx + W0 / 2 - 4, yr = H * 0.68;
+    const rg = g.createLinearGradient(xr, 0, px(xr, prof), 0);
+    rg.addColorStop(0, cor(0.75)); rg.addColorStop(1, cor(0.75, 0));
+    g.strokeStyle = rg; g.lineCap = "round";
+    g.lineWidth = 3; g.beginPath(); g.moveTo(xr, yr); g.lineTo(px(xr, prof), py(yr, prof)); g.stroke();
+    g.lineWidth = 1.2;
+    for (let i = 0; i <= 4; i++) {                        // balaústres curtos até a parede
+      const t = i / 4 * prof * 0.9;
+      g.beginPath(); g.moveTo(px(xr, t), py(yr, t)); g.lineTo(px(xr, t), py(H, t)); g.stroke();
+    }
+    g.lineWidth = 4; g.beginPath(); g.moveTo(xr, yr - 6); g.lineTo(xr, H); g.stroke();   // pilar de arranque
   }
   // batentes de pedra
   g.fillStyle = "rgb(74,66,54)"; g.fillRect(0, 0, 9, H); g.fillRect(W - 9, 0, 9, H);

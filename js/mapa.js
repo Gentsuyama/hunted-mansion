@@ -371,89 +371,100 @@ function mapaJogador(px, py, dir, passo, movendo, agachado, tremor) {
 }
 
 // ------------------------------------------------------------------
-// ECOS e ALMAS: mancha espectral que respira, com fiapos; olhos ocos
+// ECOS e ALMAS: FUMAÇA PRETA vista de cima, com dois olhos vermelhos dentro
 // ------------------------------------------------------------------
+// ruído barato e determinístico por eco (a fumaça de cada um ferve diferente)
+function fumacaRuido(k, t) { return Math.sin(t * 1.7 + k * 12.9898) * 0.5 + Math.sin(t * 2.9 + k * 78.233) * 0.3 + Math.sin(t * 0.7 + k * 3.3) * 0.2; }
 function mapaVulto(x, y, L, bob, raio, rgb, caca, semOlhos, veu, fx) {
-  const a = 0.22 + 0.62 * L;
+  const a = 0.3 + 0.6 * L;
   const insp = fx && fx.insp !== undefined ? fx.insp : -1;   // 0..1: puxando o ar
-  // de onde ele vem: o rastro fica do lado oposto ao jogador
-  const ang = Math.atan2(y - player.y * CELL, x - player.x * CELL);
+  const ang = Math.atan2(y - player.y * CELL, x - player.x * CELL);   // de onde você o vê
+  const t = time * 0.9 + bob;
   ctx.save();
-  ctx.translate(x, y + (insp >= 0 ? 0 : Math.sin(bob) * 1.6));
+  ctx.translate(x, y);
   if (insp >= 0) {                                    // o AVISO: um aro que se fecha
     ctx.strokeStyle = `rgba(255,74,60,${(0.22 + 0.6 * insp).toFixed(3)})`;
     ctx.lineWidth = 1.2 + insp;
     ctx.beginPath(); ctx.arc(0, 0, raio * (3.5 - 2.4 * insp), 0, 7); ctx.stroke();
-    const s = 1 - 0.2 * insp + Math.sin(time * 42) * 0.035 * insp;   // encolhe e vibra
-    ctx.scale(s, s);
   }
-  // aura fria
-  const ag = ctx.createRadialGradient(0, 0, raio * 0.3, 0, 0, raio * 2.3);
-  ag.addColorStop(0, `rgba(${rgb},${(a * 0.22).toFixed(3)})`);
+  // halo frio bem fraco em volta (é o que diferencia as almas, pelo tom)
+  const ag = ctx.createRadialGradient(0, 0, raio * 0.4, 0, 0, raio * 2.4);
+  ag.addColorStop(0, `rgba(${rgb},${(a * 0.16).toFixed(3)})`);
   ag.addColorStop(1, `rgba(${rgb},0)`);
   ctx.fillStyle = ag;
-  ctx.fillRect(-raio * 2.3, -raio * 2.3, raio * 4.6, raio * 4.6);
-  // o RASTRO: a exposição longa dele, borrada para trás
-  ctx.save();
-  ctx.rotate(ang);
-  const rg = ctx.createLinearGradient(0, 0, raio * 3.6, 0);
-  rg.addColorStop(0, `rgba(8,6,10,${(a * 0.7).toFixed(3)})`);
-  rg.addColorStop(0.5, `rgba(8,6,10,${(a * 0.28).toFixed(3)})`);
-  rg.addColorStop(1, "rgba(8,6,10,0)");
-  ctx.fillStyle = rg;
+  ctx.fillRect(-raio * 2.4, -raio * 2.4, raio * 4.8, raio * 4.8);
+  // a FUMAÇA: novelos pretos que fervem; os de trás (longe de você) se soltam e esgarçam
+  const bx = -Math.cos(ang), by = -Math.sin(ang);            // "frente" = o lado virado para você
+  const sopro = insp >= 0 ? 1 - 0.25 * insp : 1;             // ao inspirar ela se contrai
+  const novelo = (cx, cy, rr, al, cor) => {
+    const c = cor || "6,4,8";
+    const sg = ctx.createRadialGradient(cx, cy, 0, cx, cy, rr);
+    sg.addColorStop(0, `rgba(${c},${al.toFixed(3)})`);
+    sg.addColorStop(0.5, `rgba(${c},${(al * 0.75).toFixed(3)})`);
+    sg.addColorStop(1, `rgba(${c},0)`);
+    ctx.fillStyle = sg;
+    ctx.fillRect(cx - rr, cy - rr, rr * 2, rr * 2);
+  };
+  for (let i = 0; i < 11; i++) {                            // o corpo, da frente para a cauda
+    const f = i / 10;
+    const r1 = fumacaRuido(i, t), r2 = fumacaRuido(i + 40, t * 1.3);
+    const d = (f * 3.0 - 0.6) * raio * sopro;
+    const lado = r1 * raio * (0.45 + f * 1.1);
+    const cx = -bx * d - by * lado, cy = -by * d + bx * lado;
+    novelo(cx, cy, raio * (1.1 - f * 0.65) * (0.8 + 0.25 * r2) * sopro, Math.min(1, a * (1 - f * 0.8) * (0.75 + 0.25 * r1)));
+  }
+  for (let i = 0; i < 6; i++) {                             // a borda fervendo: novelos pequenos em volta
+    const r1 = fumacaRuido(i + 20, t * 1.6), r2 = fumacaRuido(i + 60, t);
+    const th = i / 6 * 6.283 + r1 * 0.6, rd = raio * (0.85 + 0.35 * r2);
+    novelo(Math.cos(th) * rd, Math.sin(th) * rd * 0.9, raio * (0.4 + 0.15 * r1), a * (0.45 + 0.2 * r2));
+  }
+  for (let i = 0; i < 3; i++) {                             // pedaços que já se soltaram, atrás
+    const r1 = fumacaRuido(i + 90, t * 0.8), r2 = fumacaRuido(i + 120, t * 1.1);
+    const d = raio * (2.6 + 1.2 * i + 0.5 * r2), lado = r1 * raio * 1.6;
+    novelo(-bx * d - by * lado, -by * d + bx * lado, raio * (0.35 + 0.12 * r2), a * 0.3 * (1 - i * 0.25));
+  }
+  // volume: a lanterna pega o lado virado para você — novelos cinza, rentes à borda da frente
+  for (let i = 0; i < 4; i++) {
+    const r1 = fumacaRuido(i + 150, t * 1.4), r2 = fumacaRuido(i + 170, t);
+    const th = ang + (i - 1.5) * 0.55 + r1 * 0.3, rd = raio * (0.55 + 0.25 * r2);
+    novelo(-Math.cos(th) * rd, -Math.sin(th) * rd * 0.9, raio * (0.3 + 0.1 * r1), a * L * (0.2 + 0.1 * r2), "150,142,150");
+  }
+  // fiapos discretos que se desprendem da cauda
+  ctx.strokeStyle = `rgba(10,8,12,${(a * 0.22).toFixed(3)})`; ctx.lineWidth = 1.6; ctx.lineCap = "round";
   ctx.beginPath();
-  ctx.moveTo(0, -raio * 0.8);
-  ctx.quadraticCurveTo(raio * 2.2, -raio * (0.9 + 0.2 * Math.sin(bob * 1.3)), raio * 3.6, -raio * 0.2 + Math.sin(bob) * 1.5);
-  ctx.lineTo(raio * 3.6, raio * 0.2 + Math.sin(bob * 0.7) * 1.5);
-  ctx.quadraticCurveTo(raio * 2.2, raio * (0.9 - 0.2 * Math.sin(bob * 1.1)), 0, raio * 0.8);
-  ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = `rgba(${rgb},${(a * 0.35).toFixed(3)})`; ctx.lineWidth = 0.6;   // fiapos
-  ctx.beginPath();
-  for (let i = -1; i <= 1; i++) {
-    ctx.moveTo(raio * 0.6, i * raio * 0.45);
-    ctx.quadraticCurveTo(raio * 2, i * raio * 0.7 + Math.sin(bob * 2 + i) * 2, raio * (3 + 0.5 * i * i), i * raio * 0.5);
+  for (let i = 0; i < 2; i++) {
+    const r1 = fumacaRuido(i + 80, t), f0 = raio * (1.6 + 0.5 * i);
+    const sx = -bx * f0 - by * r1 * raio * 0.9, sy = -by * f0 + bx * r1 * raio * 0.9;
+    const ex = sx - bx * raio * 1.1 - by * r1 * raio * 1.3, ey = sy - by * raio * 1.1 + bx * r1 * raio * 1.3;
+    ctx.moveTo(sx, sy);
+    ctx.quadraticCurveTo((sx + ex) / 2 - by * raio * 0.5 * r1, (sy + ey) / 2 + bx * raio * 0.5 * r1, ex, ey);
   }
   ctx.stroke();
-  ctx.restore();
-  // o CORPO visto de cima: ombros largos atrás, a cabeça na frente — mancha de tinta, sem rosto
-  ctx.fillStyle = `rgba(8,6,10,${Math.min(1, a * 0.95).toFixed(3)})`;
-  ctx.beginPath();
-  const N = 18;
-  for (let i = 0; i <= N; i++) {
-    const t = i / N * 6.283;
-    const rr = raio * (0.95 + 0.07 * Math.sin(t * 3 + bob * 1.7) + 0.05 * Math.sin(t * 5 - bob));
-    const px = Math.cos(t) * rr * 1.05, py = Math.sin(t) * rr * 0.62;
-    i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
-  }
-  ctx.closePath(); ctx.fill();                        // os ombros
-  const hx = -Math.cos(ang) * raio * 0.28, hy = -Math.sin(ang) * raio * 0.28;   // a cabeça, inclinada para você
-  ctx.beginPath(); ctx.ellipse(hx, hy, raio * 0.5, raio * 0.56, ang, 0, 7); ctx.fill();
-  // o aro pálido quebrado: a emulsão não segura a borda dele
-  ctx.strokeStyle = `rgba(${rgb},${Math.min(1, a * 0.9).toFixed(3)})`; ctx.lineWidth = 0.9;
-  for (let k = 0; k < 3; k++) {
-    const a0 = bob * 0.4 + k * 2.1, arc = 0.9 + 0.5 * Math.sin(bob + k);
-    ctx.beginPath(); ctx.ellipse(hx, hy, raio * 0.56, raio * 0.62, ang, a0, a0 + arc); ctx.stroke();
-  }
-  ctx.beginPath(); ctx.ellipse(0, 0, raio * 1.02, raio * 0.6, 0, bob * 0.3, bob * 0.3 + 1.4); ctx.stroke();
-  if (veu) {                                          // véu que arrasta
-    ctx.strokeStyle = `rgba(${rgb},${(a * 0.5).toFixed(3)})`;
+  if (veu) {                                          // véu que arrasta atrás
+    ctx.strokeStyle = `rgba(${rgb},${(a * 0.45).toFixed(3)})`; ctx.lineWidth = 0.8;
     ctx.beginPath();
     for (let i = -1; i <= 1; i++) {
-      ctx.moveTo(i * raio * 0.5, raio * 0.6);
-      ctx.quadraticCurveTo(i * raio * 0.9 + Math.sin(bob + i) * 2, raio * 1.6,
-                           i * raio * 0.7, raio * 2.2);
+      const sx = -bx * raio * 0.9 - by * i * raio * 0.5, sy = -by * raio * 0.9 + bx * i * raio * 0.5;
+      ctx.moveTo(sx, sy);
+      ctx.quadraticCurveTo(sx - bx * raio * 1.4 - by * Math.sin(bob + i) * 2, sy - by * raio * 1.4 + bx * Math.sin(bob + i) * 2,
+                           sx - bx * raio * 2.3 - by * i * raio * 0.3, sy - by * raio * 2.3 + bx * i * raio * 0.3);
     }
     ctx.stroke();
   }
-  // olhos SÓ quando ele puxa o ar (é o aviso): dois pontos acesos virados para você
-  if (!semOlhos && insp >= 0) {
-    const ke = 1.2 + 0.6 * insp;
-    ctx.shadowColor = "rgba(255,60,40,0.95)"; ctx.shadowBlur = 8;
-    ctx.fillStyle = "rgb(255,96,72)";
-    const ex = -Math.sin(ang) * raio * 0.2, ey = Math.cos(ang) * raio * 0.2;
+  // os OLHOS: dois pontos vermelhos dentro da fumaça, virados para você; brasa que pulsa
+  // e, quando ele puxa o ar, cresce e acende de vez
+  if (!semOlhos) {
+    const pulso = 0.75 + 0.25 * Math.sin(time * 5.3 + bob * 3);
+    const forca = insp >= 0 ? 0.9 + 0.5 * insp : (caca ? 0.85 : 0.55) * pulso;
+    const ke = raio * (0.17 + (insp >= 0 ? 0.09 * insp : 0));
+    const ox = bx * raio * 0.3, oy = by * raio * 0.3;            // um pouco à frente do centro
+    const ex = -by * raio * 0.3, ey = bx * raio * 0.3;            // separação, perpendicular
+    novelo(ox, oy, raio * 0.75, Math.min(1, a * 0.3 * forca), "255,60,40");   // a brasa acende a fumaça por dentro
+    ctx.shadowColor = `rgba(255,50,30,${(0.9 * forca).toFixed(3)})`; ctx.shadowBlur = 7 + 7 * forca;
+    ctx.fillStyle = `rgba(255,${(70 + 50 * forca) | 0},${(40 + 30 * forca) | 0},${Math.min(1, a * 0.4 + forca * 0.7).toFixed(3)})`;
     ctx.beginPath();
-    ctx.arc(hx + ex, hy + ey, raio * 0.09 * ke, 0, 7);
-    ctx.arc(hx - ex, hy - ey, raio * 0.09 * ke, 0, 7);
+    ctx.ellipse(ox + ex, oy + ey, ke * 1.3, ke * 0.85, ang, 0, 7);
+    ctx.ellipse(ox - ex, oy - ey, ke * 1.3, ke * 0.85, ang, 0, 7);
     ctx.fill();
     ctx.shadowBlur = 0;
   }

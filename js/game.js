@@ -494,20 +494,27 @@ function update(dt) {
   if (flickDip > 0) flickDip -= dt;
   if (dmgSfxT > 0) dmgSfxT -= dt;
 
-  // a cabeça no chão vê o que não está lá: um par de olhos acende no escuro e some
-  if (olhosFalsos) { olhosFalsos.t += dt; if (olhosFalsos.t >= olhosFalsos.dur) olhosFalsos = null; }
-  if (sanity < 28) {
-    falsoT -= dt;
-    if (falsoT <= 0 && !olhosFalsos) {
-      falsoT = 7 + Math.random() * 8;
-      for (let k = 0; k < 14; k++) {
-        const a = Math.random() * 6.283, rr = 7 + Math.random() * 9;
-        const x = player.x + Math.cos(a) * rr, y = player.y + Math.sin(a) * rr * 0.6;
-        if (isSolid(x | 0, y | 0) || isOpaque(x | 0, y | 0)) continue;
-        olhosFalsos = { x, y, t: 0, dur: 0.9 + Math.random() * 0.5 };
-        sfxWhisper();
-        break;
-      }
+  // um par de olhos acende no escuro ATRÁS de você e, quando a lanterna vira, não há nada.
+  // Sanidade baixa: toda hora. Sanidade alta: de vez em quando, para ninguém se sentir seguro.
+  if (olhosFalsos) {
+    olhosFalsos.t += dt;
+    if (lightAt(olhosFalsos.x, olhosFalsos.y) > 0.12)          // a luz chegou: some na hora
+      olhosFalsos.dur = Math.min(olhosFalsos.dur, olhosFalsos.t + 0.1);
+    if (olhosFalsos.t >= olhosFalsos.dur) olhosFalsos = null;
+  }
+  falsoT -= dt * (sanity < 28 ? 1 : sanity < 60 ? 0.3 : 0.12);
+  if (falsoT <= 0 && !olhosFalsos) {
+    falsoT = 7 + Math.random() * 8;
+    const fx = Math.cos(aimVis), fy = Math.sin(aimVis);
+    for (let k = 0; k < 24; k++) {
+      const a = Math.random() * 6.283, rr = 5 + Math.random() * 8;
+      const x = player.x + Math.cos(a) * rr, y = player.y + Math.sin(a) * rr * 0.7;
+      if (isSolid(x | 0, y | 0) || isOpaque(x | 0, y | 0)) continue;
+      if ((x - player.x) * fx + (y - player.y) * fy > -1.5) continue;   // tem que ser ATRÁS
+      if (lightAt(x, y) > 0.05 || !hasLOS(player.x, player.y, x, y)) continue;   // no escuro, mas à vista
+      olhosFalsos = { x, y, t: 0, dur: 1.4 + Math.random() * 1.2 };
+      sfxWhisper();
+      break;
     }
   }
   // eventos de tensão
