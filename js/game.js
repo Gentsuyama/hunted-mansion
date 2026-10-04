@@ -1222,53 +1222,19 @@ function drawCamHUD() {
   }
   }   // fim do fallback procedural
 
-  // reserva de rolos
-  ctx.textAlign = "left";
-  ctx.font = "bold 11px 'Courier New', monospace";
-  ctx.fillStyle = film > 0 ? "rgba(185,215,185,0.9)" : "rgba(230,90,80,0.9)";
-  ctx.fillText(tr("ROLOS") + " " + "▮".repeat(film) +
-               "▯".repeat(Math.max(0, filmMax() - film)), r.x + 10, r.y + r.h - 24);
-  // bateria do flash (segmentos) e almas guardadas (chamas azuis)
-  const by = r.y + r.h - 10, bx = r.x + 10;
-  ctx.fillStyle = bateria > 0 ? "rgba(200,205,215,0.85)" : "rgba(230,90,80,0.9)";
-  ctx.fillText(tr("BATERIA"), bx, by);
-  const bw0 = bx + ctx.measureText(tr("BATERIA")).width + 6, segW = 6, segH = 8;
-  for (let i = 0; i < BAT.max; i++) {
-    const on = i < bateria;
-    ctx.fillStyle = on ? (bateria <= 2 ? "rgba(240,120,90,0.95)" : "rgba(214,224,236,0.9)")
-                       : "rgba(120,124,132,0.3)";
-    ctx.fillRect(bw0 + i * (segW + 1), by - segH / 2, segW, segH);
-  }
-  ctx.strokeStyle = "rgba(200,205,215,0.5)"; ctx.lineWidth = 1;
-  ctx.strokeRect(bw0 - 1.5, by - segH / 2 - 1.5, BAT.max * (segW + 1) + 1, segH + 3);
-  ctx.fillRect(bw0 + BAT.max * (segW + 1) + 0.5, by - 2, 2, 4);     // o polo
-  const nA = world.flags.almas || 0;
-  { // a AMPOLA de prata: apagada enquanto não for achada; azul quando tem alma dentro
-    const ax = bw0 + BAT.max * (segW + 1) + 14, tem = !!world.flags.cam.ampola;
-    ctx.strokeStyle = tem ? "rgba(214,224,236,0.95)" : "rgba(120,124,132,0.35)"; ctx.lineWidth = 1.3;
-    ctx.fillStyle = tem && nA > 0 ? "rgba(110,170,255,0.6)" : "rgba(0,0,0,0)";
-    ctx.beginPath(); ctx.moveTo(ax - 2.5, by - 6); ctx.lineTo(ax + 2.5, by - 6); ctx.lineTo(ax + 2.5, by - 3);
-    ctx.lineTo(ax + 4.5, by + 1); ctx.lineTo(ax + 4.5, by + 6); ctx.lineTo(ax - 4.5, by + 6);
-    ctx.lineTo(ax - 4.5, by + 1); ctx.lineTo(ax - 2.5, by - 3); ctx.closePath(); ctx.fill(); ctx.stroke();
-    if (tem && nA > 0) {                   // o brilho da alma dentro do vidro
-      const fg = ctx.createRadialGradient(ax, by + 1.5, 0.5, ax, by + 1.5, 6);
-      fg.addColorStop(0, "rgba(220,240,255,0.9)"); fg.addColorStop(1, "rgba(90,160,255,0)");
-      ctx.fillStyle = fg; ctx.fillRect(ax - 6, by - 5, 12, 12);
-    }
-  }
-  // a contagem (no cartão estreito do toque, só o número)
-  ctx.textAlign = "right";
-  ctx.fillStyle = nA > 0 ? "rgba(140,196,255,0.95)" : "rgba(120,124,132,0.5)";
-  ctx.fillText(r.w >= 200 ? nA + " " + tr(nA === 1 ? "alma" : "almas") : String(nA), r.x + r.w - 8, by);
+  // (rolos, bateria e almas ficaram no rodapé do HUD — ver hudRecursos)
   ctx.restore();
   ctx.textAlign = "left";
 }
 
-// a bateria do flash, grande, ao lado da sanidade (o cartão da câmera repete, miúdo)
-function hudBateria(x, y, passo, h) {
+// os RECURSOS no rodapé, ao lado da sanidade: bateria, rolos e — só depois de achar a
+// ampola — as almas guardadas. Devolve o x onde terminou (para o negativo vir depois).
+function hudRecursos(x, y, passo, h) {
+  ctx.textAlign = "left";
+  // bateria
   ctx.fillStyle = bateria > 0 ? "rgba(120,120,120,0.5)" : "rgba(230,70,60,0.85)";
   ctx.fillText(tr("BATERIA"), x, y);
-  const x0 = x + ctx.measureText(tr("BATERIA")).width + 10;
+  let x0 = x + ctx.measureText(tr("BATERIA")).width + 10;
   for (let i = 0; i < BAT.max; i++) {
     ctx.fillStyle = i < bateria ? (bateria <= 2 ? "rgba(240,120,90,0.9)" : "rgba(200,205,215,0.75)")
                                 : "rgba(120,124,132,0.25)";
@@ -1277,10 +1243,32 @@ function hudBateria(x, y, passo, h) {
   ctx.strokeStyle = "rgba(150,150,150,0.4)"; ctx.lineWidth = 1;
   ctx.strokeRect(x0 - 1.5, y - h / 2 - 1.5, BAT.max * passo + 1, h + 3);
   ctx.fillRect(x0 + BAT.max * passo, y - 2, 2, 4);                       // o polo
-  if (world.flags.cam.ampola && (world.flags.almas || 0) > 0) {        // almas na ampola
-    ctx.fillStyle = "rgba(140,196,255,0.9)";
-    ctx.fillText("+" + world.flags.almas, x0 + BAT.max * passo + 8, y);
+  x0 += BAT.max * passo + 22;
+  // rolos
+  ctx.fillStyle = film > 0 ? "rgba(120,120,120,0.5)" : "rgba(230,70,60,0.85)";
+  ctx.fillText(tr("ROLOS"), x0, y);
+  x0 += ctx.measureText(tr("ROLOS")).width + 10;
+  const nMax = filmMax();
+  for (let i = 0; i < nMax; i++) {
+    ctx.fillStyle = i < film ? "rgba(185,215,185,0.85)" : "rgba(120,124,132,0.25)";
+    ctx.fillRect(x0 + i * passo, y - h / 2, passo - 2, h);
   }
+  x0 += nMax * passo + 22;
+  // almas: só existe depois da ampola
+  if (world.flags.cam.ampola) {
+    const nA = world.flags.almas || 0;
+    ctx.strokeStyle = "rgba(214,224,236,0.9)"; ctx.lineWidth = 1.2;        // a ampola
+    ctx.fillStyle = nA > 0 ? "rgba(110,170,255,0.6)" : "rgba(0,0,0,0)";
+    const ax = x0 + 5;
+    ctx.beginPath(); ctx.moveTo(ax - 2.5, y - 6); ctx.lineTo(ax + 2.5, y - 6); ctx.lineTo(ax + 2.5, y - 3);
+    ctx.lineTo(ax + 4.5, y + 1); ctx.lineTo(ax + 4.5, y + 6); ctx.lineTo(ax - 4.5, y + 6);
+    ctx.lineTo(ax - 4.5, y + 1); ctx.lineTo(ax - 2.5, y - 3); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = nA > 0 ? "rgba(140,196,255,0.95)" : "rgba(120,124,132,0.5)";
+    const txt = nA + " " + tr(nA === 1 ? "alma" : "almas");
+    ctx.fillText(txt, ax + 12, y);
+    x0 = ax + 12 + ctx.measureText(txt).width + 18;
+  }
+  return x0;
 }
 function drawHUD() {
   const M = touchUI.seen;
@@ -1314,7 +1302,7 @@ function drawHUD() {
       ctx.fillStyle = semFolego ? "rgba(230,90,80,0.85)" : "rgba(150,200,230,0.8)";
       ctx.fillRect(134, 78, 236 * folego, 4);
     }
-    hudBateria(300, 96, 11, 10);
+    hudRecursos(300, 96, 11, 10);
   } else {
     ctx.fillStyle = "rgba(120,120,120,0.5)";
     ctx.fillText("SANIDADE", 12, canvas.height - 46);
@@ -1325,12 +1313,12 @@ function drawHUD() {
     // até aqui ela volta sozinha; daqui para cima, só a lamparina
     ctx.fillStyle = "rgba(255,206,120,0.75)";
     ctx.fillRect(96 + 138 * sanTeto() / 100 - 0.5, canvas.height - 54, 1.5, 15);
-    hudBateria(262, canvas.height - 46, 9, 9);
+    const xNeg = hudRecursos(262, canvas.height - 46, 9, 9) + 4;
     if (world.flags.quase) {
-      hudNegativo(446, canvas.height - 46);
-      if (Math.abs(mouse.x - 446) < 12 && Math.abs(mouse.y - (canvas.height - 46)) < 12) {
+      hudNegativo(xNeg, canvas.height - 46);
+      if (Math.abs(mouse.x - xNeg) < 12 && Math.abs(mouse.y - (canvas.height - 46)) < 12) {
         ctx.fillStyle = "rgba(230,120,110,0.9)";
-        ctx.fillText(tr("o negativo: ELE já tem a sua foto — a próxima queda é a última"), 462, canvas.height - 46);
+        ctx.fillText(tr("o negativo: ELE já tem a sua foto — a próxima queda é a última"), xNeg + 16, canvas.height - 46);
       }
     }
     if (folego < 0.995) {                 // fôlego: só aparece quando falta
@@ -1510,7 +1498,7 @@ window.addEventListener("keydown", e => {
   if (state === "ritual") return;
   if (state === "lang")  { langKey(e.code); return; }
   if (state === "cine")  { cineAdvance(); return; }
-  if (state === "vinheta") { vinhetaAdvance(); return; }
+  if (state === "vinheta") { if (!e.repeat) vinhetaAdvance(); return; }
   if (state === "title") { titleKey(e.code); return; }
   if (state === "chat" || state === "safe" || state === "elevator" ||
       state === "darkroom" || state === "fusebox") {

@@ -131,7 +131,7 @@ function takePhoto() {
           const a = Math.random() * 6.28, s = 4 + Math.random() * 14;
           particles.push({
             x: g.x, y: g.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
-            life: 0.7, ch: "Ψ*·:"[Math.random() * 4 | 0],
+            life: 0.7, ch: "·:"[Math.random() * 2 | 0],       // só respingos de tinta
           });
         }
       }

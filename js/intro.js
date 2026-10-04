@@ -308,12 +308,14 @@ const VIN_IMGS = {};
 })();
 
 let vinAtual = null, vinReturn = "play";
+let vinT = 0;                                  // quando a vinheta abriu (segura 1 s)
 function showVinheta(id) {
   if (!VIN_IMGS[id]) return false;               // sem arte ainda: segue o jogo
   if (!world.flags.vinhetasVistas) world.flags.vinhetasVistas = [];
   if (world.flags.vinhetasVistas.includes(id)) return false;
   world.flags.vinhetasVistas.push(id);
-  vinAtual = id;
+  vinAtual = id; vinT = time;
+  keys.clear(); corridaTap = false;              // a tecla segurada ao pegar não a fecha
   vinReturn = state === "vinheta" ? vinReturn : state;
   state = "vinheta";
   sfxPage();
@@ -321,6 +323,7 @@ function showVinheta(id) {
   return true;
 }
 function vinhetaAdvance() {
+  if (vinAtual && time - vinT < 1.0) return;     // dá tempo de ver e ler
   vinAtual = null;
   state = vinReturn && vinReturn !== "vinheta" ? vinReturn : "play";
 }
@@ -351,6 +354,7 @@ function drawVinheta() {
   ctx.fillText(leg, canvas.width / 2, y + h + 43);
   ctx.font = "bold 13px 'Courier New', monospace";
   ctx.fillStyle = `rgba(200,200,200,${0.4 + 0.3 * Math.sin(time * 3)})`;
-  ctx.fillText(touchUI.seen ? "toque para continuar" : "clique para continuar",
-               canvas.width / 2, canvas.height - 22);
+  if (time - vinT > 1.0)
+    ctx.fillText(touchUI.seen ? "toque para continuar" : "clique para continuar",
+                 canvas.width / 2, canvas.height - 22);
 }

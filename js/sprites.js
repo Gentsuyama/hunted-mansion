@@ -531,8 +531,34 @@ const ECO_IMGS = [];
   im.onerror = () => {};
   im.src = "Assets/Ecos/eco" + String(n).padStart(2, "0") + ".jpg";
 })(1);
+// recorte SUAVE para os ecos: só o preto quase absoluto (≤ 8) ligado à borda vira fundo,
+// e o que fica perto dele esmaece em vez de sumir — chapéu e batina escuros sobrevivem
+function keyBlackToAlphaSuave(im) {
+  const w = im.naturalWidth, h = im.naturalHeight;
+  const cv = document.createElement("canvas");
+  cv.width = w; cv.height = h;
+  const g = cv.getContext("2d");
+  g.drawImage(im, 0, 0);
+  const d = g.getImageData(0, 0, w, h), p = d.data;
+  const fundo = new Uint8Array(w * h), pilha = [];
+  const escuro = (i) => Math.max(p[i * 4], p[i * 4 + 1], p[i * 4 + 2]) <= 8;
+  const empurra = (i) => { if (!fundo[i] && escuro(i)) { fundo[i] = 1; pilha.push(i); } };
+  for (let x = 0; x < w; x++) { empurra(x); empurra((h - 1) * w + x); }
+  for (let y = 0; y < h; y++) { empurra(y * w); empurra(y * w + w - 1); }
+  while (pilha.length) {
+    const i = pilha.pop(), x = i % w, y = (i / w) | 0;
+    if (x > 0) empurra(i - 1); if (x < w - 1) empurra(i + 1);
+    if (y > 0) empurra(i - w); if (y < h - 1) empurra(i + w);
+  }
+  for (let i = 0; i < w * h; i++) {
+    const m = Math.max(p[i * 4], p[i * 4 + 1], p[i * 4 + 2]);
+    p[i * 4 + 3] = fundo[i] ? 0 : m < 30 ? Math.round(255 * Math.max(0.25, m / 30)) : 255;
+  }
+  g.putImageData(d, 0, 0);
+  return cv;
+}
 function ecoEspectral(im, espelha) {
-  const base = keyBlackToAlpha(im), w = base.width, h = base.height;
+  const base = keyBlackToAlphaSuave(im), w = base.width, h = base.height;
   const cv = document.createElement("canvas");
   cv.width = w; cv.height = h;
   const g = cv.getContext("2d");
@@ -541,7 +567,7 @@ function ecoEspectral(im, espelha) {
   g.setTransform(1, 0, 0, 1, 0, 0);
   const d = g.getImageData(0, 0, w, h), p = d.data;
   for (let y = 0; y < h; y++) {
-    const f = y > h * 0.72 ? 1 - (y - h * 0.72) / (h * 0.28) : 1;   // os pés somem
+    const f = y > h * 0.84 ? 1 - (y - h * 0.84) / (h * 0.16) : 1;   // só os pés somem (batina fica)
     for (let x = 0; x < w; x++) {
       const i = (y * w + x) * 4;
       const v = Math.min(255, (0.3 * p[i] + 0.59 * p[i + 1] + 0.11 * p[i + 2]) * 1.12);
@@ -1148,23 +1174,32 @@ function stairSprite(up) {
     trap(y, w, y - 56, w * 0.9, pg);                                   // o patamar some no escuro
     corrimao(vx - W0 / 2 + 5, H - 58, vx - w / 2 + 3, y - 34, H - 6, y);
   } else {
-    // DESCE: a aresta do patamar e os pisos descendo, encolhendo e escurecendo
-    const tg = g.createLinearGradient(0, 0, 0, 50);
-    tg.addColorStop(0, "rgba(44,42,38,0.95)"); tg.addColorStop(1, "rgba(16,15,14,0.95)");
-    g.fillStyle = tg; g.fillRect(vx - W0 / 2, 0, W0, 50);              // parede do fundo do poço
-    g.fillStyle = cor(0.55); g.fillRect(vx - W0 / 2, 50, W0, 4);        // a aresta do primeiro degrau
-    let y = 54, w = W0, l = 0.62;
-    for (let i = 0; i < 9; i++) {
-      const ht = 20 * Math.pow(0.86, i), hr = 4 * Math.pow(0.86, i);
-      const w1 = w * 0.93;
-      trap(y, w, y + ht, w1, cor(l));                                   // o piso
-      trap(y + ht, w1, y + ht + hr, w1 * 0.99, cor(l * 0.3));           // o espelho, na sombra
-      y += ht + hr; w = w1 * 0.99; l *= 0.8;
+    // DESCE: um buraco no chão. O flash pega a quina do patamar e os três primeiros
+    // degraus; dali para baixo é breu — a escada some antes de chegar ao fundo
+    const tg = g.createLinearGradient(0, 0, 0, H * 0.4);
+    tg.addColorStop(0, "rgba(30,28,25,0.95)"); tg.addColorStop(1, "rgba(8,8,8,0.98)");
+    g.fillStyle = tg; g.fillRect(vx - W0 / 2, 0, W0, H * 0.4);          // a parede do fundo do poço, no escuro
+    // paredes laterais do poço, em perspectiva (duas faixas que escurecem para baixo)
+    for (const sd of [-1, 1]) {
+      const lg = g.createLinearGradient(0, H * 0.3, 0, H);
+      lg.addColorStop(0, cor(0.22)); lg.addColorStop(1, "rgba(0,0,0,0)");
+      g.fillStyle = lg; g.beginPath();
+      g.moveTo(vx + sd * W0 / 2, H * 0.3); g.lineTo(vx + sd * W0 * 0.34, H);
+      g.lineTo(vx + sd * W0 * 0.22, H); g.lineTo(vx + sd * W0 * 0.38, H * 0.3); g.closePath(); g.fill();
     }
-    const pg = g.createLinearGradient(0, y, 0, H);
-    pg.addColorStop(0, cor(0.05)); pg.addColorStop(1, "rgba(0,0,0,0)");
-    trap(y, w, H, w * 0.9, pg);
-    corrimao(vx + W0 / 2 - 5, 16, vx + w / 2 + 2, y - 28, 54, y);
+    g.fillStyle = cor(0.62); g.fillRect(vx - W0 / 2, H * 0.30, W0, 5);  // a quina do patamar, a parte mais clara
+    let y = H * 0.30 + 5, w = W0 * 0.96, l = 0.42;
+    for (let i = 0; i < 6; i++) {                                       // degraus: largos e logo engolidos
+      const ht = 16 * Math.pow(0.78, i), hr = 9 * Math.pow(0.78, i);
+      const w1 = w * 0.9;
+      trap(y, w, y + ht, w1, cor(l));                                   // o piso (pega luz)
+      trap(y + ht, w1, y + ht + hr, w1 * 0.985, cor(l * 0.22));         // o espelho, quase negro
+      y += ht + hr; w = w1 * 0.985; l *= 0.58;
+    }
+    const pg = g.createLinearGradient(0, y - 10, 0, H);
+    pg.addColorStop(0, cor(0.04)); pg.addColorStop(1, "rgba(0,0,0,0)");
+    trap(y - 10, w * 1.1, H, w * 0.8, pg);
+    corrimao(vx + W0 / 2 - 5, H * 0.3 - 30, vx + W0 * 0.3, y - 2, H * 0.3 + 4, y + 10);
   }
   // batentes de pedra
   g.fillStyle = "rgb(74,66,54)"; g.fillRect(0, 0, 9, H); g.fillRect(W - 9, 0, 9, H);

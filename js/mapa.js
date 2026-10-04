@@ -376,21 +376,10 @@ function mapaJogador(px, py, dir, passo, movendo, agachado, tremor) {
 function mapaVulto(x, y, L, bob, raio, rgb, caca, semOlhos, veu, fx) {
   const a = 0.22 + 0.62 * L;
   const insp = fx && fx.insp !== undefined ? fx.insp : -1;   // 0..1: puxando o ar
-  const salto = !!fx && fx.dx !== undefined;
+  // de onde ele vem: o rastro fica do lado oposto ao jogador
+  const ang = Math.atan2(y - player.y * CELL, x - player.x * CELL);
   ctx.save();
-  ctx.translate(x, y + (insp >= 0 || salto ? 0 : Math.sin(bob) * 2.2));
-  if (salto) {                                        // o rastro do salto
-    ctx.save();
-    ctx.rotate(Math.atan2(fx.dy, fx.dx));
-    const rg = ctx.createLinearGradient(-raio * 6, 0, raio, 0);
-    rg.addColorStop(0, `rgba(${rgb},0)`);
-    rg.addColorStop(1, `rgba(${rgb},${(a * 0.6).toFixed(3)})`);
-    ctx.fillStyle = rg;
-    ctx.beginPath();
-    ctx.moveTo(-raio * 6, 0); ctx.lineTo(raio * 0.4, -raio);
-    ctx.lineTo(raio * 0.4, raio); ctx.closePath(); ctx.fill();
-    ctx.restore();
-  }
+  ctx.translate(x, y + (insp >= 0 ? 0 : Math.sin(bob) * 1.6));
   if (insp >= 0) {                                    // o AVISO: um aro que se fecha
     ctx.strokeStyle = `rgba(255,74,60,${(0.22 + 0.6 * insp).toFixed(3)})`;
     ctx.lineWidth = 1.2 + insp;
@@ -398,47 +387,73 @@ function mapaVulto(x, y, L, bob, raio, rgb, caca, semOlhos, veu, fx) {
     const s = 1 - 0.2 * insp + Math.sin(time * 42) * 0.035 * insp;   // encolhe e vibra
     ctx.scale(s, s);
   }
-  // aura
+  // aura fria
   const ag = ctx.createRadialGradient(0, 0, raio * 0.3, 0, 0, raio * 2.3);
-  ag.addColorStop(0, `rgba(${rgb},${(a * 0.30).toFixed(3)})`);
+  ag.addColorStop(0, `rgba(${rgb},${(a * 0.22).toFixed(3)})`);
   ag.addColorStop(1, `rgba(${rgb},0)`);
   ctx.fillStyle = ag;
   ctx.fillRect(-raio * 2.3, -raio * 2.3, raio * 4.6, raio * 4.6);
-  // corpo: contorno que ondula
-  ctx.fillStyle = `rgba(${rgb},${(a * 0.62).toFixed(3)})`;
-  ctx.strokeStyle = `rgba(${rgb},${Math.min(1, a * 1.2).toFixed(3)})`;
-  ctx.lineWidth = 1.1;
+  // o RASTRO: a exposição longa dele, borrada para trás
+  ctx.save();
+  ctx.rotate(ang);
+  const rg = ctx.createLinearGradient(0, 0, raio * 3.6, 0);
+  rg.addColorStop(0, `rgba(8,6,10,${(a * 0.7).toFixed(3)})`);
+  rg.addColorStop(0.5, `rgba(8,6,10,${(a * 0.28).toFixed(3)})`);
+  rg.addColorStop(1, "rgba(8,6,10,0)");
+  ctx.fillStyle = rg;
   ctx.beginPath();
-  const N = 14;
+  ctx.moveTo(0, -raio * 0.8);
+  ctx.quadraticCurveTo(raio * 2.2, -raio * (0.9 + 0.2 * Math.sin(bob * 1.3)), raio * 3.6, -raio * 0.2 + Math.sin(bob) * 1.5);
+  ctx.lineTo(raio * 3.6, raio * 0.2 + Math.sin(bob * 0.7) * 1.5);
+  ctx.quadraticCurveTo(raio * 2.2, raio * (0.9 - 0.2 * Math.sin(bob * 1.1)), 0, raio * 0.8);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = `rgba(${rgb},${(a * 0.35).toFixed(3)})`; ctx.lineWidth = 0.6;   // fiapos
+  ctx.beginPath();
+  for (let i = -1; i <= 1; i++) {
+    ctx.moveTo(raio * 0.6, i * raio * 0.45);
+    ctx.quadraticCurveTo(raio * 2, i * raio * 0.7 + Math.sin(bob * 2 + i) * 2, raio * (3 + 0.5 * i * i), i * raio * 0.5);
+  }
+  ctx.stroke();
+  ctx.restore();
+  // o CORPO visto de cima: ombros largos atrás, a cabeça na frente — mancha de tinta, sem rosto
+  ctx.fillStyle = `rgba(8,6,10,${Math.min(1, a * 0.95).toFixed(3)})`;
+  ctx.beginPath();
+  const N = 18;
   for (let i = 0; i <= N; i++) {
     const t = i / N * 6.283;
-    const baixo = Math.max(0, Math.sin(t));           // a barra de baixo esfiapa
-    const rr = raio * (1 + 0.10 * Math.sin(t * 3 + bob * 1.7)
-                         + baixo * (0.34 + 0.22 * Math.sin(t * 7 + bob * 2.3)));
-    const px = Math.cos(t) * rr * 0.86, py = Math.sin(t) * rr;
+    const rr = raio * (0.95 + 0.07 * Math.sin(t * 3 + bob * 1.7) + 0.05 * Math.sin(t * 5 - bob));
+    const px = Math.cos(t) * rr * 1.05, py = Math.sin(t) * rr * 0.62;
     i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
   }
-  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.closePath(); ctx.fill();                        // os ombros
+  const hx = -Math.cos(ang) * raio * 0.28, hy = -Math.sin(ang) * raio * 0.28;   // a cabeça, inclinada para você
+  ctx.beginPath(); ctx.ellipse(hx, hy, raio * 0.5, raio * 0.56, ang, 0, 7); ctx.fill();
+  // o aro pálido quebrado: a emulsão não segura a borda dele
+  ctx.strokeStyle = `rgba(${rgb},${Math.min(1, a * 0.9).toFixed(3)})`; ctx.lineWidth = 0.9;
+  for (let k = 0; k < 3; k++) {
+    const a0 = bob * 0.4 + k * 2.1, arc = 0.9 + 0.5 * Math.sin(bob + k);
+    ctx.beginPath(); ctx.ellipse(hx, hy, raio * 0.56, raio * 0.62, ang, a0, a0 + arc); ctx.stroke();
+  }
+  ctx.beginPath(); ctx.ellipse(0, 0, raio * 1.02, raio * 0.6, 0, bob * 0.3, bob * 0.3 + 1.4); ctx.stroke();
   if (veu) {                                          // véu que arrasta
     ctx.strokeStyle = `rgba(${rgb},${(a * 0.5).toFixed(3)})`;
     ctx.beginPath();
     for (let i = -1; i <= 1; i++) {
-      ctx.moveTo(i * raio * 0.5, raio * 0.9);
-      ctx.quadraticCurveTo(i * raio * 0.9 + Math.sin(bob + i) * 2, raio * 1.7,
-                           i * raio * 0.7, raio * 2.3);
+      ctx.moveTo(i * raio * 0.5, raio * 0.6);
+      ctx.quadraticCurveTo(i * raio * 0.9 + Math.sin(bob + i) * 2, raio * 1.6,
+                           i * raio * 0.7, raio * 2.2);
     }
     ctx.stroke();
   }
-  if (!semOlhos) {
-    const aceso = insp >= 0 || salto;
-    const ke = aceso ? 1.3 + 0.5 * Math.max(0, insp) : 1;
-    if (aceso) { ctx.shadowColor = "rgba(255,60,40,0.95)"; ctx.shadowBlur = 9; }
-    ctx.fillStyle = aceso ? "rgb(255,96,72)"
-      : caca && L > 0.35 ? `rgba(255,70,60,${Math.min(1, L * 1.3).toFixed(2)})`
-                         : `rgba(6,6,10,${Math.min(1, a * 1.4).toFixed(2)})`;
+  // olhos SÓ quando ele puxa o ar (é o aviso): dois pontos acesos virados para você
+  if (!semOlhos && insp >= 0) {
+    const ke = 1.2 + 0.6 * insp;
+    ctx.shadowColor = "rgba(255,60,40,0.95)"; ctx.shadowBlur = 8;
+    ctx.fillStyle = "rgb(255,96,72)";
+    const ex = -Math.sin(ang) * raio * 0.2, ey = Math.cos(ang) * raio * 0.2;
     ctx.beginPath();
-    ctx.ellipse(-raio * 0.30, -raio * 0.18, raio * 0.17 * ke, raio * 0.22 * ke, 0, 0, 7);
-    ctx.ellipse( raio * 0.30, -raio * 0.18, raio * 0.17 * ke, raio * 0.22 * ke, 0, 0, 7);
+    ctx.arc(hx + ex, hy + ey, raio * 0.09 * ke, 0, 7);
+    ctx.arc(hx - ex, hy - ey, raio * 0.09 * ke, 0, 7);
     ctx.fill();
     ctx.shadowBlur = 0;
   }
