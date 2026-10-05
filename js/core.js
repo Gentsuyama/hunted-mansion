@@ -32,7 +32,7 @@ const BAT = { max: 10, inicio: 10, porAlma: 5, almasMax: 12, pilha: 4, lamparina
 // 5 alcançam metade do facho da lanterna
 const VELAS = { max: 5, raio0: 2.5, passo: 3.6, porAndar: 6 };
 const ALBUM_MAX  = 24;
-const GHOST_SPEED = 2.4, GHOST_DMG = 40;
+const GHOST_SPEED = 3.6, GHOST_DMG = 40;      // 3,6 de novo: lentos (2,4) 'não ficou bom' (Rodolfo, 2026-10-05)
 // pressão dos ecos (ajustável para testes de balanceamento):
 //   atraiFlash = segundos que TODO o andar persegue depois de qualquer flash
 //   deriva     = fração da velocidade com que o eco se arrasta até você enquanto
@@ -52,6 +52,13 @@ const BOTE = { dist: 1.9, inspira: 0.9, alcance: 2.4, dano: 24, gasto: 14, pausa
 // …e cada GOLPE (bote de eco, flash do Blackwood) deixa uma ferida que baixa esse teto
 const SAN_TETO = 60, SAN_VOLTA = 2.5, SAN_FERIDA = 10, SAN_PISO = 20;
 const LAMP_OLEO = 3, LAMP_RAIO = 7.5;
+// SANIDADE ZERO não derruba na hora. Primeiro, UMA vez por live e só enquanto o menino ainda
+// está na casa, TOMÁS acode (conta até cem, você levanta). Depois vem a LOUCURA: a casa
+// entra na sua cabeça e suga a sua alma por `dur` segundos (cada alma da ampola comprada
+// por `alma` segundos a mais) enquanto você ainda joga; a LUZ te segura — velas acesas
+// (`vela` de sanidade por segundo), o clarão do flash (`flash` por foto), a lamparina
+// (cura tudo). Sanidade de volta a `sai` = você respira. O tempo acaba = a queda de sempre.
+const LOUCURA = { dur: 70, sai: 30, vela: 6, flash: 10, alma: 12, tomasSan: 45 };
 // robôs de teste ligam isto: nada de gravar mortes no arquivo do canal
 let SEM_ARQUIVO = false;
 
@@ -80,8 +87,8 @@ const ctx = canvas.getContext("2d");
 
 const IS_TOUCH = ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
 
-let state = "boot";          // lang | cine | title | play | album | chat | safe | elevator |
-                             // fusebox | darkroom | vinheta | ritual | dead | win
+let state = "boot";          // lang | cine | title | play | album | diario | chat | safe |
+                             // elevator | fusebox | darkroom | vinheta | ritual | dead | win
 let world = null;            // { seed, cur, floors[] }
 let grid  = null;            // alias: grade do andar ATUAL (código portado usa)
 

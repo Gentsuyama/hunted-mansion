@@ -203,6 +203,8 @@ function soulAwaken(id, floorIdx) {
       tf("o RETRATO dele deve prender ele aqui… {0}", tr(def.dicaRetrato))); },
       dly + 2600);
   live.viewers += 60;
+  // …e o diário "escreve" a página daquela alma (a do Blackwood é a última ordem: suba)
+  if (typeof diarioEvento === "function") diarioEvento(id === "blackwood" ? "final" : "alma_" + id);
   saveRun();
 }
 
@@ -235,6 +237,7 @@ function soulsOnFusebox() {
 function soulsOnEcoCaptured() {
   world.flags.ecosFotografados = (world.flags.ecosFotografados || 0) + 1;
   const n = world.flags.ecosFotografados;
+  if (n === 1 && typeof diarioEvento === "function") diarioEvento("vulto");
   if (n === 3 && soulDormant("olivia"))
     livePush(liveRandUser(), "terceiro espírito no seu filme… alguém na casa tá CONTANDO");
   if (n === 5 && soulDormant("olivia"))
@@ -516,6 +519,9 @@ function soulsOnFlash(dir, fotoReal, comFlash) {
       livePush(liveRandUser(), "leva pro quarto escuro no porão. LIBERTA ele");
       liveFixo("esse ficou bom.");
       live.viewers += 80;
+      // o sétimo no negativo: a última página se escreve — e vem assinada
+      if (e.id === "blackwood" && typeof diarioEvento === "function")
+        setTimeout(() => { if (world) diarioEvento("assinatura"); }, 2500);
       saveRun();
     } else {
       if (!comFlash) continue;         // no escuro não há clarão: nada é empurrado

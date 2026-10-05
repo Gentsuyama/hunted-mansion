@@ -346,6 +346,7 @@ function updatePrompt() {
     if (Math.hypot(b.x - player.x, b.y - player.y) < 2.2) {
       if (soulCaptured())
         prompt = { text: "BANCADA — REVELAR O NEGATIVO", action: () => {
+          diarioEvento("quarto");
           darkUI.alvo = soulCaptured();
           darkUI.fase = -1; darkUI.msg = ""; darkUI.confirma = 0;
           state = "darkroom";
@@ -396,6 +397,7 @@ function updatePrompt() {
 // ------------------------------------------------------------------
 let eventTimer = 14;
 function update(dt) {
+  if (tomasEvt) { tomasEvtUpdate(dt); if (toastT > 0) toastT -= dt; return; }   // o menino conta: tudo para
   // movimento com PESO: acelera, freia, e o ritmo decide o barulho
   let ix = 0, iy = 0;
   if (keys.has("KeyW") || keys.has("ArrowUp"))    iy -= 1;
@@ -651,9 +653,11 @@ function update(dt) {
   { const s0 = sanity;
     soulsUpdate(dt);   // almas nomeadas (Tomás foge, etc.)
     if (sanity < s0 - 0.01) tremor = 1; }
-  if (sanity <= 0) { casaPega(); return; }
+  // zerou: o menino acode (uma vez) ou a loucura começa; a queda só vem depois dela
+  if (sanity <= 0) { sanidadeZerou(); if (tomasEvt) return; }
+  if (loucura) { loucuraUpdate(dt); if (state !== "play") return; }
   // sozinha, a cabeça só volta até certo ponto; o resto é com a lamparina
-  if (nearest > 10 && sanity < sanTeto())
+  if (!loucura && nearest > 10 && sanity < sanTeto())
     sanity = Math.min(sanTeto(), sanity + SAN_VOLTA * dt);
 
   // a casa nota você: o drone engrossa quando algo te caça de perto
@@ -692,6 +696,7 @@ function update(dt) {
         toast(tf("PILHAS — o flash ganhou {0} cargas", BAT.pilha), 3);
         livePush(liveRandUser(), "pilha?? essa casa ainda tem coisa que funciona");
       }
+      else if (it.kind === "diario") diarioPega();
       else if (it.kind === "campart") {
         world.flags.cam[it.part] = true;
         if (it.part === "tampa") {
@@ -713,6 +718,7 @@ function update(dt) {
           livePush(liveRandUser(), "A LENTE DO PASSADO!! fotografa os lugares deles e OLHA a legenda");
         }
         showVinheta(it.part);           // quadrinho do achado (se a arte existe)
+        diarioEvento(it.part);          // …e o diário ganha a página daquela peça
       }
       sfxSting();
       saveRun();
@@ -727,6 +733,7 @@ function update(dt) {
       world.flags.secretsFound.push(sr.id);
       sfxSting(); liveEvent("secret");
       soulsOnSecretFound(world.cur);   // 1ª sala secreta DESPERTA o Tomás
+      diarioEvento("segredo");
       saveRun();
     }
   }
@@ -839,6 +846,7 @@ function render() {
   if (flickDip > 0) flick *= 0.3 + 0.35 * hash(3, 5, tick);
   if (trem > 0.5) flick *= 0.82 + 0.18 * hash(11, 2, tick);   // o medo come a luz
   luzDoJogador(dir, flick);
+  if (tomasEvt) addGlow(tomasEvt.x, tomasEvt.y, 5, 0.6);
   if (flashT > 0) {
     const p = FLASH.power * flashT * flashT;
     castLight(player.x, player.y, flashDir, FLASH.halfAngle, FLASH.range, p, FLASH.rays);
@@ -887,7 +895,7 @@ function render() {
     const L = Math.min(1, lightAt(it.x, it.y) * 1.8);
     mapaIcone(it.kind === "campart" ? "campart" : it.kind, it.x * CELL, it.y * CELL, 4.6,
       it.kind === "key" ? "244,214,116" : it.kind === "campart" ? "150,222,238" : it.kind === "pilha" ? "214,224,236"
-                                                               : "255,172,96", L * pul);
+                                           : it.kind === "diario" ? "226,200,150" : "255,172,96", L * pul);
   }
   // retrato aprisionador: só ganha ícone DEPOIS da foto denunciar
   for (const r of world.retratos) {
@@ -977,6 +985,9 @@ function render() {
     }
   }
 
+  drawTomasMundo();
+  drawLoucuraMundo();
+
   // partículas
   ctx.font = "bold 11px 'Courier New', monospace";
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
@@ -1051,8 +1062,10 @@ function render() {
   }
 
   if (state === "ritual") { drawRitual(); return; }
+  if (state === "play") { drawLoucuraTela(); drawTomasTela(); }
   drawHUD();
   if (state === "album") drawAlbum();
+  if (state === "diario") drawDiario();
   if (state === "chat") drawChat();
   if (state === "safe") drawSafe();
   if (state === "elevator") drawElevator();
@@ -1072,6 +1085,7 @@ const BTN_PHOTO  = { x: 1050, y: 318, r: 62 };
 const BTN_ALBUM  = { x: 1118, y: 70,  r: 46 };
 const BTN_FS     = { x: 1118, y: 182, r: 40 };
 const BTN_USE    = { x: 150,  y: 314, r: 52 };
+const BTN_DIARIO = { x: 1118, y: 418, r: 40 };
 const MOVE_STICK = { x: 150,  y: 530, r: 90, travel: 56, knob: 30 };
 const AIM_STICK  = { x: 1050, y: 530, r: 90, travel: 56, knob: 30 };
 const DEAD_BTNS = [
@@ -1296,14 +1310,18 @@ function drawHUD() {
 
   const sc = sanity > 40 ? "rgba(200,200,200,0.7)" : "rgba(230,70,60,0.85)";
   if (M) {
-    ctx.fillStyle = "rgba(150,150,150,0.75)";
-    ctx.fillText("SANIDADE", 12, 64);
-    ctx.strokeStyle = "rgba(150,150,150,0.5)";
-    ctx.strokeRect(132, 53, 240, 22);
-    ctx.fillStyle = sc;
-    ctx.fillRect(134, 55, 236 * Math.max(0, sanity) / 100, 18);
-    ctx.fillStyle = "rgba(255,206,120,0.75)";
-    ctx.fillRect(134 + 236 * sanTeto() / 100 - 1, 51, 2, 26);
+    if (loucura) drawLoucuraBarra(132, 64, 240, 22, true);
+    else {
+      ctx.fillStyle = "rgba(150,150,150,0.75)";
+      ctx.fillText("SANIDADE", 12, 64);
+      ctx.strokeStyle = "rgba(150,150,150,0.5)";
+      ctx.strokeRect(132, 53, 240, 22);
+      ctx.fillStyle = sc;
+      ctx.fillRect(134, 55, 236 * Math.max(0, sanity) / 100, 18);
+      ctx.fillStyle = "rgba(255,206,120,0.75)";
+      ctx.fillRect(134 + 236 * sanTeto() / 100 - 1, 51, 2, 26);
+    }
+    ctx.font = "bold 19px 'Courier New', monospace";
     if (world.flags.quase) hudNegativo(388, 64);
     if (folego < 0.995) {                 // fôlego: só aparece quando falta
       ctx.fillStyle = semFolego ? "rgba(230,90,80,0.85)" : "rgba(150,200,230,0.8)";
@@ -1311,16 +1329,20 @@ function drawHUD() {
     }
     hudRecursos(300, 96, 11, 10);
   } else {
-    ctx.fillStyle = "rgba(120,120,120,0.5)";
-    ctx.fillText("SANIDADE", 12, canvas.height - 46);
-    ctx.strokeStyle = "rgba(150,150,150,0.4)";
-    ctx.strokeRect(95, canvas.height - 52, 140, 11);
-    ctx.fillStyle = sc;
-    ctx.fillRect(96, canvas.height - 51, 138 * Math.max(0, sanity) / 100, 9);
-    // até aqui ela volta sozinha; daqui para cima, só a lamparina
-    ctx.fillStyle = "rgba(255,206,120,0.75)";
-    ctx.fillRect(96 + 138 * sanTeto() / 100 - 0.5, canvas.height - 54, 1.5, 15);
-    const xNeg = hudRecursos(262, canvas.height - 46, 9, 9) + 4;
+    if (loucura) drawLoucuraBarra(95, canvas.height - 46, 140, 11, false);
+    else {
+      ctx.fillStyle = "rgba(120,120,120,0.5)";
+      ctx.fillText("SANIDADE", 12, canvas.height - 46);
+      ctx.strokeStyle = "rgba(150,150,150,0.4)";
+      ctx.strokeRect(95, canvas.height - 52, 140, 11);
+      ctx.fillStyle = sc;
+      ctx.fillRect(96, canvas.height - 51, 138 * Math.max(0, sanity) / 100, 9);
+      // até aqui ela volta sozinha; daqui para cima, só a lamparina
+      ctx.fillStyle = "rgba(255,206,120,0.75)";
+      ctx.fillRect(96 + 138 * sanTeto() / 100 - 0.5, canvas.height - 54, 1.5, 15);
+    }
+    ctx.font = "bold 13px 'Courier New', monospace";
+    const xNeg = hudRecursos(loucura ? 560 : 262, canvas.height - 46, 9, 9) + 4;
     if (world.flags.quase) {
       hudNegativo(xNeg, canvas.height - 46);
       if (Math.abs(mouse.x - xNeg) < 12 && Math.abs(mouse.y - (canvas.height - 46)) < 12) {
@@ -1333,7 +1355,7 @@ function drawHUD() {
       ctx.fillRect(96, canvas.height - 39, 138 * folego, 3);
     }
     ctx.fillStyle = "rgba(160,160,160,0.55)";
-    ctx.fillText(tr("WASD mover · toque duplo = correr (faz barulho) · mouse lanterna · botão direito FOTO · R filme · F álbum · E usar")
+    ctx.fillText(tr("WASD mover · toque duplo = correr (faz barulho) · mouse lanterna · botão direito FOTO · R filme · F álbum · J diário · E usar")
                    .replace("WASD", TECLAS_ANDAR),
                  12, canvas.height - 14, canvas.width - 250);
   }
@@ -1367,6 +1389,13 @@ function drawHUD() {
     hudChave(26, invY, true);
     ctx.fillStyle = "rgba(240,210,110,0.9)";
     ctx.fillText("CHAVE DA PORTA — vá até o hall de entrada", 48, invY);
+    invY += M ? 28 : 22;
+  }
+  if (diarioTem() && !M) {                 // o caderno (no toque ele é um botão)
+    const nv = diarioNovas();
+    drawDiarioIcone(28, invY, 7, nv > 0);
+    ctx.fillStyle = nv > 0 ? "rgba(255,170,150,0.95)" : "rgba(190,180,160,0.7)";
+    ctx.fillText(nv > 0 ? "DIÁRIO — página nova [J]" : "DIÁRIO [J]", 48, invY);
   }
 
   // a câmera no canto (peças coletadas + filme dentro/fora)
@@ -1457,6 +1486,15 @@ function drawHUD() {
     ctx.font = "bold 14px 'Courier New', monospace";
     ctx.fillText("ÁLBUM", BTN_ALBUM.x, BTN_ALBUM.y + 1);
 
+    if (diarioTem()) {                           // o caderno (pisca com página nova)
+      const nv = diarioNovas();
+      ctx.strokeStyle = nv > 0 ? `rgba(255,170,150,${0.5 + 0.4 * Math.sin(time * 5)})` : "rgba(255,255,255,0.35)";
+      ctx.beginPath(); ctx.arc(BTN_DIARIO.x, BTN_DIARIO.y, BTN_DIARIO.r, 0, 7); ctx.stroke();
+      drawDiarioIcone(BTN_DIARIO.x, BTN_DIARIO.y - 6, 11, nv > 0);
+      ctx.fillStyle = "rgba(255,255,255,0.65)";
+      ctx.font = "bold 11px 'Courier New', monospace";
+      ctx.fillText("DIÁRIO", BTN_DIARIO.x, BTN_DIARIO.y + 24);
+    }
     ctx.strokeStyle = "rgba(255,255,255,0.35)";
     ctx.beginPath(); ctx.arc(BTN_FS.x, BTN_FS.y, BTN_FS.r, 0, 7); ctx.stroke();
     ctx.strokeStyle = "rgba(255,255,255,0.65)";
@@ -1533,6 +1571,8 @@ window.addEventListener("keydown", e => {
     return;
   }
   if (state === "album") { albumTecla(e.code); return; }
+  if (e.code === "KeyJ" && state === "play") { openDiario("play"); return; }
+  if (state === "diario") { diarioTecla(e.code); return; }
   if (e.code === "KeyE" && state === "play" && prompt && prompt.action) {
     prompt.action(); return;
   }
@@ -1579,6 +1619,7 @@ canvas.addEventListener("mousedown", e => {
   if (state === "title") { titleHit(mx, my); return; }
   if (state === "dead")  { deadHit(mx, my); return; }
   if (state === "album") { albumHit(mx, my); return; }
+  if (state === "diario") { diarioHit(mx, my); return; }
   if (state === "chat")  { chatHit(mx, my); return; }
   if (state === "safe")  { safeHit(mx, my); return; }
   if (state === "elevator") { elevatorHit(mx, my); return; }
@@ -1638,6 +1679,7 @@ canvas.addEventListener("touchstart", e => {
     if (state === "title") { enterFullscreen(); titleHit(p.x, p.y); return; }
     if (state === "dead")  { deadHit(p.x, p.y); return; }
     if (state === "album") { albumHit(p.x, p.y); return; }
+    if (state === "diario") { diarioHit(p.x, p.y); return; }
     if (state === "chat") {
       chatHit(p.x, p.y);
       if (state === "chat") { chatDragId = t.identifier; chatDragY = p.y; }
@@ -1662,6 +1704,9 @@ canvas.addEventListener("touchstart", e => {
     }
     if (Math.hypot(p.x - BTN_FS.x, p.y - BTN_FS.y) < BTN_FS.r + 14) {
       toggleFullscreen(); continue;
+    }
+    if (diarioTem() && Math.hypot(p.x - BTN_DIARIO.x, p.y - BTN_DIARIO.y) < BTN_DIARIO.r + 12) {
+      openDiario("play"); continue;
     }
     if (prompt && prompt.action &&
         Math.hypot(p.x - BTN_USE.x, p.y - BTN_USE.y) < BTN_USE.r + 10) {

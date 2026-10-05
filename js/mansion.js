@@ -82,6 +82,9 @@ function genWorld(seed) {
   const kp = sk ? { x: sk.x + sk.w / 2, y: sk.y + sk.h / 2 } : world.floors[0].freeSpot();
   world.items.push({ id: "key", kind: "key", floor: 0, x: kp.x, y: kp.y, taken: false });
 
+  // --- O DIÁRIO: na soleira, junto de onde a câmera caiu (dois passos do começo) ---
+  world.items.push({ id: "diario", kind: "diario", floor: 1,
+    x: roomCenter(ENTRY_HALL).x + 2.2, y: ENTRY_HALL.y + ENTRY_HALL.h - 3.4, taken: false });
   // --- PEÇAS DA CÂMERA ---
   // tampa do filme: no hall de entrada, primeiros passos (o chat guia)
   world.items.push({ id: "tampa", kind: "campart", part: "tampa", floor: 1,

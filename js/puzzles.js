@@ -411,7 +411,7 @@ function drawWin() {
   ctx.fillText(fim.titulo, canvas.width / 2, 150);
   ctx.font = "bold 16px 'Courier New', monospace";
   ctx.fillStyle = "rgba(185,185,185,0.85)";
-  fim.linhas.forEach((ln, i) =>
+  endingLinhas(fim).forEach((ln, i) =>
     ctx.fillText(ln, canvas.width / 2, 200 + i * 26));
 
   const mm = String((world.timeSec / 60) | 0).padStart(2, "0");
@@ -668,10 +668,18 @@ const ENDINGS = {
     linhas: ["Você sentou. A cadeira estava morna.",
              "A câmera encaixa na sua mão como se sempre tivesse sido sua.",
              "A live caiu. O último frame mostra você… sorrindo para o cavalete.",
-             "A casa tem um dono de novo."],
+             "A casa tem um dono de novo.",
+             "O diário na sua mão está em branco outra vez. Ele vai precisar de outro leitor."],
     cor: [160, 150, 170],
   },
 };
+// a linha a mais dos finais pela porta, quando o diário já se revelou
+function endingLinhas(fim) {
+  const d = world.flags.diario;
+  if (world.endType !== "fotografo" && d && d.revelado)
+    return fim.linhas.concat(["O diário ficou na soleira, aberto na página assinada. Ninguém mais vai lê-lo."]);
+  return fim.linhas;
+}
 
 function winGame(tipo) {
   if (!tipo) {
@@ -688,6 +696,8 @@ function winGame(tipo) {
   } else if (tipo === "cinzas") {
     livePush(liveRandUser(), "saiu… mas a que custo, mano");
   } else {
+    if (world.flags.diario && world.flags.diario.revelado)
+      livePush(liveRandUser(), "VOCÊ LEU A ASSINATURA E SENTOU MESMO ASSIM???");
     livePush(liveRandUser(), "a live caiu?? alguém tá vendo isso?");
     livePush(liveRandUser(), "a câmera dele ainda tá gravando…");
   }

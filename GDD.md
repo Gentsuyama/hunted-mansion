@@ -301,3 +301,32 @@ conteúdo. Constantes em `js/core.js` (`BOTE`, `ECO`, `SAN_*`, `LAMP_*`); lógic
   ateliê (o placar da casa), grade do elevador, hall de ladrilho xadrez, sala secreta de tijolo.
 - **Pistas no mundo.** Pegadas pequenas que entram na parede falsa; memória de planta (parede
   já vista fica como fantasma e apodrece em minutos); olhos que não existem com sanidade < 28.
+
+## 13. O DIÁRIO, O MENINO E A LOUCURA (leva de 2026-10-05 — pedidos do Rodolfo)
+
+- **O diário** (`js/diario.js`). Cai na soleira, ao lado de onde a câmera estava. Vem quase
+  em branco e as páginas APARECEM conforme a casa é descoberta (tampa, lente, obturador,
+  frasco, primeira sala secreta, primeiro vulto fotografado, a bancada, cada alma que acorda,
+  o Blackwood acordando, o menino que acode, a loucura vencida). É o guia do jogador — e é
+  do BLACKWOOD: conduz a prender os seis (queimar, nunca libertar: os livres o enfraquecem no
+  ateliê), a encher o frasco "para ele" e, no fim, a SENTAR na cadeira com o negativo — a troca
+  de corpo ("O Novo Fotógrafo"). Descoberta garantida: capturado o Blackwood, a última página
+  se escreve na frente do jogador e vem ASSINADA, e o chat explode antes da escolha
+  cadeira/porta. Descoberta por mérito: FOTOGRAFAR uma página (gasta rolo e flash; a foto vai
+  para as páginas vermelhas) revela a tinta escondida — a marca d'água "Blackwood" e frases
+  que viram o sentido ("Encha-o para mim.", "Queime. Os livres me enfraquecem.", "Mãe." na
+  página da Aurora). Pistas no texto: o deslize riscado "o último ~~sou~~ é o Fotógrafo", a
+  hostilidade às velas e à libertação, saber demais sobre cada retrato. Tecla J; no toque, o
+  botão do caderno. Os finais sabem do diário (linha extra; o chat cobra quem leu e sentou).
+- **Velocidade dos ecos de volta a 3,6** (os 2,4 "não ficaram bons").
+- **Sanidade zero não derruba na hora** (`js/sanidade.js`):
+  1. **Tomás acode** — uma vez por live, enquanto o menino ainda está na casa (nem preso,
+     nem livre, nem queimado): tudo para, o breu fecha, ele aparece ao lado e conta
+     ("…noventa e sete… cem. achei você."); a sanidade sobe até 45. Se ele ainda dormia,
+     acorda ali. O diário avisa: "da próxima vez ele não estará lá".
+  2. **Loucura** — a casa entra na cabeça: a imagem dobra e rasga, vinheta que pulsa com o
+     coração, olhos e vultos que não existem, o chat com as vozes das almas (e "você"), a
+     live esvaziando, o corpo tropeçando. A barra vira LOUCURA: o que resta de você em 70 s
+     (cada alma da ampola é comida antes e compra 12 s). A LUZ segura: velas acesas e a
+     lamparina (+6/s), cada clarão do flash (+10). Sanidade de volta a 30 = "você respira"
+     (fica uma ferida). O tempo acaba = a queda e o ritual de sempre.

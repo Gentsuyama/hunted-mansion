@@ -20,7 +20,8 @@ import io, json, os, re, sys
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FONTES = ["core.js", "intro.js", "game.js", "photo.js", "live.js", "souls.js",
-          "puzzles.js", "mansion.js", "ritual.js", "energia.js", "album.js"]
+          "puzzles.js", "mansion.js", "ritual.js", "energia.js", "album.js",
+          "diario.js", "sanidade.js"]
 IDIOMAS = ["en", "es", "fr", "de", "zh", "ja"]
 
 NAO_TRADUZ = {

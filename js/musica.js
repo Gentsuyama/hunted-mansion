@@ -24,6 +24,7 @@ const MUS = {
     refugio:  { pad: 0.70, respiro: 0.20, caixa: 0.45, pulso: 0.00, cordas: 0.00, sinos: 0.15, paleta: "morna" },
     boss:     { pad: 0.40, respiro: 0.30, caixa: 0.30, pulso: 0.80, cordas: 1.00, sinos: 0.00, paleta: "escura" },
     queda:    { pad: 0.80, respiro: 0.30, caixa: 0.00, pulso: 0.25, cordas: 0.60, sinos: 0.00, paleta: "fundo" },
+    loucura:  { pad: 0.55, respiro: 0.95, caixa: 0.35, pulso: 0.65, cordas: 0.75, sinos: 0.10, paleta: "fundo" },
     alvorada: { pad: 0.60, respiro: 0.10, caixa: 0.20, pulso: 0.00, cordas: 0.00, sinos: 1.00, paleta: "clara" },
   },
   // acordes em semitons a partir da raiz (ré); cada paleta tem seu clima
@@ -71,6 +72,7 @@ function musicaCenaAlvo() {
   if (!world || ["lang", "boot", "title", "cine", "vinheta"].includes(state)) return "abertura";
   if (state === "ritual" || state === "dead") return "queda";
   if (state === "win") return "alvorada";
+  if (typeof loucura !== "undefined" && loucura) return "loucura";
   const bw = world.flags.souls && world.flags.souls.blackwood;
   if (bw && bw.state === "awake" && world.cur === NFLOORS - 1) return "boss";
   if (typeof lampAcesa === "function" && lampAcesa() &&
@@ -95,9 +97,9 @@ function musicaUpdate(dt) {
   if (alvo !== mus.pedido) { mus.pedido = alvo; mus.pedidoT = 0; }
   else mus.pedidoT += dt;
   // subir a tensão é imediato; acalmar pede 2,5 s de calma de verdade
-  const sobe = ["caca", "boss", "queda", "alvorada"].includes(alvo);
+  const sobe = ["caca", "boss", "queda", "alvorada", "loucura"].includes(alvo);
   if (alvo !== mus.cena && (sobe || mus.pedidoT > 2.5)) musicaAplicaCena(alvo, false);
-  const abafa = ["safe", "fusebox", "darkroom", "elevator", "chat", "album"].includes(state);
+  const abafa = ["safe", "fusebox", "darkroom", "elevator", "chat", "album", "diario"].includes(state);
   if (abafa !== mus.abafado) {
     mus.abafado = abafa;
     const t = AC.currentTime;

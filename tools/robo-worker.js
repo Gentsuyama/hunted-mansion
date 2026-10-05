@@ -32,7 +32,7 @@ self.requestAnimationFrame = () => 0;
 const V = "?v=" + Date.now();
 const JOGO = ["core", "i18n", "lang/chaves", "audio", "musica", "sprites", "tex", "photo", "mansion",
               "mapa", "game", "live", "souls", "puzzles", "ritual", "energia", "planta",
-              "album", "intro", "main"];
+              "album", "diario", "sanidade", "intro", "main"];
 try {
   importScripts(...JOGO.map(f => "../js/" + f + ".js" + V));
   importScripts("sim.js" + V, "sim-humano.js" + V);

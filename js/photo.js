@@ -78,6 +78,7 @@ function takePhoto() {
     attractT = ECO.atraiFlash;         // o flash SEMPRE atrai — mesmo vazio
     sfxCamera();
     if (bateria <= 0) bateriaAcabou();
+    loucuraClarao();                   // em plena loucura, o clarão te devolve um pouco
   } else {
     flashT = 0;
     sfxObturadorSeco();

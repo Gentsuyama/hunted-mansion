@@ -253,6 +253,14 @@ function mapaIcone(kind, x, y, s, rgb, a) {
       ctx.moveTo(s * 0.55, 0); ctx.lineTo(s * 0.55, s * 0.5);
       ctx.moveTo(s * 0.9, 0); ctx.lineTo(s * 0.9, s * 0.42);
       break;
+    case "diario":                         // caderno fechado: capa, lombada e a fita
+      mapaRR(-s * 0.8, -s, s * 1.6, s * 2, 1.5);
+      ctx.fill(); ctx.stroke(); ctx.beginPath();
+      ctx.moveTo(-s * 0.5, -s); ctx.lineTo(-s * 0.5, s);
+      ctx.moveTo(s * 0.35, -s); ctx.lineTo(s * 0.35, s * 0.3);
+      ctx.moveTo(-s * 0.2, -s * 0.4); ctx.lineTo(s * 0.1, -s * 0.4);
+      ctx.moveTo(-s * 0.2, 0); ctx.lineTo(s * 0.1, 0);
+      break;
     case "campart":                        // uma lente: aro, vidro e o reflexo
       ctx.arc(0, 0, s * 0.9, 0, 7);
       ctx.fill(); ctx.stroke(); ctx.beginPath();
