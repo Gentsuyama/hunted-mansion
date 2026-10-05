@@ -853,8 +853,7 @@ function renderPhoto(px, py, dir, escuro) {
       let spr, hs;
       if (s.kind === "ghost") {
         // quem caiu na live passada vaga de moletom no andar onde ficou
-        spr = s.gh.streamer ? ecoStreamerSprite()
-                            : s.gh.sprCv || (s.gh.sprCv = ghostSprite(s.gh.artSeed));
+        spr = s.gh.streamer ? ecoStreamerSprite() : ecoSpriteDe(s.gh);
         hs = spr._hscale || 1;
         if (s.gh.streamer && bright > 0.2 && ty < zAqui + 0.6 &&
             !world.flags.antVistos.includes("eco")) {

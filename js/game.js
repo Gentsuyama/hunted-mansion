@@ -550,7 +550,7 @@ function update(dt) {
         for (let k = 0; k < 20 && Math.hypot(p.x - player.x, p.y - player.y) < 18; k++) p = fl().freeSpot();
         g.x = p.x; g.y = p.y;
         g.wx = g.x; g.wy = g.y; g.chase = false; g.bote = null; g.gasto = 0;
-        g.artSeed = ecoSemente(gs.filter(o => o !== g)); g.sprCv = null;
+        g.artSeed = Math.random(); g.artIdx = undefined; g.sprCv = null;   // carta nova do baralho
       }
       continue;
     }
@@ -696,7 +696,6 @@ function update(dt) {
         toast(tf("PILHAS — o flash ganhou {0} cargas", BAT.pilha), 3);
         livePush(liveRandUser(), "pilha?? essa casa ainda tem coisa que funciona");
       }
-      else if (it.kind === "diario") diarioPega();
       else if (it.kind === "campart") {
         world.flags.cam[it.part] = true;
         if (it.part === "tampa") {

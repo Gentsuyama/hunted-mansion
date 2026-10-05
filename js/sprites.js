@@ -587,7 +587,32 @@ function ecoEspectral(im, espelha, pronto) {
   cv._aspect = w / h; cv._hscale = 1.0; cv._img = im; cv._pronto = !!pronto;
   return cv;
 }
-// semente de arte para um eco novo: tenta não repetir a imagem dos outros ecos do andar
+// BARALHO dos ecos (pedido do Rodolfo, 2026-10-05: "fantasma repetindo muito nas fotos"):
+// cada imagem sai UMA vez na run inteira; só quando todas saíram o baralho é embaralhado
+// de novo. Vive em world.flags.ecoBaralho (sobrevive ao save).
+function ecoCarta() {
+  const N = ECO_IMGS.length;
+  if (!N || !world) return null;
+  let b = world.flags.ecoBaralho;
+  if (!Array.isArray(b) || !b.length || b.some(i => i >= N)) {
+    b = []; for (let i = 0; i < N; i++) b.push(i);
+    for (let i = N - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [b[i], b[j]] = [b[j], b[i]]; }
+    world.flags.ecoBaralho = b;
+  }
+  return b.pop();
+}
+// o sprite de um eco: tira uma carta do baralho na primeira vez que a foto precisa dele
+function ecoSpriteDe(g) {
+  if (g.sprCv) return g.sprCv;
+  if (ECO_IMGS.length) {
+    if (g.artIdx === undefined || g.artIdx === null || g.artIdx >= ECO_IMGS.length) g.artIdx = ecoCarta();
+    const spr = ECO_IMGS[g.artIdx];
+    g.sprCv = (g.artSeed * 977) % 1 < 0.5 ? spr : (spr._esp || (spr._esp = ecoEspectral(spr._img, true, spr._pronto)));
+    return g.sprCv;
+  }
+  return ghostSprite(g.artSeed);     // a arte ainda não chegou: desenho a caneta, sem guardar
+}
+// (semente antiga: evitava repetir só entre os ecos vivos do andar; o baralho a substitui)
 function ecoSemente(outros) {
   let seed = Math.random();
   if (ECO_IMGS.length > 1 && outros) {

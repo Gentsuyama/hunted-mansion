@@ -304,8 +304,11 @@ conteúdo. Constantes em `js/core.js` (`BOTE`, `ECO`, `SAN_*`, `LAMP_*`); lógic
 
 ## 13. O DIÁRIO, O MENINO E A LOUCURA (leva de 2026-10-05 — pedidos do Rodolfo)
 
-- **O diário** (`js/diario.js`). Cai na soleira, ao lado de onde a câmera estava. Vem quase
-  em branco e as páginas APARECEM conforme a casa é descoberta (tampa, lente, obturador,
+- **O diário** (`js/diario.js`). Veio junto com a câmera, na soleira: a live já começa com ele
+  (vinheta VIN-008). As páginas são RELATO em primeira pessoa de quem viveu a casa (lugar à mão no
+  alto; nada de instrução — o que ensina vem do que aconteceu), muitas com uma foto pequena presa
+  com clipe mostrando a coisa de que falam; viram com a animação do álbum. Vem quase em branco e
+  as páginas APARECEM conforme a casa é descoberta (tampa, lente, obturador,
   frasco, primeira sala secreta, primeiro vulto fotografado, a bancada, cada alma que acorda,
   o Blackwood acordando, o menino que acode, a loucura vencida). É o guia do jogador — e é
   do BLACKWOOD: conduz a prender os seis (queimar, nunca libertar: os livres o enfraquecem no
@@ -318,7 +321,9 @@ conteúdo. Constantes em `js/core.js` (`BOTE`, `ECO`, `SAN_*`, `LAMP_*`); lógic
   página da Aurora). Pistas no texto: o deslize riscado "o último ~~sou~~ é o Fotógrafo", a
   hostilidade às velas e à libertação, saber demais sobre cada retrato. Tecla J; no toque, o
   botão do caderno. Os finais sabem do diário (linha extra; o chat cobra quem leu e sentou).
-- **Velocidade dos ecos de volta a 3,6** (os 2,4 "não ficaram bons").
+- **Velocidade dos ecos de volta a 3,6** (os 2,4 "não ficaram bons"). **Baralho das imagens dos
+  ecos**: nenhuma figura repete na foto até todas as 23 terem saído; só então embaralha de novo
+  (`ecoCarta`/`ecoSpriteDe`, `flags.ecoBaralho`).
 - **Sanidade zero não derruba na hora** (`js/sanidade.js`):
   1. **Tomás acode** — uma vez por live, enquanto o menino ainda está na casa (nem preso,
      nem livre, nem queimado): tudo para, o breu fecha, ele aparece ao lado e conta

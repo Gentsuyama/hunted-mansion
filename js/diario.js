@@ -15,81 +15,81 @@
 // às velas e à libertação, saber demais sobre cada retrato.
 // ==================================================================
 const DIARIO_PAGINAS = [
-  { id: "inicio", titulo: "Para quem achar esta câmera",
-    texto: ["Se você está lendo, a porta já se fechou. Não gaste força nela: esta casa não prende por fechadura.",
-            "Prende por retrato. Sete deles. Enquanto os sete estiverem aqui, você também está.",
-            "A câmera na sua mão é a única coisa aqui dentro que sabe tirar alguém de um retrato. Cuide dela mais do que de si.",
-            "As outras páginas estão em branco porque você ainda não precisa delas. Elas vão aparecer."],
+  // relato de quem viveu a casa (primeira pessoa; o que ensina vem do que aconteceu, nunca de ordem)
+  { id: "inicio", titulo: "Na soleira",
+    texto: ["Escrevo com a câmera no colo, sentado onde a encontrei. A porta fechou sozinha atrás de mim; empurrei até os braços doerem e ela nem rangeu.",
+            "Não é a fechadura que prende. A casa guarda sete retratos, e enquanto eles estiverem aqui, quem entra também fica. Levei uma noite inteira para entender isso.",
+            "Deixo este caderno onde deixaram a câmera. Quem pegar uma, que pegue o outro."],
     oculto: "Cuide dela. Ela é minha — e em breve você também." },
-  { id: "tampa", titulo: "A tampa",
-    texto: ["Agora a câmera fecha, e o filme serve para alguma coisa.",
-            "Com filme, a foto guarda o que viu. Sem filme, o clarão apenas assusta — e assustar também tem seu uso.",
-            "Fotografe as paredes. A casa escreve nelas o que não quer que se leia; só a emulsão enxerga.",
-            "Não desperdice rolos com o escuro vazio. A casa repõe o filme, mas devagar, e nunca onde você está."] },
-  { id: "vulto", titulo: "Os sem nome",
-    texto: ["Os vultos sem nome não são os sete. São restos: hóspedes que a casa não achou dignos de moldura.",
-            "Eles vêm. Sempre vêm. Não correm — mas também não desistem.",
-            "Quando um deles puxa o ar perto de você, é tarde para andar. É a hora do clarão.",
-            "Não tenha pena do que não tem rosto."] },
-  { id: "ampola", titulo: "O frasco",
-    texto: ["Você achou o frasco. Eu sabia que acharia: a casa o deixa onde se tropeça nele.",
-            "O que a foto tira de um vulto cabe aí dentro. Guarde. Cada alma guardada é luz para o flash — e luz é tempo.",
-            "Encha-o. Não o gaste com velas por sentimento: um castiçal aceso não tira ninguém daqui.",
-            "Um frasco cheio, sim."],
+  { id: "tampa", titulo: "Hall de entrada",
+    texto: ["Achei a tampa do filme a dois passos de onde a câmera caiu, como se tivesse esperado por mim. Com ela a câmera fechou, e pela primeira vez a foto guardou algo além do clarão.",
+            "Fotografei a parede do corredor por desespero e a emulsão mostrou um número riscado que meus olhos nunca viram. A casa escreve nas paredes.",
+            "Gastei três rolos fotografando o escuro vazio antes de aprender. A casa repõe o filme, mas devagar — e sempre longe de onde estou."] },
+  { id: "vulto", titulo: "Corredor, não sei qual",
+    texto: ["Havia um deles no fim do corredor. Não é dos sete: é um resto, um hóspede que a casa não achou digno de moldura.",
+            "Veio na minha direção sem pressa e sem desistir. Corri; quando parei, ele ainda vinha. Chegou colado e puxou o ar — e aí já era tarde para andar. O clarão o tirou de cima de mim.",
+            "Não senti pena. Não há rosto ali para se ter pena."] },
+  { id: "ampola", titulo: "Primeiro andar",
+    texto: ["Tropecei no frasco. Prata, gelado, um resíduo azul no fundo; encaixou na câmera como se fosse dela.",
+            "Entendi o que ele guarda quando fotografei um vulto e o vi sumir da foto: o que a emulsão tira cabe no frasco, e o frasco devolve luz ao flash. Luz é tempo.",
+            "Acendi um castiçal com a primeira alma, por fraqueza, pela luz bonita. Não me levou a lugar nenhum. Desde então encho o frasco. Um frasco cheio pesa diferente."],
     oculto: "Encha-o para mim." },
-  { id: "lente", titulo: "A lente",
-    texto: ["A lente certa lê o que a rachada só borra: os números que a casa risca nas paredes.",
-            "São o segredo do cofre, e dentro do cofre há sempre o que falta.",
-            "Procure as marcas onde o papel de parede está mais gasto. A casa esconde mal o que ela mesma escreveu."] },
-  { id: "segredo", titulo: "As paredes a mais",
-    texto: ["Então você achou um vão. Há outros: a casa foi erguida com o dobro das paredes necessárias.",
-            "O menino gosta deles. Vai correr de você, e rir. Deixe-o correr: crianças cansam.",
-            "Quando ele parar, fotografe. Não é perigoso — só é lento para entender que a brincadeira acabou."] },
-  { id: "obturador", titulo: "O obturador",
-    texto: ["O obturador de prata. Sem ele a câmera só espanta; com ele, prende.",
-            "Com o retrato certo na mão, o clarão devolve cada um deles à moldura de onde saiu.",
-            "Faça isso com os sete. Não há outro caminho para fora — e, acredite, eu procurei."] },
-  { id: "alma_tomas", titulo: "O menino",
-    texto: ["O retrato dele está no berço, debaixo do que ninguém mexe há setenta anos.",
-            "Ele dorme onde dormia. Quando parar de correr, não hesite."] },
-  { id: "alma_cecilia", titulo: "A noiva",
-    texto: ["Ela não suporta ser olhada: enquadre-a e ela congela. Desvie, e ela avança.",
-            "O retrato está atrás do espelho onde ela se mostrou. Ela própria o pendurou ali, creio."] },
-  { id: "alma_bento", titulo: "O zelador",
-    texto: ["Ele faz a ronda quando há energia e vem atrás de qualquer clarão. Use isso: leve-o aonde quiser.",
-            "O retrato caiu junto com ele, no fundo do poço do elevador. No porão."] },
-  { id: "alma_olivia", titulo: "A pianista",
-    texto: ["Enquanto ela toca, ela não vem. No silêncio, corra.",
-            "O retrato está dentro do piano, sob a tampa. Ela guardava tudo ali — até o que não era dela."] },
-  { id: "alma_hospede", titulo: "O hóspede",
-    texto: ["Ele nunca aceitou aparecer em retrato; por isso o dele está atrás do relógio que parou quando ele chegou.",
-            "Não olhe a foto dele mais do que o necessário. Ele devolve o olhar."] },
-  { id: "alma_aurora", titulo: "A senhora",
-    texto: ["Ela vem perguntar por quê. Não responda.",
-            "O retrato está na poltrona em que ninguém mais sentou. Foi o primeiro de todos; trate-o com cuidado."],
+  { id: "lente", titulo: "Atrás da parede, térreo",
+    texto: ["A parede do térreo era falsa; atravessei-a com o ombro. Dentro, embrulhada num pano, uma lente nova.",
+            "A rachada só borrava os números que a casa risca nas paredes; esta lê. São três, e abrem o cofre — e no cofre estava o que me faltava.",
+            "Achei as marcas onde o papel de parede está mais gasto. A casa esconde mal o que ela mesma escreveu."] },
+  { id: "segredo", titulo: "Dentro da parede",
+    texto: ["Há um menino nos vãos. Ri de mim e corre, e eu, idiota, corri atrás até perder o fôlego.",
+            "Na terceira vez deixei que corresse: crianças cansam. Parou ofegante num canto e me olhou como se ainda fosse brincadeira. Fotografei.",
+            "Não é perigoso. Só é lento para entender que a brincadeira acabou."] },
+  { id: "obturador", titulo: "Porão",
+    texto: ["O obturador de prata estava junto da chave, no fundo do porão, frio como a mão de quem o apertava. Com ele a câmera parou de apenas espantar.",
+            "Hoje, com o retrato certo na mão, vi o clarão devolver um deles à moldura de onde saiu.",
+            "É preciso fazer isso com os sete. Procurei outro caminho para fora durante noites. Não há."] },
+  { id: "alma_tomas", titulo: "Quarto das crianças",
+    texto: ["O retrato do menino estava no berço, debaixo de um lençol que ninguém mexia há setenta anos. Ele dorme onde dormia.",
+            "Quando parou de correr, hesitei um segundo. Perdi uma noite por causa desse segundo."] },
+  { id: "alma_cecilia", titulo: "Diante do espelho",
+    texto: ["A noiva não suporta ser olhada: enquanto a enquadrei, ficou imóvel como um retrato. No instante em que desviei para trocar o rolo, avançou dois passos sem som.",
+            "O retrato dela estava atrás do espelho onde se mostrou. Acho que foi ela mesma quem o pendurou ali."] },
+  { id: "alma_bento", titulo: "Casa das máquinas",
+    texto: ["Quando a energia voltou, o zelador voltou com ela. Anda pesado e vai atrás de qualquer clarão: disparei num canto e ele foi para o canto.",
+            "O retrato dele caiu junto com ele, no fundo do poço do elevador. Desci ao porão para pegá-lo com as mãos tremendo."] },
+  { id: "alma_olivia", titulo: "Sala de música",
+    texto: ["Enquanto ela tocava, eu estava seguro; aprendi a andar no compasso dela. Quando o piano calou, corri.",
+            "O retrato estava dentro do piano, sob a tampa, no meio de coisas que não eram dela. Ela guardava tudo ali."] },
+  { id: "alma_hospede", titulo: "Escritório",
+    texto: ["Ele nunca aceitou aparecer em retrato. Por isso o dele estava atrás do relógio que parou na hora em que ele chegou.",
+            "Olhei a foto dele por tempo demais. Ele devolveu o olhar, e dormi mal pela primeira vez desde que entrei."] },
+  { id: "alma_aurora", titulo: "Sala de estar",
+    texto: ["Ela veio me perguntar por quê. Não respondi.",
+            "O retrato estava na poltrona em que ninguém mais sentou. Foi o primeiro de todos; as bordas estão gastas de tanto ser segurado. Peguei-o com mais cuidado do que os outros, e não sei explicar por quê."],
     oculto: "Mãe." },
-  { id: "quarto", titulo: "A bancada",
-    texto: ["Três banhos para revelar; um fósforo para queimar. A corrente quebra igual.",
-            "Revelar é lento, e cada erro acorda a casa. Queimar leva um instante.",
-            "Não há mérito em devolver ao mundo o que já estava morto. Há pressa."],
+  { id: "quarto", titulo: "Quarto escuro",
+    texto: ["Revelei o primeiro negativo: três banhos, a agulha tremendo, e um erro que acordou a casa inteira por uma hora.",
+            "O segundo eu queimei. Um fósforo, um instante, e a corrente da porta quebrou igual.",
+            "Não vi mérito em devolver ao mundo o que já estava morto. Vi pressa. Desde então, queimo."],
     oculto: "Queime. Os livres me enfraquecem." },
-  { id: "tomas_ajuda", titulo: "O menino se apegou",
-    texto: ["Ele contou até cem para você. Não devia: a casa cobra o que empresta.",
-            "Da próxima vez ele não estará lá. Não zere de novo."] },
-  { id: "loucura", titulo: "A voz",
-    texto: ["Você ouviu a casa falar com a sua voz. É assim que ela começa a morar em alguém.",
-            "Da próxima vez, deixe. É mais rápido."],
+  { id: "tomas_ajuda", titulo: "Não sei onde escrevi isto",
+    texto: ["Caí. Lembro do escuro e de uma voz de criança contando. O menino me achou antes que a casa me achasse, e levantei.",
+            "Ele não devia ter se apegado: a casa cobra o que empresta. Da segunda vez que caí, ele não estava lá."] },
+  { id: "loucura", titulo: "Depois",
+    texto: ["Ouvi a casa falar com a minha voz. Vi vultos onde não havia vultos e li palavras que ninguém tinha escrito.",
+            "Foi a luz que me segurou: fiquei junto de uma vela acesa até a imagem parar de dobrar. É assim que ela começa a morar em alguém.",
+            "Da próxima vez, confesso, pensei em deixar. É mais rápido."],
     oculto: "Eu estava quase dentro." },
-  { id: "final", titulo: "O último",
-    // "o último ~sou~" — a palavra entre tis é RISCADA na página: o deslize dele é a pista
-    texto: ["Seis. O último ~sou~ é o Fotógrafo. Ele espera no ateliê, e só o elevador chega lá.",
-            "Ele enquadra antes de disparar: quando ouvir a carga, ponha uma parede entre vocês. Com o autorretrato na mão, fotografe-o até caber no negativo.",
-            "Depois, não vá à porta. A porta é para quem foge. Sente-se na cadeira dele, com o negativo e o frasco cheio, e a casa — que sempre precisou de um dono — deixará você sair como dono.",
-            "Eu nunca consegui. Você vai."],
+  { id: "final", titulo: "Ateliê",
+    // "~eu~" é RISCADO na página: o deslize dele é a pista
+    texto: ["Seis. Falta o último — ~eu~, o Fotógrafo. Espera no ateliê, e só o elevador chega lá.",
+            "Ele enquadra antes de disparar: ouvi a carga, pus uma parede entre nós e o flash dele queimou só a porta. Com o autorretrato na mão, fotografei-o até caber no negativo.",
+            "Amanhã não vou à porta; a porta é para quem foge. Vou sentar na cadeira dele com o negativo e o frasco cheio, e a casa — que sempre precisou de um dono — vai me deixar sair como dono.",
+            "Se eu não voltar para escrever, deu certo."],
     oculto: "Sente-se, e eu me levanto." },
-  { id: "assinatura", titulo: "Está feito",
-    texto: ["Os seis se foram e o sétimo está na sua mão. Você fez tudo como estava escrito.",
-            "Agora sente-se. A cadeira está morna porque eu a aqueci para você.",
+  // a última página deixa de ser diário: ele fala com quem lê
+  { id: "assinatura", titulo: "",
+    texto: ["Você leu até aqui. Eu sabia que leria: escrevi cada página enquanto você a vivia.",
+            "Não houve ninguém antes de você. Só eu, esperando.",
+            "Os seis se foram e o sétimo está na sua mão. Agora sente-se. A cadeira está morna porque eu a aqueci para você.",
             "Foi um bom modelo. Vai ser um corpo melhor ainda."],
     assinado: true },
 ];
@@ -120,8 +120,8 @@ function diarioEvento(id) {
   saveRun();
   return true;
 }
-// pegou o diário na soleira (ao lado de onde a câmera estava)
-function diarioPega() {
+// o diário veio junto com a câmera, na soleira: a live começa com ele
+function diarioEntrega(comVinheta) {
   world.flags.diarioPego = true;
   const d = diarioFlags();
   diarioEvento("inicio");
@@ -131,6 +131,7 @@ function diarioPega() {
   livePush(liveRandUser(), "um DIÁRIO?? tava do lado da câmera… de quem é isso");
   livePush(liveRandUser(), "a letra é antiga. caneta-tinteiro. e as páginas tão quase todas em branco");
   liveFixo("leia com atenção.");
+  if (comVinheta) showVinheta("diario");          // o painel (quando a arte existir)
   saveRun();
 }
 // a última página veio ASSINADA: a descoberta garantida, antes da cadeira
@@ -173,6 +174,7 @@ function openDiario(ret) {
   state = "diario"; diarioReturn = ret || "play";
   const d = diarioFlags();
   diarioSpread = Math.max(0, Math.ceil(d.paginas.length / 2) - 1);   // abre na última escrita
+  diarioFlip = null;
   d.novas = 0;
   sfxPage();
 }
@@ -210,25 +212,29 @@ function diarioDesenhaPagina(g, pg, x, y, w, h, opts) {
   const d = world.flags.diario || { fotos: [], revelado: false };
   g.save();
   g.textAlign = "left"; g.textBaseline = "alphabetic";
-  // título
-  g.font = "bold 12px 'Courier New', monospace";
-  g.fillStyle = "rgba(90,70,50,0.75)";
-  g.fillText(tr(pg.titulo).toUpperCase(), x, y + 14);
-  g.strokeStyle = "rgba(90,70,50,0.25)"; g.lineWidth = 1;
-  g.beginPath(); g.moveTo(x, y + 22); g.lineTo(x + w, y + 22); g.stroke();
+  // o cabeçalho é lugar/momento, à mão e à direita — como quem data uma página
+  if (pg.titulo) {
+    g.font = "italic 15px 'Segoe Script', 'Comic Sans MS', cursive";
+    g.fillStyle = "rgba(90,70,50,0.7)";
+    g.textAlign = "right"; g.fillText(tr(pg.titulo), x + w, y + 14); g.textAlign = "left";
+    g.strokeStyle = "rgba(90,70,50,0.22)"; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(x + w * 0.45, y + 22); g.lineTo(x + w, y + 22); g.stroke();
+  }
   // o texto, à mão; encolhe a letra até caber
   // ~palavra~ = riscada na página (cada idioma risca a sua): marca a palavra com um sinal
   // invisível para riscar SÓ aquela ocorrência (o "私" do deslize, não o "私" de três linhas abaixo)
   const MARCA = "​";
   const riscos = [];
   const pars = pg.texto.map(p => tr(p).replace(/~([^~]+)~/g, (m, w) => { riscos.push(w); return MARCA + w + MARCA; }));
+  const foto = diarioFotoPagina(pg);                     // a foto presa com clipe (se a página tem)
+  const hTexto = foto ? h - foto.height - 24 : h;
   let tam = 19, linhas = [], alt = 0;
   for (; tam >= 13; tam -= 1.5) {
     g.font = `italic ${tam}px 'Segoe Script', 'Comic Sans MS', cursive`;
     linhas = [];
     for (const p of pars) { linhas.push(...diarioLinhas(g, p, w)); linhas.push(""); }
     alt = linhas.length * tam * 1.38;
-    if (alt <= h - 70) break;
+    if (alt <= hTexto - 70) break;
   }
   const lh = tam * 1.38;
   let yy = y + 48;
@@ -267,72 +273,210 @@ function diarioDesenhaPagina(g, pg, x, y, w, h, opts) {
     if (pg.oculto) {
       g.font = "italic 21px 'Segoe Script', 'Comic Sans MS', cursive";
       g.fillStyle = `rgba(120,30,26,${(0.85 * forca).toFixed(2)})`;
-      const ls = diarioLinhas(g, tr(pg.oculto), w);
+      const wo = foto ? w - foto.width - 16 : w;           // ao lado da foto, não por cima
+      const ls = diarioLinhas(g, tr(pg.oculto), wo);
       let y2 = Math.min(y + h - 20 - (ls.length - 1) * 28, yy + 10);
       for (const ln of ls) { g.fillText(ln, x + 6, y2); y2 += 28; }
     }
   }
+  if (foto) {                                           // presa no canto de baixo, meio torta
+    const fx = x + w - foto.width + 8, fy = y + h - foto.height - 4;
+    g.save();
+    g.translate(fx + foto.width / 2, fy + foto.height / 2); g.rotate(0.06);
+    g.shadowColor = "rgba(0,0,0,0.35)"; g.shadowBlur = 8; g.shadowOffsetY = 3;
+    g.drawImage(foto, -foto.width / 2, -foto.height / 2);
+    g.shadowColor = "rgba(0,0,0,0)"; g.shadowBlur = 0; g.shadowOffsetY = 0;
+    diarioClipe(g, -foto.width / 2 + 22, -foto.height / 2 - 10);
+    g.restore();
+  }
   g.restore();
   return yy - y;
+}
+// ------------------------------------------------------------------
+// as FOTOS presas com clipe: a coisa de que o relato fala, fotografada por quem escreveu
+// ------------------------------------------------------------------
+const DIARIO_FOTOS = {
+  inicio: ["cam", "corpo"], tampa: ["digito"], vulto: ["eco"], ampola: ["prop", "candelabro"],
+  lente: ["cam", "lente"], segredo: ["alma", "tomas"], obturador: ["cam", "obturador"],
+  alma_tomas: ["furn", "berco"], alma_cecilia: ["furn", "espelho"], alma_bento: ["prop", "grade"],
+  alma_olivia: ["furn", "piano"], alma_hospede: ["furn", "relogio"], alma_aurora: ["furn", "poltrona"],
+  quarto: ["prop", "bancada"], final: ["prop", "cavalete"],
+};
+const DIARIO_FOTO_CACHE = {};
+function diarioFotoSprite(spec) {
+  try {
+    switch (spec[0]) {
+      case "furn":   return furnSprite(spec[1]);
+      case "prop":   return propSprite(spec[1]);
+      case "cam":    return (typeof CAM_IMGS !== "undefined" && CAM_IMGS[spec[1]]) || null;
+      case "eco":    return ghostSprite(0.37);
+      case "alma":   return soulSprite(spec[1]);
+      case "digito": return digitSprite(7, 1);
+    }
+  } catch (e) {}
+  return null;
+}
+function diarioFotoPagina(pg) {
+  const spec = DIARIO_FOTOS[pg.id];
+  if (!spec) return null;
+  const chave = pg.id + ":" + (typeof CAM_IMGS !== "undefined" && CAM_IMGS.corpo ? "a" : "p");
+  if (DIARIO_FOTO_CACHE[chave]) return DIARIO_FOTO_CACHE[chave];
+  const spr = diarioFotoSprite(spec);
+  if (!spr || !(spr.width || spr.naturalWidth)) return null;
+  const W = 150, H = 122, FR = 7, BOT = 20, pw = W - FR * 2, ph = H - FR - BOT;
+  const cv = document.createElement("canvas");
+  cv.width = W; cv.height = H;
+  const c = cv.getContext("2d");
+  c.fillStyle = "#ebe5d6"; c.fillRect(0, 0, W, H);
+  c.strokeStyle = "rgba(90,80,60,0.3)"; c.lineWidth = 1; c.strokeRect(0.5, 0.5, W - 1, H - 1);
+  c.fillStyle = "#17140f"; c.fillRect(FR, FR, pw, ph);
+  c.save();
+  c.beginPath(); c.rect(FR, FR, pw, ph); c.clip();
+  const sw = spr.width || spr.naturalWidth, sh = spr.height || spr.naturalHeight;
+  const esc = Math.min((pw - 14) / sw, (ph - 10) / sh);
+  const dw = sw * esc, dh = sh * esc;
+  const vg = c.createRadialGradient(W / 2, FR + ph * 0.55, 6, W / 2, FR + ph * 0.55, pw * 0.7);   // o flash no escuro
+  vg.addColorStop(0, "rgba(120,104,80,0.55)"); vg.addColorStop(1, "rgba(0,0,0,0)");
+  c.fillStyle = vg; c.fillRect(FR, FR, pw, ph);
+  c.drawImage(spr, FR + (pw - dw) / 2, FR + ph - dh - 4, dw, dh);
+  c.globalCompositeOperation = "multiply";              // banho de sépia, como as fotos antigas
+  c.fillStyle = "rgb(222,196,150)"; c.fillRect(FR, FR, pw, ph);
+  c.globalCompositeOperation = "source-over";
+  for (let i = 0; i < 260; i++) {                       // grão
+    const v = (Math.random() * 90) | 0;
+    c.fillStyle = `rgba(${v},${v},${v},0.18)`;
+    c.fillRect(FR + Math.random() * pw, FR + Math.random() * ph, 1.2, 1.2);
+  }
+  c.restore();
+  return (DIARIO_FOTO_CACHE[chave] = cv);
+}
+// o clipe de metal que prende a foto na página
+function diarioClipe(g, x, y) {
+  g.save();
+  g.translate(x, y); g.rotate(0.12);
+  g.lineCap = "round"; g.lineJoin = "round";
+  g.strokeStyle = "rgba(60,58,54,0.9)"; g.lineWidth = 2.4;
+  g.beginPath(); g.roundRect(-5, 0, 10, 30, 5); g.stroke();
+  g.strokeStyle = "rgba(200,198,190,0.9)"; g.lineWidth = 1.4;
+  g.beginPath(); g.roundRect(-5, 0, 10, 30, 5); g.stroke();
+  g.beginPath(); g.roundRect(-2.2, 6, 4.4, 20, 2.2); g.stroke();
+  g.restore();
+}
+// tudo o que está no livro (capa, folhas, texto, fotos) num contexto qualquer — a tela ou
+// as duas fotografias da virada de página
+function diarioDesenhaLivro(g, spread, b) {
+  const d = diarioFlags();
+  g.save();
+  g.shadowColor = "rgba(0,0,0,0.7)"; g.shadowBlur = 40; g.shadowOffsetY = 12;
+  g.fillStyle = "#2a1d14";
+  g.beginPath(); g.roundRect(b.x - 22, b.y - 18, b.w + 44, b.h + 36, 10); g.fill();
+  g.restore();
+  g.strokeStyle = "rgba(120,90,60,0.35)"; g.lineWidth = 1.5;
+  g.beginPath(); g.roundRect(b.x - 14, b.y - 10, b.w + 28, b.h + 20, 7); g.stroke();
+  const meio = b.x + b.w / 2;
+  for (const lado of [0, 1]) {
+    const px = lado === 0 ? b.x : meio + 6, pw = b.w / 2 - 6;
+    const pap = g.createLinearGradient(px, 0, px + pw, 0);
+    if (lado === 0) { pap.addColorStop(0, "#e4dac2"); pap.addColorStop(0.85, "#ebe2cc"); pap.addColorStop(1, "#cfc3a8"); }
+    else { pap.addColorStop(0, "#cfc3a8"); pap.addColorStop(0.15, "#ebe2cc"); pap.addColorStop(1, "#e4dac2"); }
+    g.fillStyle = pap; g.fillRect(px, b.y, pw, b.h);
+    g.strokeStyle = "rgba(90,70,50,0.07)"; g.lineWidth = 1;                 // pautas fracas
+    for (let yy = b.y + 70; yy < b.y + b.h - 30; yy += 26) { g.beginPath(); g.moveTo(px + 30, yy); g.lineTo(px + pw - 30, yy); g.stroke(); }
+    g.fillStyle = "rgba(120,90,40,0.06)";                                   // manchas de idade
+    g.beginPath(); g.ellipse(px + pw * (lado ? 0.8 : 0.2), b.y + b.h * 0.85, 60, 30, 0.4, 0, 7); g.fill();
+    g.beginPath(); g.ellipse(px + pw * (lado ? 0.3 : 0.7), b.y + 40, 40, 18, -0.3, 0, 7); g.fill();
+  }
+  const sp = g.createLinearGradient(meio - 30, 0, meio + 30, 0);           // o vinco
+  sp.addColorStop(0, "rgba(40,28,16,0)"); sp.addColorStop(0.5, "rgba(40,28,16,0.55)"); sp.addColorStop(1, "rgba(40,28,16,0)");
+  g.fillStyle = sp; g.fillRect(meio - 30, b.y, 60, b.h);
+  g.fillStyle = "rgba(120,30,30,0.85)";                                     // a fita marcadora
+  g.fillRect(meio + b.w / 2 - 70, b.y - 18, 14, 60);
+  const mg = 48, pw2 = b.w / 2 - 6 - mg * 2;
+  for (const lado of [0, 1]) {
+    const id = d.paginas[spread * 2 + lado], pg = id ? DIARIO_IDS[id] : null;
+    const px = (lado === 0 ? b.x : meio + 6) + mg;
+    if (pg) diarioDesenhaPagina(g, pg, px, b.y + 30, pw2, b.h - 60);
+    else if (lado === 1 || !d.paginas.length) {
+      g.font = "italic 16px 'Segoe Script', 'Comic Sans MS', cursive";
+      g.textAlign = "center"; g.textBaseline = "middle"; g.fillStyle = "rgba(90,78,62,0.45)";
+      g.fillText(d.paginas.length ? "(em branco — por enquanto)" : "(em branco)", px + pw2 / 2, b.y + b.h / 2);
+    }
+    g.font = "italic 13px 'Segoe Script', 'Comic Sans MS', cursive";          // número da página
+    g.textAlign = lado ? "right" : "left"; g.textBaseline = "middle"; g.fillStyle = "rgba(90,78,62,0.55)";
+    g.fillText(String(spread * 2 + lado + 1), lado ? px + pw2 : px, b.y + b.h - 18);
+  }
+}
+// a VIRADA: fotografa o livro antes e depois e anima só a folha de papel (como no álbum)
+let diarioFlip = null;
+function diarioVira(dir) {
+  if (diarioFlip) return;
+  const n = diarioSpread + dir;
+  if (n < 0 || n >= diarioSpreads()) return;
+  const b = diarioRect();
+  const snap = (sp) => {
+    const cv = document.createElement("canvas");
+    cv.width = b.w + 60; cv.height = b.h + 60;
+    const g = cv.getContext("2d");
+    g.translate(-(b.x - 30), -(b.y - 30));
+    diarioDesenhaLivro(g, sp, b);
+    return cv;
+  };
+  diarioFlip = { dir, t: 0, antes: snap(diarioSpread), depois: snap(n) };
+  diarioSpread = n;
+  sfxPage();
+}
+function diarioDesenhaFlip(b) {
+  const F = diarioFlip, X = b.x - 30, Y = b.y - 30, W = b.w + 60, H = b.h + 60;
+  const w2 = W / 2, meio = X + w2;
+  const u = Math.min(1, F.t / ALB_FLIP_T), t = u * u * (3 - 2 * u);
+  const th = t * Math.PI, c = Math.cos(th), s = Math.sin(th), k = Math.abs(c);
+  if (F.dir > 0) {
+    ctx.drawImage(F.antes, 0, 0, w2, H, X, Y, w2, H);
+    ctx.drawImage(F.depois, w2, 0, w2, H, meio, Y, w2, H);
+  } else {
+    ctx.drawImage(F.depois, 0, 0, w2, H, X, Y, w2, H);
+    ctx.drawImage(F.antes, w2, 0, w2, H, meio, Y, w2, H);
+  }
+  // a folha: do vinco (6 px) até a borda do papel (metade do livro)
+  const P = { dx0: 6, dx1: b.w / 2, y0: b.y, y1: b.y + b.h }, pw = P.dx1 - P.dx0, ph = P.y1 - P.y0;
+  const frente = t < 0.5;
+  let src, lado;
+  if (F.dir > 0) { if (frente) { src = F.antes; lado = 1; } else { src = F.depois; lado = -1; } }
+  else           { if (frente) { src = F.antes; lado = -1; } else { src = F.depois; lado = 1; } }
+  const N = 26, sw = pw / N;
+  for (let i = 0; i < N; i++) {
+    const u0 = i / N, u1 = (i + 1) / N;
+    const p0 = 1 + 0.15 * u0 * s, p1 = 1 + 0.15 * u1 * s;
+    const sx = (lado > 0 ? w2 + P.dx0 + u0 * pw : w2 - P.dx0 - u1 * pw);
+    const x0 = lado > 0 ? meio + (P.dx0 + u0 * pw) * k : meio - (P.dx0 + u1 * pw) * k;
+    const x1 = lado > 0 ? meio + (P.dx0 + u1 * pw) * k : meio - (P.dx0 + u0 * pw) * k;
+    const hh = ph * (p0 + p1) / 2;
+    ctx.drawImage(src, sx, P.y0 - Y, sw, ph, x0, P.y0 - (hh - ph) / 2, Math.max(1, x1 - x0 + 0.8), hh);
+  }
+  const xa = lado > 0 ? meio + P.dx0 * k : meio - P.dx1 * k, xb = lado > 0 ? meio + P.dx1 * k : meio - P.dx0 * k;
+  if (xb - xa > 1) {
+    const g = ctx.createLinearGradient(xa, 0, xb, 0), e = 0.5 * s;
+    g.addColorStop(0, `rgba(0,0,0,${(lado > 0 ? e : e * 0.2).toFixed(3)})`);
+    g.addColorStop(1, `rgba(0,0,0,${(lado > 0 ? e * 0.2 : e).toFixed(3)})`);
+    ctx.fillStyle = g; ctx.fillRect(xa, P.y0 - ph * 0.08, xb - xa, ph * 1.16);
+  }
+  albumSombraDobra(lado > 0 ? xb : xa, P.y0, ph, lado > 0 ? 1 : -1, t);
 }
 function drawDiario() {
   const b = diarioRect(), d = diarioFlags();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = "rgba(0,0,0,0.88)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  // capa de couro
-  ctx.save();
-  ctx.shadowColor = "rgba(0,0,0,0.7)"; ctx.shadowBlur = 40; ctx.shadowOffsetY = 12;
-  ctx.fillStyle = "#2a1d14";
-  ctx.beginPath(); ctx.roundRect(b.x - 22, b.y - 18, b.w + 44, b.h + 36, 10); ctx.fill();
-  ctx.restore();
-  ctx.strokeStyle = "rgba(120,90,60,0.35)"; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.roundRect(b.x - 14, b.y - 10, b.w + 28, b.h + 20, 7); ctx.stroke();
-  // as duas folhas
-  const meio = b.x + b.w / 2;
-  for (const lado of [0, 1]) {
-    const px = lado === 0 ? b.x : meio + 6, pw = b.w / 2 - 6;
-    const pap = ctx.createLinearGradient(px, 0, px + pw, 0);
-    if (lado === 0) { pap.addColorStop(0, "#e4dac2"); pap.addColorStop(0.85, "#ebe2cc"); pap.addColorStop(1, "#cfc3a8"); }
-    else { pap.addColorStop(0, "#cfc3a8"); pap.addColorStop(0.15, "#ebe2cc"); pap.addColorStop(1, "#e4dac2"); }
-    ctx.fillStyle = pap; ctx.fillRect(px, b.y, pw, b.h);
-    // pautas fracas
-    ctx.strokeStyle = "rgba(90,70,50,0.07)"; ctx.lineWidth = 1;
-    for (let yy = b.y + 70; yy < b.y + b.h - 30; yy += 26) { ctx.beginPath(); ctx.moveTo(px + 30, yy); ctx.lineTo(px + pw - 30, yy); ctx.stroke(); }
-    // manchas de idade
-    ctx.fillStyle = "rgba(120,90,40,0.06)";
-    ctx.beginPath(); ctx.ellipse(px + pw * (lado ? 0.8 : 0.2), b.y + b.h * 0.85, 60, 30, 0.4, 0, 7); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(px + pw * (lado ? 0.3 : 0.7), b.y + 40, 40, 18, -0.3, 0, 7); ctx.fill();
-  }
-  // o vinco
-  const sp = ctx.createLinearGradient(meio - 30, 0, meio + 30, 0);
-  sp.addColorStop(0, "rgba(40,28,16,0)"); sp.addColorStop(0.5, "rgba(40,28,16,0.55)"); sp.addColorStop(1, "rgba(40,28,16,0)");
-  ctx.fillStyle = sp; ctx.fillRect(meio - 30, b.y, 60, b.h);
-  // a fita marcadora
-  ctx.fillStyle = "rgba(120,30,30,0.85)";
-  ctx.fillRect(meio + b.w / 2 - 70, b.y - 18, 14, 60);
+  if (diarioFlip) {
+    diarioFlip.t += frameDt;
+    diarioDesenhaFlip(b);
+    if (diarioFlip.t >= ALB_FLIP_T) diarioFlip = null;
+  } else diarioDesenhaLivro(ctx, diarioSpread, b);
   // nome do caderno (muda quando a autoria aparece)
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
   ctx.font = "bold 13px 'Courier New', monospace";
   ctx.fillStyle = d.revelado ? "rgba(214,120,110,0.95)" : "rgba(200,190,170,0.8)";
   ctx.fillText(d.revelado ? "DIÁRIO DE BLACKWOOD" : "DIÁRIO", canvas.width / 2, b.y - 34);
-  // as páginas
-  const mg = 48, pw2 = b.w / 2 - 6 - mg * 2;
-  for (const lado of [0, 1]) {
-    const pg = diarioPaginaAberta(lado);
-    const px = (lado === 0 ? b.x : meio + 6) + mg;
-    if (pg) diarioDesenhaPagina(ctx, pg, px, b.y + 30, pw2, b.h - 60);
-    else if (lado === 1 || !d.paginas.length) {
-      ctx.font = "italic 16px 'Segoe Script', 'Comic Sans MS', cursive";
-      ctx.textAlign = "center"; ctx.fillStyle = "rgba(90,78,62,0.45)";
-      ctx.fillText(d.paginas.length ? "(em branco — por enquanto)" : "(em branco)", px + pw2 / 2, b.y + b.h / 2);
-    }
-    // número da página
-    const n = diarioSpread * 2 + lado + 1;
-    ctx.font = "italic 13px 'Segoe Script', 'Comic Sans MS', cursive";
-    ctx.textAlign = lado ? "right" : "left"; ctx.fillStyle = "rgba(90,78,62,0.55)";
-    ctx.fillText(String(n), lado ? px + pw2 : px, b.y + b.h - 18);
-  }
   // setas
   const total = diarioSpreads();
   ctx.font = "bold 40px 'Courier New', monospace"; ctx.textAlign = "center";
@@ -352,7 +496,6 @@ function drawDiario() {
   ctx.fillText(!pode ? "FOTOGRAFAR — precisa de flash e filme"
                : touchUI.seen ? "FOTOGRAFAR A PÁGINA" : "FOTOGRAFAR A PÁGINA (P)",
                F.x + F.w / 2, F.y + F.h / 2 + 1, F.w - 16);
-  // fechar (o mesmo botão dos outros painéis)
   drawOverlayClose();
   ctx.font = "bold 11px 'Courier New', monospace"; ctx.fillStyle = "rgba(190,170,140,0.75)";   // na borda de couro
   ctx.fillText(touchUI.seen ? "toque nas bordas para folhear" : "← → folhear · J ou ESC fecha", canvas.width / 2, b.y + b.h + 9);
@@ -367,10 +510,7 @@ function diarioHit(mx, my) {
     if (mx > b.x + b.w - 30) { diarioFolheia(1); return; }
   }
 }
-function diarioFolheia(dir) {
-  const n = Math.max(0, Math.min(diarioSpreads() - 1, diarioSpread + dir));
-  if (n !== diarioSpread) { diarioSpread = n; sfxPage(); }
-}
+function diarioFolheia(dir) { diarioVira(dir); }
 function diarioTecla(code) {
   if (code === "Escape" || code === "KeyJ" || code === "KeyF") { state = diarioReturn; return; }
   if (code === "ArrowLeft" || code === "KeyA") diarioFolheia(-1);
