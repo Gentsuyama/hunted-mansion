@@ -382,7 +382,6 @@ const FITA_TEXTO = {
   escada: "escada dentro da parede", sinal: "olho riscado na parede", reflexo: "tem alguém no espelho",
   passado: "foto antiga… olha a legenda", antes: "quadro com vibe estranha", molduras: "sete molduras",
   manual: "importante (acho)",
-  diario: "a letra do diário… é DELE",
 };
 // um pedaço de fita crepe colado no canto da polaroid, com o rótulo à mão
 function albumFita(g, e, w, h, k) {

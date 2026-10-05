@@ -307,18 +307,18 @@ conteúdo. Constantes em `js/core.js` (`BOTE`, `ECO`, `SAN_*`, `LAMP_*`); lógic
 - **O diário** (`js/diario.js`). Veio junto com a câmera, na soleira: a live já começa com ele
   (vinheta VIN-008). As páginas são RELATO em primeira pessoa de quem viveu a casa (lugar à mão no
   alto; nada de instrução — o que ensina vem do que aconteceu), muitas com uma foto pequena presa
-  com clipe mostrando a coisa de que falam; viram com a animação do álbum. Vem quase em branco e
+  por um clipe na borda de cima da página (o texto contorna) mostrando a coisa de que falam;
+  viram com a animação do álbum. Vem quase em branco e
   as páginas APARECEM conforme a casa é descoberta (tampa, lente, obturador,
   frasco, primeira sala secreta, primeiro vulto fotografado, a bancada, cada alma que acorda,
   o Blackwood acordando, o menino que acode, a loucura vencida). É o guia do jogador — e é
   do BLACKWOOD: conduz a prender os seis (queimar, nunca libertar: os livres o enfraquecem no
   ateliê), a encher o frasco "para ele" e, no fim, a SENTAR na cadeira com o negativo — a troca
-  de corpo ("O Novo Fotógrafo"). Descoberta garantida: capturado o Blackwood, a última página
-  se escreve na frente do jogador e vem ASSINADA, e o chat explode antes da escolha
-  cadeira/porta. Descoberta por mérito: FOTOGRAFAR uma página (gasta rolo e flash; a foto vai
-  para as páginas vermelhas) revela a tinta escondida — a marca d'água "Blackwood" e frases
-  que viram o sentido ("Encha-o para mim.", "Queime. Os livres me enfraquecem.", "Mãe." na
-  página da Aurora). Pistas no texto: o deslize riscado "o último ~~sou~~ é o Fotógrafo", a
+  de corpo ("O Novo Fotógrafo"). Descoberta: capturado o Blackwood, a última página se
+  escreve na frente do jogador e vem ASSINADA, o chat explode antes da escolha cadeira/porta —
+  e nesse momento a tinta escondida das outras páginas aparece: a marca d'água "Blackwood" e
+  frases que viram o sentido ("Encha-o para mim.", "Queime. Os livres me enfraquecem.", "Mãe."
+  na página da Aurora). (O botão "fotografar a página" da 1ª versão saiu: o Rodolfo não o quis.) Pistas no texto: o deslize riscado "o último ~~sou~~ é o Fotógrafo", a
   hostilidade às velas e à libertação, saber demais sobre cada retrato. Tecla J; no toque, o
   botão do caderno. Os finais sabem do diário (linha extra; o chat cobra quem leu e sentou).
 - **Velocidade dos ecos de volta a 3,6** (os 2,4 "não ficaram bons"). **Baralho das imagens dos

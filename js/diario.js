@@ -6,11 +6,10 @@
 // prender as outras seis almas (queimar, nunca libertar: as livres o
 // enfraquecem) e a SENTAR na cadeira dele com o negativo — a troca de corpo
 // (o final "O Novo Fotógrafo"). O jogador descobre a autoria de dois jeitos:
-//  · no FIM, garantido: capturado o Blackwood, a última página se escreve
-//    na frente dele e vem ASSINADA (o chat explode) — antes da escolha
-//    cadeira/porta;
-//  · antes, por mérito: FOTOGRAFAR uma página (gasta rolo e flash) revela
-//    a tinta escondida — a assinatura e uma frase que vira o sentido.
+//  · capturado o Blackwood, a última página se escreve na frente dele e vem
+//    ASSINADA (o chat explode) — antes da escolha cadeira/porta. Nesse momento
+//    a tinta escondida das outras páginas também aparece: a marca d'água e as
+//    frases dele por baixo do relato ("Mãe.", "Encha-o para mim.").
 // Pistas para o leitor atento: "o último s̶o̶u̶ é o Fotógrafo", a hostilidade
 // às velas e à libertação, saber demais sobre cada retrato.
 // ==================================================================
@@ -94,11 +93,9 @@ const DIARIO_PAGINAS = [
     assinado: true },
 ];
 const DIARIO_IDS = Object.fromEntries(DIARIO_PAGINAS.map(p => [p.id, p]));
-const DIA_FOTO  = { x: 20, y: 20, w: 330, h: 56 };          // botão: fotografar a página aberta
-const DIA_SETA  = 46;                                       // meia-largura da zona das setas
 
 function diarioFlags() {
-  if (!world.flags.diario) world.flags.diario = { paginas: [], novas: 0, revelado: false, fotos: [], lidas: [] };
+  if (!world.flags.diario) world.flags.diario = { paginas: [], novas: 0, revelado: false };
   return world.flags.diario;
 }
 function diarioTem() { return !!world && !!world.flags.diarioPego; }
@@ -149,22 +146,6 @@ function diarioAssinou() {
   }
   live.viewers += 120;
 }
-// a FOTO de uma página revelou a tinta escondida (a descoberta por mérito)
-function diarioRevelouPorFoto() {
-  const d = diarioFlags();
-  if (d.revelado) return;
-  d.revelado = true;
-  let dly = 2600;                                   // depois de a polaroid revelar
-  for (const [u, l] of [[null, "PERA. a foto do diário tem OUTRA escrita por baixo da tinta"],
-                        [null, "tá assinado… gente. BLACKWOOD. o diário é do BLACKWOOD"],
-                        [null, "ele tá te GUIANDO. desde o começo"],
-                        [FIXO, "finalmente leu direito."]]) {
-    setTimeout(() => { if (world) livePush(u || liveRandUser(), l); }, dly);
-    dly += 2400;
-  }
-  live.viewers += 150;
-}
-
 // ------------------------------------------------------------------
 // A TELA do diário (estado "diario")
 // ------------------------------------------------------------------
@@ -206,37 +187,45 @@ function diarioLinhas(g, txt, maxW) {
   }
   return out;
 }
-// desenha UMA página de texto num contexto (tela ou foto); devolve a altura usada
+// desenha UMA página num contexto; devolve a altura usada
 function diarioDesenhaPagina(g, pg, x, y, w, h, opts) {
   opts = opts || {};
-  const d = world.flags.diario || { fotos: [], revelado: false };
+  const d = world.flags.diario || { revelado: false };
+  const foto = diarioFotoPagina(pg);                     // a foto presa com clipe (se a página tem)
   g.save();
   g.textAlign = "left"; g.textBaseline = "alphabetic";
-  // o cabeçalho é lugar/momento, à mão e à direita — como quem data uma página
+  // o cabeçalho é lugar/momento, à mão — como quem data uma página (à esquerda quando há foto)
   if (pg.titulo) {
     g.font = "italic 15px 'Segoe Script', 'Comic Sans MS', cursive";
     g.fillStyle = "rgba(90,70,50,0.7)";
-    g.textAlign = "right"; g.fillText(tr(pg.titulo), x + w, y + 14); g.textAlign = "left";
+    if (foto) g.fillText(tr(pg.titulo), x, y + 14);
+    else { g.textAlign = "right"; g.fillText(tr(pg.titulo), x + w, y + 14); g.textAlign = "left"; }
     g.strokeStyle = "rgba(90,70,50,0.22)"; g.lineWidth = 1;
-    g.beginPath(); g.moveTo(x + w * 0.45, y + 22); g.lineTo(x + w, y + 22); g.stroke();
+    g.beginPath();
+    if (foto) { g.moveTo(x, y + 22); g.lineTo(x + w * 0.5, y + 22); }
+    else { g.moveTo(x + w * 0.45, y + 22); g.lineTo(x + w, y + 22); }
+    g.stroke();
   }
-  // o texto, à mão; encolhe a letra até caber
+  // o texto, à mão; encolhe a letra até caber. Com foto no alto à direita, as primeiras
+  // linhas são mais curtas (contornam a foto)
   // ~palavra~ = riscada na página (cada idioma risca a sua): marca a palavra com um sinal
   // invisível para riscar SÓ aquela ocorrência (o "私" do deslize, não o "私" de três linhas abaixo)
-  const MARCA = "​";
+  const MARCA = "\u200b";
   const riscos = [];
   const pars = pg.texto.map(p => tr(p).replace(/~([^~]+)~/g, (m, w) => { riscos.push(w); return MARCA + w + MARCA; }));
-  const foto = diarioFotoPagina(pg);                     // a foto presa com clipe (se a página tem)
-  const hTexto = foto ? h - foto.height - 24 : h;
-  let tam = 19, linhas = [], alt = 0;
+  const fotoFim = foto ? y - 6 + foto.height + 14 : 0;        // até onde a foto desce na página
+  let tam = 19, linhas = [], alt = 0, lh = 0;
   for (; tam >= 13; tam -= 1.5) {
     g.font = `italic ${tam}px 'Segoe Script', 'Comic Sans MS', cursive`;
+    lh = tam * 1.38;
     linhas = [];
-    for (const p of pars) { linhas.push(...diarioLinhas(g, p, w)); linhas.push(""); }
-    alt = linhas.length * tam * 1.38;
-    if (alt <= hTexto - 70) break;
+    for (const p of pars) {
+      const larg = (i) => (foto && y + 48 + (linhas.length + i) * lh - tam < fotoFim) ? w - foto.width - 14 : w;
+      linhas.push(...diarioLinhasVar(g, p, larg)); linhas.push("");
+    }
+    alt = linhas.length * lh;
+    if (alt <= h - 70) break;
   }
-  const lh = tam * 1.38;
   let yy = y + 48;
   g.fillStyle = opts.tinta || "rgba(52,38,30,0.92)";
   for (const ln of linhas) {
@@ -259,11 +248,10 @@ function diarioDesenhaPagina(g, pg, x, y, w, h, opts) {
     g.save(); g.translate(x + w - 10, Math.min(y + h - 30, yy + 26)); g.rotate(-0.06);
     g.textAlign = "right"; g.fillText("— Blackwood", 0, 0); g.restore();
   }
-  // a tinta escondida: na FOTO sempre; na tela, só depois de fotografada (como lembrança)
-  if (opts.revela || d.fotos.includes(pg.id)) {
-    const forca = opts.revela ? 1 : 0.55;
+  // a tinta escondida: aparece em TODAS as páginas quando a assinatura surge
+  if (d.revelado && !pg.assinado) {
     g.save();
-    g.globalAlpha = 0.18 * forca;
+    g.globalAlpha = 0.13;
     g.font = "italic 44px 'Segoe Script', 'Comic Sans MS', cursive";
     g.fillStyle = "rgb(110,30,26)";
     g.translate(x + w / 2, y + h / 2); g.rotate(-0.45);
@@ -272,25 +260,47 @@ function diarioDesenhaPagina(g, pg, x, y, w, h, opts) {
     g.restore();
     if (pg.oculto) {
       g.font = "italic 21px 'Segoe Script', 'Comic Sans MS', cursive";
-      g.fillStyle = `rgba(120,30,26,${(0.85 * forca).toFixed(2)})`;
-      const wo = foto ? w - foto.width - 16 : w;           // ao lado da foto, não por cima
-      const ls = diarioLinhas(g, tr(pg.oculto), wo);
+      g.fillStyle = "rgba(120,30,26,0.8)";
+      const ls = diarioLinhas(g, tr(pg.oculto), w);
       let y2 = Math.min(y + h - 20 - (ls.length - 1) * 28, yy + 10);
       for (const ln of ls) { g.fillText(ln, x + 6, y2); y2 += 28; }
     }
   }
-  if (foto) {                                           // presa no canto de baixo, meio torta
-    const fx = x + w - foto.width + 8, fy = y + h - foto.height - 4;
+  if (foto) {                                           // no alto, à direita, presa pelo clipe na borda da página
+    const fx = x + w - foto.width + 10, fy = y - 6;
     g.save();
-    g.translate(fx + foto.width / 2, fy + foto.height / 2); g.rotate(0.06);
+    g.translate(fx + foto.width / 2, fy + foto.height / 2); g.rotate(0.035);
     g.shadowColor = "rgba(0,0,0,0.35)"; g.shadowBlur = 8; g.shadowOffsetY = 3;
     g.drawImage(foto, -foto.width / 2, -foto.height / 2);
     g.shadowColor = "rgba(0,0,0,0)"; g.shadowBlur = 0; g.shadowOffsetY = 0;
-    diarioClipe(g, -foto.width / 2 + 22, -foto.height / 2 - 10);
     g.restore();
+    diarioClipe(g, fx + foto.width / 2 - 2, y - 30 + 6);   // o clipe abraça a borda de cima da folha
   }
   g.restore();
   return yy - y;
+}
+// quebra em linhas com largura que pode variar por linha (contorno da foto)
+function diarioLinhasVar(g, txt, larg) {
+  const out = [];
+  for (const par of txt.split("\n")) {
+    const palavras = par.split(" ");
+    let linha = "";
+    for (const p of palavras) {
+      const maxW = larg(out.length);
+      const tenta = linha ? linha + " " + p : p;
+      if (g.measureText(tenta).width <= maxW) { linha = tenta; continue; }
+      if (linha) out.push(linha);
+      if (g.measureText(p).width <= larg(out.length)) { linha = p; continue; }
+      let pedaco = "";                                   // palavra (ou frase chinesa) maior que a linha
+      for (const ch of p) {
+        if (g.measureText(pedaco + ch).width > larg(out.length) && pedaco) { out.push(pedaco); pedaco = ""; }
+        pedaco += ch;
+      }
+      linha = pedaco;
+    }
+    out.push(linha);
+  }
+  return out;
 }
 // ------------------------------------------------------------------
 // as FOTOS presas com clipe: a coisa de que o relato fala, fotografada por quem escreveu
@@ -353,13 +363,15 @@ function diarioFotoPagina(pg) {
 // o clipe de metal que prende a foto na página
 function diarioClipe(g, x, y) {
   g.save();
-  g.translate(x, y); g.rotate(0.12);
+  g.translate(x, y); g.rotate(0.04);
   g.lineCap = "round"; g.lineJoin = "round";
-  g.strokeStyle = "rgba(60,58,54,0.9)"; g.lineWidth = 2.4;
-  g.beginPath(); g.roundRect(-5, 0, 10, 30, 5); g.stroke();
-  g.strokeStyle = "rgba(200,198,190,0.9)"; g.lineWidth = 1.4;
-  g.beginPath(); g.roundRect(-5, 0, 10, 30, 5); g.stroke();
-  g.beginPath(); g.roundRect(-2.2, 6, 4.4, 20, 2.2); g.stroke();
+  g.shadowColor = "rgba(0,0,0,0.35)"; g.shadowBlur = 3; g.shadowOffsetY = 1;
+  g.strokeStyle = "rgba(70,68,64,0.95)"; g.lineWidth = 3;
+  g.beginPath(); g.roundRect(-6, 0, 12, 40, 6); g.stroke();
+  g.shadowColor = "rgba(0,0,0,0)";
+  g.strokeStyle = "rgba(215,213,205,0.95)"; g.lineWidth = 1.6;
+  g.beginPath(); g.roundRect(-6, 0, 12, 40, 6); g.stroke();
+  g.beginPath(); g.roundRect(-2.6, 8, 5.2, 26, 2.6); g.stroke();
   g.restore();
 }
 // tudo o que está no livro (capa, folhas, texto, fotos) num contexto qualquer — a tela ou
@@ -484,26 +496,12 @@ function drawDiario() {
   ctx.fillText("‹", b.x - 50, b.y + b.h / 2);
   ctx.fillStyle = diarioSpread < total - 1 ? "rgba(230,220,200,0.85)" : "rgba(230,220,200,0.2)";
   ctx.fillText("›", b.x + b.w + 50, b.y + b.h / 2);
-  // botão FOTOGRAFAR A PÁGINA
-  const pode = diarioPodeFotografar(), F = DIA_FOTO;
-  const hov = mouse.x >= F.x && mouse.x <= F.x + F.w && mouse.y >= F.y && mouse.y <= F.y + F.h;
-  ctx.fillStyle = pode ? (hov ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.06)") : "rgba(255,255,255,0.03)";
-  ctx.fillRect(F.x, F.y, F.w, F.h);
-  ctx.strokeStyle = pode ? (hov ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)") : "rgba(255,255,255,0.2)";
-  ctx.lineWidth = 2; ctx.strokeRect(F.x, F.y, F.w, F.h);
-  ctx.font = "bold 15px 'Courier New', monospace";
-  ctx.fillStyle = pode ? "rgba(235,235,235,0.95)" : "rgba(160,160,160,0.6)";
-  ctx.fillText(!pode ? "FOTOGRAFAR — precisa de flash e filme"
-               : touchUI.seen ? "FOTOGRAFAR A PÁGINA" : "FOTOGRAFAR A PÁGINA (P)",
-               F.x + F.w / 2, F.y + F.h / 2 + 1, F.w - 16);
   drawOverlayClose();
   ctx.font = "bold 11px 'Courier New', monospace"; ctx.fillStyle = "rgba(190,170,140,0.75)";   // na borda de couro
   ctx.fillText(touchUI.seen ? "toque nas bordas para folhear" : "← → folhear · J ou ESC fecha", canvas.width / 2, b.y + b.h + 9);
 }
 function diarioHit(mx, my) {
   if (overlayCloseHit(mx, my)) { state = diarioReturn; return; }
-  const F = DIA_FOTO;
-  if (mx >= F.x && mx <= F.x + F.w && my >= F.y && my <= F.y + F.h) { diarioFotografa(); return; }
   const b = diarioRect();
   if (my >= b.y - 20 && my <= b.y + b.h + 20) {
     if (mx < b.x + 30) { diarioFolheia(-1); return; }
@@ -515,67 +513,6 @@ function diarioTecla(code) {
   if (code === "Escape" || code === "KeyJ" || code === "KeyF") { state = diarioReturn; return; }
   if (code === "ArrowLeft" || code === "KeyA") diarioFolheia(-1);
   else if (code === "ArrowRight" || code === "KeyD") diarioFolheia(1);
-  else if (code === "KeyP") diarioFotografa();
-}
-
-// ------------------------------------------------------------------
-// FOTOGRAFAR A PÁGINA: a emulsão lê a tinta que o olho não lê
-// ------------------------------------------------------------------
-function diarioPodeFotografar() {
-  const cm = world.flags.cam;
-  return !!(cm.tampa && world.flags.filmLoaded && film > 0 && bateria > 0 && flashCd <= 0 &&
-            (diarioPaginaAberta(0) || diarioPaginaAberta(1)));
-}
-function diarioFotografa() {
-  if (!diarioPodeFotografar()) { sfxDry(); return false; }
-  const pg = diarioPaginaAberta(0) || diarioPaginaAberta(1);
-  film--; bateria--; photoCount++;
-  flashCd = FLASH.cooldown; flashT = 0.6; attractT = ECO.atraiFlash;   // é um clarão: a casa ouve
-  sfxCamera();
-  if (bateria <= 0) bateriaAcabou();
-  const cv = diarioFotoCanvas(pg);
-  const ent = { cv, caption: `FOTO ${photoCount} · ${FLOOR_NAMES[world.cur]}`,
-                almas: 0, armazenadas: 0, marcas: [], t: world.timeSec,
-                pistas: ["o diário"], pista: true, fita: "diario",
-                escuro: false, sepia: true, quimica: null, semFilme: !!FOTO.rapido };
-  album.push(ent); albumLimita();
-  if (typeof polaroidEjeta === "function") polaroidEjeta(cv);
-  const d = diarioFlags();
-  if (!d.fotos.includes(pg.id)) d.fotos.push(pg.id);
-  diarioRevelouPorFoto();
-  saveRun();
-  return true;
-}
-// a polaroid da página: o papel do caderno com a tinta escondida por cima
-function diarioFotoCanvas(pg) {
-  const PW = 576, PH = 406, FR = 22, BOT = 66;
-  const cv = document.createElement("canvas");
-  cv.width = PW + FR * 2; cv.height = PH + FR + BOT;
-  const c = cv.getContext("2d");
-  const pap = c.createLinearGradient(0, 0, 0, cv.height);
-  pap.addColorStop(0, "#efe9db"); pap.addColorStop(1, "#e2dac6");
-  c.fillStyle = pap; c.fillRect(0, 0, cv.width, cv.height);
-  c.strokeStyle = "rgba(90,80,60,0.25)"; c.lineWidth = 1.5;
-  c.strokeRect(0.75, 0.75, cv.width - 1.5, cv.height - 1.5);
-  // a página, de perto, meio torta sobre o escuro
-  c.fillStyle = "#0a0806"; c.fillRect(FR, FR, PW, PH);
-  c.save();
-  c.beginPath(); c.rect(FR, FR, PW, PH); c.clip();
-  c.translate(FR + PW / 2, FR + PH / 2); c.rotate(-0.04);
-  const fw = PW * 0.86, fh = PH * 1.25;
-  const fol = c.createLinearGradient(-fw / 2, 0, fw / 2, 0);
-  fol.addColorStop(0, "#d9cfb6"); fol.addColorStop(0.5, "#e6dcc5"); fol.addColorStop(1, "#cdbfa2");
-  c.fillStyle = fol; c.fillRect(-fw / 2, -fh / 2, fw, fh);
-  diarioDesenhaPagina(c, pg, -fw / 2 + 34, -fh / 2 + 70, fw - 68, fh - 90, { revela: true, tinta: "rgba(40,30,24,0.8)" });
-  // a luz dura do flash no papel
-  const vg = c.createRadialGradient(0, 0, PH * 0.2, 0, 0, PH * 0.75);
-  vg.addColorStop(0, "rgba(255,250,235,0.12)"); vg.addColorStop(1, "rgba(0,0,0,0.55)");
-  c.fillStyle = vg; c.fillRect(-PW, -PH, PW * 2, PH * 2);
-  c.restore();
-  if (typeof filmePass === "function" && !FOTO.rapido) filmePass(cv, FR, FR, PW, PH, false);
-  c.strokeStyle = "rgba(60,52,40,0.5)"; c.lineWidth = 1;
-  c.strokeRect(FR - 0.5, FR - 0.5, PW + 1, PH + 1);
-  return cv;
 }
 
 // ------------------------------------------------------------------
