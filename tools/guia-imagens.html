@@ -39,6 +39,10 @@
               padding:3px 11px; margin-left:8px; cursor:pointer; font-size:12px; }
   button.cp:hover { background:#4a4336; }
   button.cp.feito { background:var(--ok); color:#111; }
+  .tag { display:inline-block; margin-left:10px; padding:2px 9px; border-radius:4px; font-size:12px; font-weight:700; vertical-align:1px; }
+  .tag-regerar { background:var(--red); color:#fff; }
+  .tag-disp { background:#555; color:#ddd; }
+  .passo.regerar { border-left:4px solid var(--red); opacity:1; }
   ul.qc { margin:4px 0 4px 30px; padding-left:18px; color:var(--dim);
           font-size:13px; }
   ul.qc li::marker { color:var(--accent); }
@@ -317,10 +321,11 @@ const ETAPAS = [
     qc:["fundo PRETO PURO","cavalete inteiro, três pernas","moldura oval VAZIA apoiada (o jogo põe o retrato)","MESMO cavalete da tela do final"],
     salvar:"Assets\\Props\\cavalete.jpg" },
   { id:"PROP-005", titulo:"A cadeira do Fotógrafo",
+    regerar:"a atual veio com as pernas cortadas na borda de baixo — peça a cadeira INTEIRA com margem preta em volta",
     ctx:"A cadeira do final secreto, como aparece nas fotos · 1:1 · fundo preto puro",
     anexos:[["A MESMA cadeira (tela do final secreto)", "Assets/UI/final_fotografo.jpg"],
             ["Estilo: objeto isolado sobre preto", "Assets/Furniture/poltrona.jpg"]],
-    prompt:`Photograph, square 1:1, of a single object isolated on a pure solid black background, seen straight from the front at eye level, the whole object inside the picture with a small black margin around it. The same wooden studio posing chair as the first attached image: a tall straight back, worn leather seat, two armrests, and a metal head-clamp stand rising behind the backrest to hold a sitter's head still. Scuffed wood, cracked leather, dust. Lit harshly from the front by an on-camera flash, monochrome warm sepia tones, same old-photograph look as the second attached image. Analog photograph, heavy film grain. No text, no watermark.`,
+    prompt:`Photograph, square 1:1, of a single object isolated on a pure solid black background, seen straight from the front at eye level, the whole object inside the picture with a small black margin around it. The same wooden studio posing chair as the first attached image: a tall straight back, worn leather seat, two armrests, and a metal head-clamp stand rising behind the backrest to hold a sitter's head still. All four legs visible down to their feet, with empty black space below them and above the head-clamp — nothing cropped. Scuffed wood, cracked leather, dust. Lit harshly from the front by an on-camera flash, monochrome warm sepia tones, same old-photograph look as the second attached image. Analog photograph, heavy film grain. No text, no watermark.`,
     qc:["fundo PRETO PURO","cadeira inteira, de frente","suporte de cabeça de metal atrás do encosto","MESMA cadeira da tela do final"],
     salvar:"Assets\\Props\\cadeira.jpg" },
   { id:"PROP-006", titulo:"A lamparina do hall (o refúgio)",
@@ -445,6 +450,8 @@ const ETAPAS = [
     "a figure hiding behind an old wooden camera on a tripod, only its legs and one hand visible",
     "a figure made mostly of smoke, only the head and one hand still solid"].map((desc, i) => ({
       id:"ECO-" + String(i + 1).padStart(3, "0"), titulo:"eco" + String(i + 1).padStart(2, "0"),
+      existe:"Assets/Ecos/eco" + String(i + 1).padStart(2, "0") + ".webp",     // o que o auto-marcar procura
+      dispensado: i === 23 ? "barrado na política do Google — ficamos com 23 (decisão de 2026-10-06)" : undefined,
       ctx:"Vulto nº " + (i + 1) + " · 9:16 em pé · fundo preto puro · corpo inteiro",
       anexos:[["Tom e recorte: aparição de corpo inteiro sobre preto, SEM moldura (não anexe retrato com moldura)", "Assets/Almas/hospede.jpg"]],
       prompt:"Photograph, vertical 9:16 (portrait), of a single ghostly human figure standing directly on a pure solid black background — NO picture frame, NO oval frame, NO border, NO vignette: the black background runs to the edges of the image. The whole body visible from head to feet with black margin around it, facing or turned as described: " + desc + ". Clothing from the 1940s. Skin and cloth pale grey like an old silver-gelatin print, slightly translucent, the edges smeared by a long exposure as if the figure moved during the shot. Hair hanging over the face, eyes as dark hollows, mouth closed or hidden — never smiling, never cartoonish. Lit harshly from the front by an on-camera flash, monochrome, heavy film grain, same look and same framing as the attached image. No text, no watermark, no floor, no furniture, nothing else in the frame.",
@@ -495,9 +502,14 @@ function render() {
     for (const p of et.passos) {
       const caminhoRel = "../" + p.salvar.replace(/\\\\/g, "/").replace(/\\/g, "/");
       const caminhoAbs = RAIZ + p.salvar;
-      html += `<div class="passo" id="passo_${p.id}">
-        <div class="pid"><input type="checkbox" ${marcado(p.id) ? "checked" : ""}
-          onchange="marca('${p.id}', this.checked)">${p.id} · ${p.titulo}</div>
+      // GERAR DE NOVO: fica desmarcado e não auto-marca; DISPENSADO: conta como feito
+      if (p.regerar) marca(p.id, false);
+      if (p.dispensado) marca(p.id, true);
+      const tag = p.regerar ? `<span class="tag tag-regerar">GERAR DE NOVO — ${p.regerar}</span>`
+                : p.dispensado ? `<span class="tag tag-disp">DISPENSADO — ${p.dispensado}</span>` : "";
+      html += `<div class="passo${p.regerar ? " regerar" : ""}" id="passo_${p.id}">
+        <div class="pid"><input type="checkbox" ${marcado(p.id) ? "checked" : ""} ${p.regerar ? "disabled title=\"gere a imagem nova: o guia marca sozinho\"" : ""}
+          onchange="marca('${p.id}', this.checked)">${p.id} · ${p.titulo}${tag}</div>
         <div class="ctx">${p.ctx}</div>`;
       if (p.anexos && p.anexos.length) {
         html += `<div class="rotulo">Anexar (nesta ordem)</div>`;
@@ -524,11 +536,12 @@ function render() {
   g.innerHTML = html;
   atualizaProg();
   // auto-check + prévia: se o arquivo já existe no servidor, marca e mostra
+  // (passo "gerar de novo" NÃO auto-marca: o arquivo velho ainda existe)
   for (const et of ETAPAS) for (const p of et.passos) {
-    const rel = "../" + p.salvar.replace(/\\/g, "/");
+    const rel = "../" + (p.existe || p.salvar).replace(/\\/g, "/");
     fetch(rel, { method: "HEAD" }).then(r => {
       if (!r.ok) return;
-      if (!marcado(p.id)) { marca(p.id, true);
+      if (!marcado(p.id) && !p.regerar) { marca(p.id, true);
         const cb = document.querySelector("#passo_" + p.id + " input");
         if (cb) cb.checked = true; }
       const im = document.getElementById("prev_" + p.id);
