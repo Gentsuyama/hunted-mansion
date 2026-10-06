@@ -290,6 +290,7 @@ function titleKey(code) {
 // ==================================================================
 const VIN_DEFS = {
   diario:    { legenda: "Ao lado de onde a câmera estava, um diário. Quase todo em branco. Quase." },
+  ampola:    { legenda: "Gelada, de prata, com um resíduo azul no fundo. Encaixou na câmera como se fosse dela." },
   tampa:     { legenda: "A tampa ainda estava onde a câmera caiu. Como se esperasse por você." },
   lente:     { legenda: "Uma lente nova, embrulhada em pano. Alguém a escondeu com muito cuidado." },
   obturador: { legenda: "O obturador de prata. Frio como as mãos de quem o apertava." },
