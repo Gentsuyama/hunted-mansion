@@ -76,7 +76,7 @@ function drawCinematic() {
   // legenda estilo quadrinho
   if (p.cap && cineT > 0.5) {
     const a = Math.min(1, (cineT - 0.5) * 2.5);
-    ctx.font = "bold 19px 'Courier New', monospace";
+    ctx.font = "bold 19px 'HM Mono', 'HM CJK', 'Courier New', monospace";
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     const lines = wrapText(tr(p.cap), 72);
     const bh = lines.length * 28 + 24;
@@ -91,7 +91,7 @@ function drawCinematic() {
   }
 
   // botão PULAR + dica
-  ctx.font = "bold 15px 'Courier New', monospace";
+  ctx.font = "bold 15px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   ctx.textAlign = "right"; ctx.textBaseline = "middle";
   ctx.fillStyle = "rgba(0,0,0,0.55)";
   ctx.fillRect(canvas.width - 160, 18, 140, 44);
@@ -102,7 +102,7 @@ function drawCinematic() {
   ctx.fillText("PULAR »", canvas.width - 90, 41);
   if (!p.slam) {
     ctx.fillStyle = `rgba(180,180,180,${0.35 + 0.25 * Math.sin(time * 3)})`;
-    ctx.font = "bold 12px 'Courier New', monospace";
+    ctx.font = "bold 12px 'HM Mono', 'HM CJK', 'Courier New', monospace";
     ctx.fillText("toque / clique para continuar", canvas.width / 2, canvas.height - 10);
   }
 }
@@ -193,20 +193,20 @@ function drawTitle() {
   const tick = Math.floor(time * 13);
   let g = 205 + 40 * Math.sin(time * 2);
   if (hash(tick, 3, 7) < 0.08) g *= 0.35;         // falha de energia ocasional
-  ctx.font = "bold 76px 'Courier New', monospace";
+  ctx.font = "bold 76px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   ctx.fillStyle = "rgba(0,0,0,0.75)";
   ctx.fillText("HUNTED MANSION", canvas.width / 2 + 4, 154);
   ctx.fillStyle = `rgb(${g | 0},${g | 0},${g | 0})`;
   ctx.fillText("HUNTED MANSION", canvas.width / 2, 150);
 
   // "ao vivo" como assinatura do jogo
-  ctx.font = "bold 17px 'Courier New', monospace";
+  ctx.font = "bold 17px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   ctx.fillStyle = `rgba(255,70,58,${0.65 + 0.35 * Math.sin(time * 4)})`;
   ctx.fillText("●", canvas.width / 2 - ctx.measureText("  uma live na casa errada").width / 2, 212);
   ctx.fillStyle = "rgba(210,210,210,0.9)";
   ctx.fillText("  uma live na casa errada", canvas.width / 2, 212);
 
-  ctx.font = "bold 13px 'Courier New', monospace";
+  ctx.font = "bold 13px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   ctx.fillStyle = "rgba(150,150,150,0.8)";
   ctx.fillText("as portas trancaram · vasculhe · fotografe · encontre a saída",
                canvas.width / 2, 312);
@@ -220,7 +220,7 @@ function drawTitle() {
     ctx.strokeStyle = hov ? "rgba(255,255,255,0.95)"
       : `rgba(255,255,255,${b.id === "intro" ? 0.3 : 0.5 + 0.2 * Math.sin(time * 3)})`;
     ctx.strokeRect(b.x, b.y, b.w, b.h);
-    ctx.font = `bold ${b.id === "intro" ? 17 : 24}px 'Courier New', monospace`;
+    ctx.font = `bold ${b.id === "intro" ? 17 : 24}px 'HM Mono', 'HM CJK', 'Courier New', monospace`;
     ctx.fillStyle = "rgba(235,235,235,0.92)";
     ctx.fillText(b.label, b.x + b.w / 2, b.y + b.h / 2 + 1);
   }
@@ -240,7 +240,7 @@ function drawTitle() {
     ctx.stroke();
   }
   ctx.textAlign = "left";
-  ctx.font = "bold 14px 'Courier New', monospace";
+  ctx.font = "bold 14px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   ctx.fillStyle = noGhosts ? "rgba(140,220,140,0.85)" : "rgba(170,170,170,0.75)";
   ctx.fillText(CHK_GHOST.label, CHK_GHOST.x + CHK_GHOST.w + 12, CHK_GHOST.y + 15);
   ctx.textAlign = "center";
@@ -250,7 +250,7 @@ function drawTitle() {
     ctx.lineWidth = hov ? 2.5 : 1.5;
     ctx.strokeStyle = hov ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.35)";
     ctx.strokeRect(b.x, b.y, b.w, b.h);
-    ctx.font = "bold 14px 'Courier New', 'Microsoft YaHei', 'Yu Gothic', monospace";
+    ctx.font = "bold 14px 'HM Mono', 'HM CJK', 'Courier New', 'Microsoft YaHei', 'Yu Gothic', monospace";
     ctx.fillStyle = "rgba(210,210,210,0.85)";
     const atual = LANGS.find(l => l.id === LANG) || LANGS[0];
     ctx.fillText(tr("IDIOMA") + " · " + atual.nome, b.x + b.w / 2, b.y + b.h / 2 + 1, b.w - 16); }
@@ -348,13 +348,13 @@ function drawVinheta() {
   // legenda como caixa de narração
   const leg = VIN_DEFS[vinAtual].legenda;
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.font = "italic 19px 'Segoe Script', 'Comic Sans MS', cursive";
+  ctx.font = "italic 19px 'HM Script', 'HM Script CJK', 'HM CJK', 'Segoe Script', 'Comic Sans MS', cursive";
   const tw2 = ctx.measureText(leg).width;
   ctx.fillStyle = "#e9e4d6";
   ctx.fillRect(canvas.width / 2 - tw2 / 2 - 22, y + h + 20, tw2 + 44, 46);
   ctx.fillStyle = "rgba(45,38,32,0.95)";
   ctx.fillText(leg, canvas.width / 2, y + h + 43);
-  ctx.font = "bold 13px 'Courier New', monospace";
+  ctx.font = "bold 13px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   ctx.fillStyle = `rgba(200,200,200,${0.4 + 0.3 * Math.sin(time * 3)})`;
   if (time - vinT > 1.0)
     ctx.fillText(touchUI.seen ? "toque para continuar" : "clique para continuar",

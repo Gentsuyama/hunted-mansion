@@ -508,14 +508,14 @@ function drawLivePanel() {
   ctx.textAlign = "left"; ctx.textBaseline = "middle";
   ctx.fillStyle = `rgba(255,60,50,${0.6 + 0.4 * Math.sin(time * 4)})`;
   ctx.beginPath(); ctx.arc(P.x + 14, P.y + 14, 5, 0, 7); ctx.fill();
-  ctx.font = "bold 13px 'Courier New', monospace";
+  ctx.font = "bold 13px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   ctx.fillStyle = "rgba(235,235,235,0.9)";
   // de vez em quando o contador mostra quantos estão assistindo DE VERDADE
   const soUm = live.tom >= 2 && (time % 13) < 0.9;
   ctx.fillText(tf("AO VIVO · {0} assistindo", soUm ? "1" : fmtViewers(live.viewers)),
                P.x + 26, P.y + 14);
 
-  ctx.font = "bold 11px 'Courier New', monospace";
+  ctx.font = "bold 11px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   const last = live.msgs.slice(-3);
   last.forEach((m, i) => {
     const y = P.y + 32 + i * 16;
@@ -565,7 +565,7 @@ function drawChat() {
 
   ctx.fillStyle = `rgba(255,60,50,0.9)`;
   ctx.beginPath(); ctx.arc(32, 36, 7, 0, 7); ctx.fill();
-  ctx.font = "bold 20px 'Courier New', monospace";
+  ctx.font = "bold 20px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   ctx.fillStyle = "rgba(235,235,235,0.95)";
   ctx.fillText(tf("AO VIVO — {0} assistindo  (jogo pausado)", fmtViewers(live.viewers)), 52, 36);
 
@@ -573,7 +573,7 @@ function drawChat() {
   // linhas — nenhum idioma pode perder o fim de uma dica na borda da tela
   const lineH = 26, areaTop = 76, areaBot = canvas.height - 60;
   const maxLines = ((areaBot - areaTop) / lineH) | 0;
-  ctx.font = "bold 15px 'Courier New', monospace";
+  ctx.font = "bold 15px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   const linhas = [];
   for (const m of live.msgs) {
     const wPre = ctx.measureText(m.user + ": ").width;
@@ -604,11 +604,11 @@ function drawChat() {
   ctx.strokeStyle = hovC ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.5)";
   ctx.strokeRect(ALB_CLOSE.x, ALB_CLOSE.y, ALB_CLOSE.w, ALB_CLOSE.h);
   ctx.textAlign = "center";
-  ctx.font = "bold 19px 'Courier New', monospace";
+  ctx.font = "bold 19px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   ctx.fillStyle = "rgba(230,230,230,0.9)";
   ctx.fillText("FECHAR", ALB_CLOSE.x + ALB_CLOSE.w / 2, ALB_CLOSE.y + ALB_CLOSE.h / 2 + 1);
 
-  ctx.font = "bold 12px 'Courier New', monospace";
+  ctx.font = "bold 12px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   ctx.fillStyle = "rgba(140,140,140,0.7)";
   ctx.fillText(touchUI.seen ? "arraste para rolar · toque em FECHAR para voltar"
                             : "roda do mouse rola · ESC fecha",

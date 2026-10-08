@@ -196,7 +196,7 @@ function diarioDesenhaPagina(g, pg, x, y, w, h, opts) {
   g.textAlign = "left"; g.textBaseline = "alphabetic";
   // o cabeçalho é lugar/momento, à mão — como quem data uma página (à esquerda quando há foto)
   if (pg.titulo) {
-    g.font = "italic 15px 'Segoe Script', 'Comic Sans MS', cursive";
+    g.font = "italic 15px 'HM Script', 'HM Script CJK', 'HM CJK', 'Segoe Script', 'Comic Sans MS', cursive";
     g.fillStyle = "rgba(90,70,50,0.7)";
     if (foto) g.fillText(tr(pg.titulo), x, y + 14);
     else { g.textAlign = "right"; g.fillText(tr(pg.titulo), x + w, y + 14); g.textAlign = "left"; }
@@ -216,7 +216,7 @@ function diarioDesenhaPagina(g, pg, x, y, w, h, opts) {
   const fotoFim = foto ? y - 6 + foto.height + 14 : 0;        // até onde a foto desce na página
   let tam = 19, linhas = [], alt = 0, lh = 0;
   for (; tam >= 13; tam -= 1.5) {
-    g.font = `italic ${tam}px 'Segoe Script', 'Comic Sans MS', cursive`;
+    g.font = `italic ${tam}px 'HM Script', 'HM Script CJK', 'HM CJK', 'Segoe Script', 'Comic Sans MS', cursive`;
     lh = tam * 1.38;
     linhas = [];
     for (const p of pars) {
@@ -243,7 +243,7 @@ function diarioDesenhaPagina(g, pg, x, y, w, h, opts) {
   }
   // a assinatura dele (só na última página)
   if (pg.assinado) {
-    g.font = "italic 30px 'Segoe Script', 'Comic Sans MS', cursive";
+    g.font = "italic 30px 'HM Script', 'HM Script CJK', 'HM CJK', 'Segoe Script', 'Comic Sans MS', cursive";
     g.fillStyle = "rgba(60,30,26,0.9)";
     g.save(); g.translate(x + w - 10, Math.min(y + h - 30, yy + 26)); g.rotate(-0.06);
     g.textAlign = "right"; g.fillText("— Blackwood", 0, 0); g.restore();
@@ -252,14 +252,14 @@ function diarioDesenhaPagina(g, pg, x, y, w, h, opts) {
   if (d.revelado && !pg.assinado) {
     g.save();
     g.globalAlpha = 0.13;
-    g.font = "italic 44px 'Segoe Script', 'Comic Sans MS', cursive";
+    g.font = "italic 44px 'HM Script', 'HM Script CJK', 'HM CJK', 'Segoe Script', 'Comic Sans MS', cursive";
     g.fillStyle = "rgb(110,30,26)";
     g.translate(x + w / 2, y + h / 2); g.rotate(-0.45);
     g.textAlign = "center";
     for (let k = -2; k <= 2; k++) g.fillText("Blackwood", 0, k * 120);
     g.restore();
     if (pg.oculto) {
-      g.font = "italic 21px 'Segoe Script', 'Comic Sans MS', cursive";
+      g.font = "italic 21px 'HM Script', 'HM Script CJK', 'HM CJK', 'Segoe Script', 'Comic Sans MS', cursive";
       g.fillStyle = "rgba(120,30,26,0.8)";
       const ls = diarioLinhas(g, tr(pg.oculto), w);
       let y2 = Math.min(y + h - 20 - (ls.length - 1) * 28, yy + 10);
@@ -409,11 +409,11 @@ function diarioDesenhaLivro(g, spread, b) {
     const px = (lado === 0 ? b.x : meio + 6) + mg;
     if (pg) diarioDesenhaPagina(g, pg, px, b.y + 30, pw2, b.h - 60);
     else if (lado === 1 || !d.paginas.length) {
-      g.font = "italic 16px 'Segoe Script', 'Comic Sans MS', cursive";
+      g.font = "italic 16px 'HM Script', 'HM Script CJK', 'HM CJK', 'Segoe Script', 'Comic Sans MS', cursive";
       g.textAlign = "center"; g.textBaseline = "middle"; g.fillStyle = "rgba(90,78,62,0.45)";
       g.fillText(d.paginas.length ? "(em branco — por enquanto)" : "(em branco)", px + pw2 / 2, b.y + b.h / 2);
     }
-    g.font = "italic 13px 'Segoe Script', 'Comic Sans MS', cursive";          // número da página
+    g.font = "italic 13px 'HM Script', 'HM Script CJK', 'HM CJK', 'Segoe Script', 'Comic Sans MS', cursive";          // número da página
     g.textAlign = lado ? "right" : "left"; g.textBaseline = "middle"; g.fillStyle = "rgba(90,78,62,0.55)";
     g.fillText(String(spread * 2 + lado + 1), lado ? px + pw2 : px, b.y + b.h - 18);
   }
@@ -486,18 +486,18 @@ function drawDiario() {
   } else diarioDesenhaLivro(ctx, diarioSpread, b);
   // nome do caderno (muda quando a autoria aparece)
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.font = "bold 13px 'Courier New', monospace";
+  ctx.font = "bold 13px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   ctx.fillStyle = d.revelado ? "rgba(214,120,110,0.95)" : "rgba(200,190,170,0.8)";
   ctx.fillText(d.revelado ? "DIÁRIO DE BLACKWOOD" : "DIÁRIO", canvas.width / 2, b.y - 34);
   // setas
   const total = diarioSpreads();
-  ctx.font = "bold 40px 'Courier New', monospace"; ctx.textAlign = "center";
+  ctx.font = "bold 40px 'HM Mono', 'HM CJK', 'Courier New', monospace"; ctx.textAlign = "center";
   ctx.fillStyle = diarioSpread > 0 ? "rgba(230,220,200,0.85)" : "rgba(230,220,200,0.2)";
   ctx.fillText("‹", b.x - 50, b.y + b.h / 2);
   ctx.fillStyle = diarioSpread < total - 1 ? "rgba(230,220,200,0.85)" : "rgba(230,220,200,0.2)";
   ctx.fillText("›", b.x + b.w + 50, b.y + b.h / 2);
   drawOverlayClose();
-  ctx.font = "bold 11px 'Courier New', monospace"; ctx.fillStyle = "rgba(190,170,140,0.75)";   // na borda de couro
+  ctx.font = "bold 11px 'HM Mono', 'HM CJK', 'Courier New', monospace"; ctx.fillStyle = "rgba(190,170,140,0.75)";   // na borda de couro
   ctx.fillText(touchUI.seen ? "toque nas bordas para folhear" : "← → folhear · J ou ESC fecha", canvas.width / 2, b.y + b.h + 9);
 }
 function diarioHit(mx, my) {

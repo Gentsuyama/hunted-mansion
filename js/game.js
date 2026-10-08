@@ -219,7 +219,7 @@ function drawPolaroid() {
   if (t > 3.9 && t < 9 && !touchUI.seen) {
     ctx.save();
     ctx.globalAlpha = 0.55 * some;
-    ctx.font = "bold 10px 'Courier New', monospace";
+    ctx.font = "bold 10px 'HM Mono', 'HM CJK', 'Courier New', monospace";
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillStyle = "rgba(220,220,225,0.9)";
     ctx.fillText("clique: ver no álbum", r.x + r.w / 2, r.y - 8);
@@ -877,7 +877,7 @@ function render() {
   mapaLuzChao(c0, c1, r0, r1);
   mapaParedes(c0, c1, r0, r1);
   mapaMoveis();
-  ctx.font = "bold 11px 'Courier New', monospace";
+  ctx.font = "bold 11px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
   drawStairsTopDown();
   mapaPoeira(dir);
@@ -988,7 +988,7 @@ function render() {
   drawLoucuraMundo();
 
   // partículas
-  ctx.font = "bold 11px 'Courier New', monospace";
+  ctx.font = "bold 11px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
   for (const p of particles) {
     ctx.fillStyle = `rgba(190,210,255,${p.life})`;
@@ -1137,7 +1137,7 @@ function drawCamHUD() {
   ctx.lineWidth = 1.5;
   ctx.strokeRect(r.x, r.y, r.w, r.h);
 
-  ctx.font = "bold 11px 'Courier New', monospace";
+  ctx.font = "bold 11px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   ctx.textAlign = "left"; ctx.textBaseline = "middle";
   ctx.fillStyle = "rgba(200,200,205,0.85)";
   ctx.fillText(cm.tampa ? (touchUI.seen ? "toque: filme"
@@ -1145,7 +1145,7 @@ function drawCamHUD() {
                         : "CÂMERA", r.x + 10, r.y + 13, r.w * 0.5 - 12);
   if (cm.tampa) {
     ctx.textAlign = "right";
-    ctx.font = "bold 10px 'Courier New', monospace";
+    ctx.font = "bold 10px 'HM Mono', 'HM CJK', 'Courier New', monospace";
     const curto = touchUI.seen;          // no celular o cartão é menor
     if (world.flags.filmLoaded && film > 0) {
       ctx.fillStyle = "rgba(150,230,150,0.95)";
@@ -1219,7 +1219,7 @@ function drawCamHUD() {
   }
   // compartimento do filme (direita)
   const fx = bx + bw - 46, fw = 38;
-  ctx.font = "bold 9px 'Courier New', monospace";
+  ctx.font = "bold 9px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   ctx.textAlign = "center";
   if (!cm.tampa) {
     ctx.setLineDash([4, 4]);
@@ -1292,7 +1292,7 @@ function hudRecursos(x, y, passo, h) {
 }
 function drawHUD() {
   const M = touchUI.seen;
-  ctx.font = M ? "bold 19px 'Courier New', monospace" : "bold 13px 'Courier New', monospace";
+  ctx.font = M ? "bold 19px 'HM Mono', 'HM CJK', 'Courier New', monospace" : "bold 13px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   ctx.textAlign = "left"; ctx.textBaseline = "middle";
 
   const y1 = M ? 30 : 20;
@@ -1320,7 +1320,7 @@ function drawHUD() {
       ctx.fillStyle = "rgba(255,206,120,0.75)";
       ctx.fillRect(134 + 236 * sanTeto() / 100 - 1, 51, 2, 26);
     }
-    ctx.font = "bold 19px 'Courier New', monospace";
+    ctx.font = "bold 19px 'HM Mono', 'HM CJK', 'Courier New', monospace";
     if (world.flags.quase) hudNegativo(388, 64);
     if (folego < 0.995) {                 // fôlego: só aparece quando falta
       ctx.fillStyle = semFolego ? "rgba(230,90,80,0.85)" : "rgba(150,200,230,0.8)";
@@ -1340,7 +1340,7 @@ function drawHUD() {
       ctx.fillStyle = "rgba(255,206,120,0.75)";
       ctx.fillRect(96 + 138 * sanTeto() / 100 - 0.5, canvas.height - 54, 1.5, 15);
     }
-    ctx.font = "bold 13px 'Courier New', monospace";
+    ctx.font = "bold 13px 'HM Mono', 'HM CJK', 'Courier New', monospace";
     const xNeg = hudRecursos(loucura ? 560 : 262, canvas.height - 46, 9, 9) + 4;
     if (world.flags.quase) {
       hudNegativo(xNeg, canvas.height - 46);
@@ -1374,7 +1374,7 @@ function drawHUD() {
 
   // inventário especial
   let invY = M ? 96 : 44;
-  ctx.font = M ? "bold 16px 'Courier New', monospace" : "bold 12px 'Courier New', monospace";
+  ctx.font = M ? "bold 16px 'HM Mono', 'HM CJK', 'Courier New', monospace" : "bold 12px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   if (world.flags.fuses > 0 || world.flags.fusesIn > 0) {
     const nIn = world.flags.fusesIn, nMao = world.flags.fuses;
     for (let i = 0; i < 3; i++)
@@ -1404,7 +1404,7 @@ function drawHUD() {
   if (state === "play" && toastT > 0) {
     const a = Math.min(1, toastT);
     ctx.textAlign = "center";
-    ctx.font = "bold " + (M ? 20 : 16) + "px 'Courier New', monospace";
+    ctx.font = "bold " + (M ? 20 : 16) + "px 'HM Mono', 'HM CJK', 'Courier New', monospace";
     const tw2 = ctx.measureText(toastText).width;
     ctx.fillStyle = `rgba(8,8,10,${(0.78 * a).toFixed(2)})`;
     const ty3 = M ? 126 : 124;             // abaixo do painel da live (que vai até y=92)
@@ -1428,7 +1428,7 @@ function drawHUD() {
       ctx.fillRect(P.x + Math.random() * P.w, P.y + Math.random() * P.h,
                    20 + Math.random() * 90, 1 + Math.random() * 2);
     }
-    ctx.font = "bold 11px 'Courier New', monospace";
+    ctx.font = "bold 11px 'HM Mono', 'HM CJK', 'Courier New', monospace";
     ctx.textAlign = "right";
     ctx.fillStyle = `rgba(255,90,80,${a.toFixed(2)})`;
     ctx.fillText("SINAL FRACO", P.x + P.w - 8, P.y + 14);
@@ -1438,7 +1438,7 @@ function drawHUD() {
   // prompt contextual (escada/elevador)
   if (prompt && state === "play") {
     ctx.textAlign = "center";
-    ctx.font = M ? "bold 22px 'Courier New', monospace" : "bold 16px 'Courier New', monospace";
+    ctx.font = M ? "bold 22px 'HM Mono', 'HM CJK', 'Courier New', monospace" : "bold 16px 'HM Mono', 'HM CJK', 'Courier New', monospace";
     ctx.fillStyle = `rgba(230,240,255,${0.6 + 0.4 * Math.sin(time * 4)})`;
     ctx.fillText(prompt.action
       ? tf(M ? "{0} — botão USAR" : "{0} — tecle E", tr(prompt.text))
@@ -1476,13 +1476,13 @@ function drawHUD() {
     ctx.strokeStyle = "rgba(255,255,255,0.4)";
     ctx.beginPath(); ctx.arc(BTN_PHOTO.x, BTN_PHOTO.y, BTN_PHOTO.r, 0, 7); ctx.stroke();
     ctx.fillStyle = flashCd <= 0 && film > 0 ? "rgba(255,255,255,0.8)" : "rgba(255,120,120,0.65)";
-    ctx.font = "bold 21px 'Courier New', monospace";
+    ctx.font = "bold 21px 'HM Mono', 'HM CJK', 'Courier New', monospace";
     ctx.fillText("FOTO", BTN_PHOTO.x, BTN_PHOTO.y + 1);
 
     ctx.strokeStyle = "rgba(255,255,255,0.35)";
     ctx.beginPath(); ctx.arc(BTN_ALBUM.x, BTN_ALBUM.y, BTN_ALBUM.r, 0, 7); ctx.stroke();
     ctx.fillStyle = "rgba(255,255,255,0.65)";
-    ctx.font = "bold 14px 'Courier New', monospace";
+    ctx.font = "bold 14px 'HM Mono', 'HM CJK', 'Courier New', monospace";
     ctx.fillText("ÁLBUM", BTN_ALBUM.x, BTN_ALBUM.y + 1);
 
     if (diarioTem()) {                           // o caderno (pisca com página nova)
@@ -1491,7 +1491,7 @@ function drawHUD() {
       ctx.beginPath(); ctx.arc(BTN_DIARIO.x, BTN_DIARIO.y, BTN_DIARIO.r, 0, 7); ctx.stroke();
       drawDiarioIcone(BTN_DIARIO.x, BTN_DIARIO.y - 6, 11, nv > 0);
       ctx.fillStyle = "rgba(255,255,255,0.65)";
-      ctx.font = "bold 11px 'Courier New', monospace";
+      ctx.font = "bold 11px 'HM Mono', 'HM CJK', 'Courier New', monospace";
       ctx.fillText("DIÁRIO", BTN_DIARIO.x, BTN_DIARIO.y + 24);
     }
     ctx.strokeStyle = "rgba(255,255,255,0.35)";
@@ -1513,7 +1513,7 @@ function drawHUD() {
       ctx.strokeStyle = "rgba(230,240,255,0.7)";
       ctx.beginPath(); ctx.arc(BTN_USE.x, BTN_USE.y, BTN_USE.r, 0, 7); ctx.stroke();
       ctx.fillStyle = "rgba(230,240,255,0.85)";
-      ctx.font = "bold 18px 'Courier New', monospace";
+      ctx.font = "bold 18px 'HM Mono', 'HM CJK', 'Courier New', monospace";
       ctx.fillText("USAR", BTN_USE.x, BTN_USE.y + 1);
     }
     ctx.textAlign = "left";

@@ -1,0 +1,9 @@
+Fontes embutidas do Hunted Mansion — todas sob SIL Open Font License 1.1 (OFL-*.txt).
+Fonte: Google Fonts (github.com/google/fonts/tree/main/ofl).
+  HM-Mono-*      = Courier Prime (Quote-Unquote Apps)   -> texto do jogo (no lugar de Courier New)
+  HM-Script      = Caveat (Impallari Type)              -> letra à mão: diário, legendas, polaroids
+  HM-CJK-zh/-ja  = Noto Sans SC / JP (Google)           -> ideogramas do chinês e do japonês
+  HM-Script-zh   = Long Cang (ZCOOL)                    -> letra à mão em chinês
+  HM-Script-ja   = Yomogi (Satsuyako)                   -> letra à mão em japonês
+Recortadas aos caracteres usados pelo jogo por tools/fontes-subset.py — rode-o de novo
+quando js/lang/zh.js ou js/lang/ja.js mudarem.

@@ -23,4 +23,5 @@ loadCineImages();
 langBoot();
 state = "lang";          // a primeira tela é sempre a do idioma
 
-requestAnimationFrame(frame);
+// as fontes embutidas chegam antes do primeiro quadro (teto de 2,5 s)
+fontesProntas().then(() => requestAnimationFrame(frame));

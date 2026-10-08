@@ -1105,7 +1105,7 @@ function renderPhoto(px, py, dir, escuro) {
   // a legenda do passado: escrita à mão sobre a emulsão, como num verso de foto
   if (passadoSpot) {
     c.save();
-    c.font = "italic 17px 'Segoe Script', 'Comic Sans MS', cursive";
+    c.font = "italic 17px 'HM Script', 'HM Script CJK', 'HM CJK', 'Segoe Script', 'Comic Sans MS', cursive";
     c.textAlign = "left"; c.textBaseline = "middle";
     c.shadowColor = "rgba(0,0,0,0.8)"; c.shadowBlur = 4;
     c.fillStyle = "rgba(244,230,196,0.94)";
@@ -1126,7 +1126,7 @@ function renderPhoto(px, py, dir, escuro) {
   c.translate(FR + 4, cv.height - 26);
   c.rotate(-0.015);
   c.textAlign = "left"; c.textBaseline = "middle";
-  c.font = "italic 21px 'Segoe Script', 'Comic Sans MS', cursive";
+  c.font = "italic 21px 'HM Script', 'HM Script CJK', 'HM CJK', 'Segoe Script', 'Comic Sans MS', cursive";
   c.fillStyle = "rgba(68,60,52,0.88)";
   c.fillText(tf(escuro ? "foto {0} — {1} · sem flash" : "foto {0} — {1}",
                 photoCount, tr(FLOOR_NAMES[world.cur]).toLowerCase()), 0, 0);

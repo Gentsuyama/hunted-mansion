@@ -234,7 +234,7 @@ function drawRitual() {
   if (!r.morte && t > 2.7) {            // no breu, só ELE escreve
     const a = Math.min(1, (t - 2.7) / 0.5) * Math.min(1, (4.6 - t) / 0.4);
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.font = "bold 17px 'Courier New', monospace";
+    ctx.font = "bold 17px 'HM Mono', 'HM CJK', 'Courier New', monospace";
     ctx.fillStyle = `rgba(214,150,140,${Math.max(0, a).toFixed(2)})`;
     ctx.fillText(FIXO + ": " + tr("essa não ficou boa. de novo."), W / 2, H / 2);
   }
@@ -284,11 +284,11 @@ function retratoStreamer(info, legenda) {
   c.translate(FR + 4, cv.height - 42);
   c.rotate(-0.015);
   c.textAlign = "left"; c.textBaseline = "middle";
-  c.font = "italic 20px 'Segoe Script', 'Comic Sans MS', cursive";
+  c.font = "italic 20px 'HM Script', 'HM Script CJK', 'HM CJK', 'Segoe Script', 'Comic Sans MS', cursive";
   c.fillStyle = "rgba(68,60,52,0.9)";
   c.fillText(tf("live nº {0} — {1}", info.n, tr(FLOOR_NAMES[info.andar]).toLowerCase()), 0, 0);
   if (legenda) {
-    c.font = "italic 17px 'Segoe Script', 'Comic Sans MS', cursive";
+    c.font = "italic 17px 'HM Script', 'HM Script CJK', 'HM CJK', 'Segoe Script', 'Comic Sans MS', cursive";
     c.fillStyle = "rgba(96,40,34,0.92)";
     c.fillText("“" + tr(legenda) + "”", 2, 24, PW - 12);
   }
@@ -389,10 +389,10 @@ function drawDead() {
     ctx.restore();
   }
   const cx = 860;
-  ctx.font = "bold 32px 'Courier New', monospace";
+  ctx.font = "bold 32px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   ctx.fillStyle = "rgba(200,50,45,0.92)";
   ctx.fillText("A CASA FICOU COM VOCÊ", cx, 136, 620);
-  ctx.font = "bold 14px 'Courier New', monospace";
+  ctx.font = "bold 14px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   ctx.fillStyle = "rgba(180,180,180,0.8)";
   const andar = D ? D.andar : (world ? world.cur : 1);
   ctx.fillText(tf("a live caiu no {0}", tr(FLOOR_NAMES[andar])), cx, 176);
@@ -402,13 +402,13 @@ function drawDead() {
                  cx, 200, 600);
     // ELE aprova
     if (D.t > 2.4) {
-      ctx.font = "bold 15px 'Courier New', monospace";
+      ctx.font = "bold 15px 'HM Mono', 'HM CJK', 'Courier New', monospace";
       ctx.fillStyle = `rgba(214,150,140,${Math.min(1, (D.t - 2.4) / 0.8).toFixed(2)})`;
       ctx.fillText(FIXO + ": " + tr("essa ficou boa."), cx, 244);
     }
     // a legenda: três frases à mão
     const O = DEAD_OPS;
-    ctx.font = "bold 12px 'Courier New', monospace";
+    ctx.font = "bold 12px 'HM Mono', 'HM CJK', 'Courier New', monospace";
     ctx.fillStyle = "rgba(150,140,120,0.75)";
     ctx.fillText(D.escolhida < 0 ? "ESCREVA A LEGENDA DO SEU RETRATO" : "LEGENDA GRAVADA", cx, O.y - 22);
     for (let i = 0; i < D.ops.length; i++) {
@@ -422,12 +422,12 @@ function drawDead() {
       ctx.lineWidth = 1.5;
       ctx.strokeStyle = sel ? "rgba(214,150,140,0.8)" : hov ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.25)";
       ctx.strokeRect(O.x, y, O.w, O.h);
-      ctx.font = "italic 19px 'Segoe Script', 'Comic Sans MS', cursive";
+      ctx.font = "italic 19px 'HM Script', 'HM Script CJK', 'HM CJK', 'Segoe Script', 'Comic Sans MS', cursive";
       ctx.fillStyle = "rgba(232,222,200,0.95)";
       ctx.fillText("“" + tr(D.ops[i]) + "”", O.x + O.w / 2, y + O.h / 2 + 1, O.w - 20);
     }
   }
-  ctx.font = "bold 13px 'Courier New', monospace";
+  ctx.font = "bold 13px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   ctx.fillStyle = "rgba(150,150,150,0.75)";
   ctx.fillText("as fotos reveladas se perdem com você", cx, 478, 600);
 
@@ -442,12 +442,12 @@ function drawDead() {
                             ? `rgba(255,255,255,${0.6 + 0.25 * Math.sin(time * 3)})`
                             : "rgba(255,255,255,0.45)";
     ctx.strokeRect(b.x, b.y, b.w, b.h);
-    ctx.font = "bold 23px 'Courier New', monospace";
+    ctx.font = "bold 23px 'HM Mono', 'HM CJK', 'Courier New', monospace";
     ctx.fillStyle = b.id === "jogar" ? "rgba(255,255,255,0.95)" : "rgba(215,215,215,0.9)";
     ctx.fillText(b.label, b.x + b.w / 2, b.y + b.h / 2 + 1, b.w - 14);
   }
   if (!touchUI.seen) {
-    ctx.font = "bold 12px 'Courier New', monospace";
+    ctx.font = "bold 12px 'HM Mono', 'HM CJK', 'Courier New', monospace";
     ctx.fillStyle = "rgba(140,140,140,0.7)";
     ctx.fillText("F fotos · ENTER nova live · ESC menu", W / 2, H - 22);
   }
@@ -485,12 +485,12 @@ function drawArquivoTitulo() {
   if (!a.length) return;
   const x = 44, y0 = 418;
   ctx.textAlign = "left"; ctx.textBaseline = "middle";
-  ctx.font = "bold 12px 'Courier New', monospace";
+  ctx.font = "bold 12px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   ctx.fillStyle = "rgba(190,180,160,0.7)";
   ctx.fillText("LIVES ARQUIVADAS DO CANAL", x, y0, 380);
   ctx.strokeStyle = "rgba(190,180,160,0.25)"; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(x, y0 + 12); ctx.lineTo(x + 380, y0 + 12); ctx.stroke();
-  ctx.font = "bold 13px 'Courier New', monospace";
+  ctx.font = "bold 13px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   a.slice(0, 5).forEach((e, i) => {
     const y = y0 + 32 + i * 24;
     const morte = e.fim === "morte";

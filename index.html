@@ -20,12 +20,28 @@
     aspect-ratio: 1200 / 680;
     touch-action: none;
   }
+  /* fontes embutidas (OFL) — ver js/fontes.js e Assets/Fontes/LEIAME.txt */
+  @font-face { font-family: "HM Mono"; src: url(Assets/Fontes/HM-Mono-Regular.woff2) format("woff2");
+               font-weight: 400; font-style: normal; font-display: block; }
+  @font-face { font-family: "HM Mono"; src: url(Assets/Fontes/HM-Mono-Bold.woff2) format("woff2");
+               font-weight: 700; font-style: normal; font-display: block; }
+  @font-face { font-family: "HM Mono"; src: url(Assets/Fontes/HM-Mono-Italic.woff2) format("woff2");
+               font-weight: 400; font-style: italic; font-display: block; }
+  @font-face { font-family: "HM Mono"; src: url(Assets/Fontes/HM-Mono-BoldItalic.woff2) format("woff2");
+               font-weight: 700; font-style: italic; font-display: block; }
+  /* a letra à mão já nasce inclinada: a mesma face responde por normal e italic,
+     para o navegador não entortar ainda mais */
+  @font-face { font-family: "HM Script"; src: url(Assets/Fontes/HM-Script.woff2) format("woff2");
+               font-weight: 400 700; font-style: normal; font-display: block; size-adjust: 112%; }
+  @font-face { font-family: "HM Script"; src: url(Assets/Fontes/HM-Script.woff2) format("woff2");
+               font-weight: 400 700; font-style: italic; font-display: block; size-adjust: 112%; }
 </style>
 </head>
 <body>
 <canvas id="game" width="1200" height="680"></canvas>
 <script src="js/core.js"></script>
 <script src="js/i18n.js"></script>
+<script src="js/fontes.js"></script>
 <script src="js/lang/chaves.js"></script>
 <script src="js/lang/en.js"></script>
 <script src="js/lang/es.js"></script>

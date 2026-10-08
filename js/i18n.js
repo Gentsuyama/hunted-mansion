@@ -50,6 +50,7 @@ function setLang(id) {
   LANG = LANGS.some(l => l.id === id) ? id : "pt";
   try { localStorage.setItem("hm_lang", LANG); } catch (e) {}
   document.documentElement.lang = LANG === "pt" ? "pt-BR" : LANG;
+  if (typeof fontesIdioma === "function") fontesIdioma(LANG);   // ideogramas certos (zh/ja)
 }
 
 // todo texto desenhado no canvas passa pela tradução
@@ -98,12 +99,12 @@ function drawLang() {
   ctx.fillStyle = "rgba(0,0,0,0.80)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.font = "bold 62px 'Courier New', monospace";
+  ctx.font = "bold 62px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   ctx.fillStyle = "rgba(0,0,0,0.75)";
   ctx.fillText("HUNTED MANSION", canvas.width / 2 + 3, 113);
   ctx.fillStyle = "rgb(222,222,222)";
   ctx.fillText("HUNTED MANSION", canvas.width / 2, 110);
-  ctx.font = "bold 15px 'Courier New', monospace";
+  ctx.font = "bold 15px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   ctx.fillStyle = "rgba(190,180,160,0.85)";
   ctx.fillText("IDIOMA · LANGUAGE · LANGUE · SPRACHE · 语言 · 言語", canvas.width / 2, 172);
 
@@ -121,7 +122,7 @@ function drawLang() {
       ? `rgba(255,236,190,${(0.75 + 0.2 * Math.sin(time * 4)).toFixed(2)})`
       : "rgba(255,255,255,0.35)";
     ctx.strokeRect(b.x, b.y, b.w, b.h);
-    ctx.font = "bold 25px 'Courier New', 'Microsoft YaHei', 'Yu Gothic', monospace";
+    ctx.font = "bold 25px 'HM Mono', 'HM CJK', 'Courier New', 'Microsoft YaHei', 'Yu Gothic', monospace";
     ctx.fillStyle = sel ? "rgba(255,244,214,0.98)" : "rgba(225,225,225,0.85)";
     ctx.fillText(b.nome, b.x + b.w / 2, b.y + b.h / 2 + 1);
     if (sel) {
@@ -130,7 +131,7 @@ function drawLang() {
     }
   }
   if (!IS_TOUCH) {
-    ctx.font = "bold 13px 'Courier New', monospace";
+    ctx.font = "bold 13px 'HM Mono', 'HM CJK', 'Courier New', monospace";
     ctx.fillStyle = `rgba(170,170,170,${(0.45 + 0.25 * Math.sin(time * 3)).toFixed(2)})`;
     ctx.fillText("↑ ↓ ← →   ·   ENTER", canvas.width / 2, canvas.height - 30);
   }

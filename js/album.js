@@ -108,7 +108,7 @@ function albumDesenhaSpread(g, page, b, hover) {
   }
   const fotos = albumFotosDaPagina(page);
   if (!album.length) {
-    g.font = "italic 24px 'Segoe Script', 'Comic Sans MS', cursive";
+    g.font = "italic 24px 'HM Script', 'HM Script CJK', 'HM CJK', 'Segoe Script', 'Comic Sans MS', cursive";
     g.textAlign = "center"; g.textBaseline = "middle";
     g.fillStyle = "rgba(90,78,62,0.75)";
     g.fillText("nenhuma foto colada ainda…", b.x + b.w / 2, b.y + b.h / 2);
@@ -236,12 +236,12 @@ function albumBotao(B, texto, ativo, cor, hov, atalho) {
   ctx.lineWidth = hov && ativo ? 3 : 2;
   ctx.strokeStyle = ativo ? (hov ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.55)") : "rgba(255,255,255,0.2)";
   ctx.strokeRect(B.x, B.y, B.w, B.h);
-  ctx.font = "bold 17px 'Courier New', monospace";
+  ctx.font = "bold 17px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
   ctx.fillStyle = ativo ? "rgba(235,235,235,0.95)" : "rgba(170,170,170,0.6)";
   ctx.fillText(texto, B.x + B.w / 2, B.y + B.h / 2 + 1, B.w - 16);
   if (atalho && !touchUI.seen) {               // a tecla, miúda, no canto do botão
-    ctx.font = "bold 10px 'Courier New', monospace";
+    ctx.font = "bold 10px 'HM Mono', 'HM CJK', 'Courier New', monospace";
     ctx.textAlign = "right";
     ctx.fillStyle = "rgba(200,200,200,0.5)";
     ctx.fillText(atalho, B.x + B.w - 6, B.y + B.h - 8);
@@ -265,7 +265,7 @@ function drawAlbum() {
       if (albumFlip.t >= ALB_FLIP_T) albumFlip = null;
     } else albumDesenhaSpread(ctx, albumPage, b, true);
     if (total > 1) {
-      ctx.font = "bold 70px 'Courier New', monospace";
+      ctx.font = "bold 70px 'HM Mono', 'HM CJK', 'Courier New', monospace";
       ctx.fillStyle = albumPage > 0
         ? `rgba(255,255,255,${0.5 + 0.25 * Math.sin(time * 4)})` : "rgba(255,255,255,0.1)";
       ctx.fillText("<", 56, canvas.height / 2);
@@ -273,7 +273,7 @@ function drawAlbum() {
         ? `rgba(255,255,255,${0.5 + 0.25 * Math.sin(time * 4)})` : "rgba(255,255,255,0.1)";
       ctx.fillText(">", canvas.width - 56, canvas.height / 2);
     }
-    ctx.font = "italic 17px 'Segoe Script', 'Comic Sans MS', cursive";
+    ctx.font = "italic 17px 'HM Script', 'HM Script CJK', 'HM CJK', 'Segoe Script', 'Comic Sans MS', cursive";
     ctx.fillStyle = albumEhPista(albumPage) ? "rgba(240,214,150,0.9)" : "rgba(200,190,170,0.8)";
     ctx.fillText(tf("página {0} de {1}", albumPage + 1, total), canvas.width / 2, canvas.height - 16);
   } else {
@@ -298,7 +298,7 @@ function drawAlbum() {
       g.addColorStop(0, `rgba(120,180,255,${a.toFixed(3)})`); g.addColorStop(1, "rgba(120,180,255,0)");
       ctx.fillStyle = g; ctx.fillRect(cx - rr, cy - rr, rr * 2, rr * 2);
       if (hov) {
-        ctx.font = "bold 13px 'Courier New', monospace";
+        ctx.font = "bold 13px 'HM Mono', 'HM CJK', 'Courier New', monospace";
         ctx.fillStyle = "rgba(0,0,0,0.75)";
         const tx = tr("CONVERTER ALMA");
         const tw = ctx.measureText(tx).width;
@@ -314,7 +314,7 @@ function drawAlbum() {
       livePush(liveRandUser(), "o frasco da câmera tá… tremendo?");
     }
     if (ord.length > 1) {
-      ctx.font = "bold 70px 'Courier New', monospace";
+      ctx.font = "bold 70px 'HM Mono', 'HM CJK', 'Courier New', monospace";
       ctx.fillStyle = albumZoom > 0 ? "rgba(255,255,255,0.65)" : "rgba(255,255,255,0.1)";
       ctx.fillText("<", 56, canvas.height / 2);
       ctx.fillStyle = albumZoom < ord.length - 1 ? "rgba(255,255,255,0.65)" : "rgba(255,255,255,0.1)";
@@ -322,12 +322,12 @@ function drawAlbum() {
     }
     // as pistas que esta foto guarda, à mão, embaixo
     if (e.pistas && e.pistas.length) {
-      ctx.font = "italic 16px 'Segoe Script', 'Comic Sans MS', cursive";
+      ctx.font = "italic 16px 'HM Script', 'HM Script CJK', 'HM CJK', 'Segoe Script', 'Comic Sans MS', cursive";
       ctx.fillStyle = "rgba(240,214,150,0.9)";
       ctx.fillText(tr("pista:") + " " + e.pistas.map(p => tr(p)).join(" · "),
                    canvas.width / 2, R.y + R.h + 16, 980);
     }
-    ctx.font = "bold 13px 'Courier New', monospace";
+    ctx.font = "bold 13px 'HM Mono', 'HM CJK', 'Courier New', monospace";
     ctx.fillStyle = "rgba(170,170,170,0.8)";
     ctx.fillText(`${albumZoom + 1} / ${ord.length}   ·   ` +
                  tr(touchUI.seen ? "toque fora para voltar ao álbum"
@@ -352,7 +352,7 @@ function drawAlbum() {
   ctx.lineWidth = hovC ? 3 : 2;
   ctx.strokeStyle = hovC ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.5)";
   ctx.strokeRect(ALB_CLOSE.x, ALB_CLOSE.y, ALB_CLOSE.w, ALB_CLOSE.h);
-  ctx.font = "bold 19px 'Courier New', monospace";
+  ctx.font = "bold 19px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   ctx.fillStyle = "rgba(230,230,230,0.9)";
   ctx.fillText("FECHAR", ALB_CLOSE.x + ALB_CLOSE.w / 2, ALB_CLOSE.y + ALB_CLOSE.h / 2 + 1);
 }
@@ -389,7 +389,7 @@ function albumFita(g, e, w, h, k) {
   g.save();
   g.translate(-w / 2 + 14 * k, -h / 2 + 10 * k);
   g.rotate(-0.09 + (e.t % 7) * 0.01);
-  g.font = `italic ${11 * k}px 'Segoe Script', 'Comic Sans MS', cursive`;
+  g.font = `italic ${11 * k}px 'HM Script', 'HM Script CJK', 'HM CJK', 'Segoe Script', 'Comic Sans MS', cursive`;
   const tw = Math.min(w * 0.78, g.measureText(txt).width + 18 * k), th = 17 * k;
   g.fillStyle = "rgba(226,214,176,0.86)";
   g.beginPath();                                      // pontas rasgadas

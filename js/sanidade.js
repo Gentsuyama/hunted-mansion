@@ -106,7 +106,7 @@ function drawTomasTela() {
     const dt0 = e.t - t0, al = Math.min(1, dt0 / 0.25) * a;
     const grande = e.falas >= 4;
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.font = `italic ${grande ? 44 : 30}px 'Segoe Script', 'Comic Sans MS', cursive`;
+    ctx.font = `italic ${grande ? 44 : 30}px 'HM Script', 'HM Script CJK', 'HM CJK', 'Segoe Script', 'Comic Sans MS', cursive`;
     ctx.fillStyle = `rgba(236,232,220,${al.toFixed(2)})`;
     ctx.fillText(txt, sx + Math.sin(time * 9) * 1.2, Math.max(70, sy - 120) + Math.cos(time * 7) * 1.2);
     if (e.falas === 4 && dt0 < 0.6) {                      // o "cem": um clarão branco e macio
@@ -259,7 +259,7 @@ function drawLoucuraBarra(x, y, w, h, M) {
   const L = loucura;
   const falta = Math.max(0, 1 - L.t / L.dur);
   const j = Math.sin(time * 31) * 1.2;
-  ctx.font = M ? "bold 19px 'Courier New', monospace" : "bold 13px 'Courier New', monospace";
+  ctx.font = M ? "bold 19px 'HM Mono', 'HM CJK', 'Courier New', monospace" : "bold 13px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   ctx.textAlign = "left"; ctx.textBaseline = "middle";
   ctx.fillStyle = `rgba(240,60,50,${(0.7 + 0.3 * Math.sin(time * 9)).toFixed(2)})`;
   ctx.fillText("LOUCURA", M ? 12 : 12, y);
@@ -269,7 +269,7 @@ function drawLoucuraBarra(x, y, w, h, M) {
   ctx.fillRect(x + 1 + j, y - h / 2, (w - 2) * falta, h);
   ctx.fillStyle = "rgba(230,224,200,0.85)";                       // a luz que te segura
   ctx.fillRect(x + 1 + j, y + h / 2 - 3, (w - 2) * Math.min(1, Math.max(0, sanity) / LOUCURA.sai), 3);
-  ctx.font = M ? "bold 14px 'Courier New', monospace" : "bold 10px 'Courier New', monospace";
+  ctx.font = M ? "bold 14px 'HM Mono', 'HM CJK', 'Courier New', monospace" : "bold 10px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   ctx.fillStyle = "rgba(240,200,190,0.75)";
   ctx.fillText("a casa suga a sua alma — a luz te segura", x + w + 10, y);
 }

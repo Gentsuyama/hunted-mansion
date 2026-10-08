@@ -658,7 +658,7 @@ function makeFilmSprite() {
   g.fillStyle = "#cfd6cf"; g.fillRect(bx + 3, by + bh * 0.20, bw - 6, bh * 0.44);
   g.fillStyle = "#a33630"; g.fillRect(bx + 3, by + bh * 0.56, bw - 6, 4);
   g.fillStyle = "#23262b";
-  g.font = "bold 13px 'Courier New', monospace";
+  g.font = "bold 13px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   g.textAlign = "center"; g.textBaseline = "middle";
   g.fillText("35", bx + bw / 2, by + bh * 0.38);
   g.fillStyle = "#3a3320";
@@ -683,7 +683,7 @@ function digitSprite(digit, ord) {
   const r = mulberry32(digit * 7919 + ord * 104729);
   g.textAlign = "center"; g.textBaseline = "middle";
   // número: várias passadas tremidas, como riscado na parede com unha
-  g.font = "bold 92px 'Courier New', monospace";
+  g.font = "bold 92px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   for (let i = 0; i < 7; i++) {
     g.strokeStyle = `rgba(235,230,220,${0.18 + r() * 0.25})`;
     g.lineWidth = 1.5 + r() * 1.5;
