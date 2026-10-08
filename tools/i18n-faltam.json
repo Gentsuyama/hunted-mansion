@@ -1,13 +1,14 @@
 {
  "faltam": [
-  "SAIR"
+  "STEAM: conectada como {0}",
+  "STEAM NÃO ENCONTRADA — abra a Steam antes do jogo (overlay e conquistas)"
  ],
  "porIdioma": {
-  "en": 1,
-  "es": 1,
-  "fr": 1,
-  "de": 1,
-  "zh": 1,
-  "ja": 1
+  "en": 2,
+  "es": 2,
+  "fr": 2,
+  "de": 2,
+  "zh": 2,
+  "ja": 2
  }
 }

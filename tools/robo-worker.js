@@ -30,7 +30,7 @@ self.localStorage = {
 self.requestAnimationFrame = () => 0;
 
 const V = "?v=" + Date.now();
-const JOGO = ["core", "plataforma", "i18n", "fontes", "lang/chaves", "audio", "musica", "sprites", "tex", "photo", "mansion",
+const JOGO = ["core", "plataforma", "i18n", "fontes", "lang/chaves", "audio", "musica", "sprites", "tex", "photo", "mansion", "interiores",
               "mapa", "game", "live", "souls", "puzzles", "ritual", "energia", "planta",
               "album", "diario", "sanidade", "controle", "fx", "intro", "main"];
 try {

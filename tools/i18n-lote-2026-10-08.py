@@ -43,6 +43,8 @@ T = {
 "EFEITOS VISUAIS: LEVES": ["VISUAL EFFECTS: LIGHT", "EFECTOS VISUALES: LIGEROS", "EFFETS VISUELS : LÉGERS", "VISUELLE EFFEKTE: LEICHT", "视觉效果：轻度", "映像効果：軽め"],
 "EFEITOS VISUAIS: DESLIGADOS": ["VISUAL EFFECTS: OFF", "EFECTOS VISUALES: DESACTIVADOS", "EFFETS VISUELS : DÉSACTIVÉS", "VISUELLE EFFEKTE: AUS", "视觉效果：关闭", "映像効果：オフ"],
 "SAIR": ["QUIT", "SALIR", "QUITTER", "BEENDEN", "退出", "終了"],
+"STEAM: conectada como {0}": ["STEAM: connected as {0}", "STEAM: conectado como {0}", "STEAM : connecté en tant que {0}", "STEAM: verbunden als {0}", "STEAM：已连接为 {0}", "STEAM：{0} として接続中"],
+"STEAM NÃO ENCONTRADA — abra a Steam antes do jogo (overlay e conquistas)": ["STEAM NOT FOUND — open Steam before the game (overlay and achievements)", "STEAM NO ENCONTRADO — abre Steam antes del juego (overlay y logros)", "STEAM INTROUVABLE — ouvrez Steam avant le jeu (overlay et succès)", "STEAM NICHT GEFUNDEN — Steam vor dem Spiel öffnen (Overlay und Erfolge)", "未找到 STEAM — 请先打开 Steam 再启动游戏（覆盖层与成就）", "STEAM が見つかりません — ゲームの前に Steam を起動してください（オーバーレイと実績）"],
 }
 
 IDI = ["en", "es", "fr", "de", "zh", "ja"]

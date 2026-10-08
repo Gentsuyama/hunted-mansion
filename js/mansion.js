@@ -495,41 +495,10 @@ function genFloor(seed, f) {
   floor.banheiros = rooms.filter(r => !r.fixed)
     .sort((a, b) => a.w * a.h - b.w * b.h).slice(0, 2);
 
-  // --- móveis por TIPO DE CÔMODO (não nas salas fixas): cada sala é um
-  // quarto, uma sala de estar, um escritório ou um depósito — a foto de um
-  // cômodo precisa fazer sentido como cômodo ---
-  const COMODOS = [
-    ["cama", "berco", "poltrona", "espelho", "bau", "cadeira"],          // quarto
-    ["sofa", "mesa", "piano", "poltrona", "relogio", "estante"],         // sala
-    ["escrivaninha", "estante", "cadeira", "relogio", "bau", "mesa"],    // escritório
-    ["bau", "estante", "cadeira", "mesa", "espelho", "sofa"],            // depósito
-  ];
-  const BANHO = ["espelho", "cadeira", "bau"];
-  for (const r of rooms) {
-    if (r.fixed) continue;
-    const typeNames = floor.banheiros.includes(r)
-      ? BANHO : COMODOS[rng() * COMODOS.length | 0];
-    const n = Math.min(5, 1 + (r.w * r.h / 70 | 0) + (rng() * 2 | 0));
-    for (let k = 0; k < n; k++) {
-      const tn = typeNames[rng() * typeNames.length | 0];
-      const ft = FURN_TYPES[tn];
-      const fx = r.x + 2 + (rng() * (r.w - ft.w - 4) | 0);
-      const fy = r.y + 2 + (rng() * (r.h - ft.h - 4) | 0);
-      // não sobrepor outro móvel nem tile especial
-      let ok = true;
-      for (let j = fy; j < fy + ft.h && ok; j++)
-        for (let i = fx; i < fx + ft.w && ok; i++)
-          if (furnGrid[j * COLS + i] !== 0 || g[j * COLS + i] !== T_FLOOR) ok = false;
-      if (!ok) continue;
-      const cells = [];
-      for (let j = fy; j < fy + ft.h; j++)
-        for (let i = fx; i < fx + ft.w; i++) {
-          furnGrid[j * COLS + i] = ft.id;
-          cells.push([i, j]);
-        }
-      floor.furn.push({ type: tn, x: fx + ft.w / 2, y: fy + ft.h / 2, cells });
-    }
-  }
+  // --- MÓVEIS: cada sala vira um cômodo com a lógica de uma casa (js/interiores.js);
+  // depois, a alcançabilidade REAL, com os móveis no chão ---
+  interioresMobilia(floor, g, rng);
+  interioresConfere(floor, g);
 
   // --- BANHEIROS (as 2 menores salas comuns) e TAPETES (saem na FOTO) ---
   {

@@ -2,7 +2,7 @@
 // ==================================================================
 // ÁUDIO — 100% sintetizado (sem assets)
 // ==================================================================
-let AC = null, master = null, droneG = null, droneLp = null;
+let AC = null, master = null;
 
 function initAudio() {
   if (AC) return;
@@ -10,18 +10,8 @@ function initAudio() {
     AC = new (window.AudioContext || window.webkitAudioContext)();
     master = AC.createGain(); master.gain.value = 0.55;
     master.connect(AC.destination);
-
-    // drone grave contínuo (a casa "nota" você: audioTensao abre o filtro)
-    const g = AC.createGain(); g.gain.value = 0.05;
-    const lp = AC.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 180;
-    droneG = g; droneLp = lp;
-    const o1 = AC.createOscillator(); o1.type = "triangle"; o1.frequency.value = 48;
-    const o2 = AC.createOscillator(); o2.type = "sine";     o2.frequency.value = 48.7;
-    o1.connect(lp); o2.connect(lp); lp.connect(g); g.connect(master);
-    const lfo = AC.createOscillator(); lfo.frequency.value = 0.07;
-    const lfoG = AC.createGain(); lfoG.gain.value = 0.03;
-    lfo.connect(lfoG); lfoG.connect(g.gain);
-    o1.start(); o2.start(); lfo.start();
+    // (o drone de 48 Hz que vivia aqui saiu em 2026-10-08: batia contra o ré da
+    // trilha e doía o ouvido — "a casa te notou" agora é a fundação da música)
     if (typeof musicaInit === "function") musicaInit();   // a trilha nasce junto
   } catch (e) { /* sem áudio, segue o jogo */ }
 }
@@ -34,12 +24,9 @@ function noiseBuf(sec) {
   for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   return (NOISE_BUFS[sec] = b);
 }
-// tensão 0..1: o drone engrossa e clareia quando algo te caça
+// tensão 0..1: a fundação da trilha clareia quando algo te caça (js/musica.js)
 function audioTensao(k) {
-  if (!AC || !droneG) return;
-  const t = AC.currentTime;
-  droneG.gain.setTargetAtTime(0.05 + 0.07 * k, t, 0.6);
-  droneLp.frequency.setTargetAtTime(180 + 380 * k, t, 0.6);
+  if (typeof musicaTensao === "function") musicaTensao(k);
 }
 // saída posicionada no estéreo (−1 esquerda … 1 direita), quando o navegador tem
 function panOut(pan) {

@@ -162,7 +162,7 @@ function hasLOS(x0, y0, x1, y1) {
 const SAVE_KEY = "hm_run";
 // muda quando a GERAÇÃO da casa muda: a mesma seed passa a dar outra mobília,
 // então um save antigo recolocaria o jogador dentro de um móvel
-const SAVE_V = 6;
+const SAVE_V = 7;    // 7: móveis com lógica de casa (a planta mudou)
 
 function saveRun() {
   if (!world) return;

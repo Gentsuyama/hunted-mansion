@@ -198,7 +198,10 @@ function mapaMoveis() {
     const ar = spr.width / spr.height;
     if (ar > dw / dh) dh = dw / ar; else dw = dh * ar;
     ctx.globalAlpha = Math.min(1, L * 1.3);
-    ctx.drawImage(spr, (fu.x - dw / 2) * C, (fu.y - dh / 2) * C, dw * C, dh * C);
+    if (fu.rot) {                                     // girado conforme a parede em que encosta
+      ctx.save(); ctx.translate(fu.x * C, fu.y * C); ctx.rotate(fu.rot * Math.PI / 2);
+      ctx.drawImage(spr, -dw / 2 * C, -dh / 2 * C, dw * C, dh * C); ctx.restore();
+    } else ctx.drawImage(spr, (fu.x - dw / 2) * C, (fu.y - dh / 2) * C, dw * C, dh * C);
   }
   ctx.globalAlpha = 1;
 }

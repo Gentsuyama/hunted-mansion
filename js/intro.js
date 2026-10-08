@@ -256,6 +256,17 @@ function drawTitle() {
     ctx.fillStyle = "rgba(210,210,210,0.85)";
     const atual = LANGS.find(l => l.id === LANG) || LANGS[0];
     ctx.fillText(tr("IDIOMA") + " · " + atual.nome, b.x + b.w / 2, b.y + b.h / 2 + 1, b.w - 16); }
+  // no executável: a Steam está aí? (sem ela não há overlay nem conquistas)
+  if (noDesktop()) {
+    const st = window.HM_DESKTOP.steam || {};
+    ctx.font = "11px 'HM Mono', 'HM CJK', 'Courier New', monospace";
+    ctx.textAlign = "right";
+    ctx.fillStyle = st.ok ? "rgba(150,210,150,0.7)" : "rgba(220,170,120,0.8)";
+    ctx.fillText(st.ok ? tf("STEAM: conectada como {0}", st.jogador || "?")
+                       : tr("STEAM NÃO ENCONTRADA — abra a Steam antes do jogo (overlay e conquistas)"),
+                 LANG_BTN.x + LANG_BTN.w, LANG_BTN.y - 8, 700);
+    ctx.textAlign = "center";
+  }
   // (cursor desenhado centralmente por drawCursor no render)
 }
 

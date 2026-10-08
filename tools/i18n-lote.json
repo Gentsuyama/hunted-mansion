@@ -1,20 +1,26 @@
 {
  "en": {
-  "SAIR": "QUIT"
+  "STEAM: conectada como {0}": "STEAM: connected as {0}",
+  "STEAM NÃO ENCONTRADA — abra a Steam antes do jogo (overlay e conquistas)": "STEAM NOT FOUND — open Steam before the game (overlay and achievements)"
  },
  "es": {
-  "SAIR": "SALIR"
+  "STEAM: conectada como {0}": "STEAM: conectado como {0}",
+  "STEAM NÃO ENCONTRADA — abra a Steam antes do jogo (overlay e conquistas)": "STEAM NO ENCONTRADO — abre Steam antes del juego (overlay y logros)"
  },
  "fr": {
-  "SAIR": "QUITTER"
+  "STEAM: conectada como {0}": "STEAM : connecté en tant que {0}",
+  "STEAM NÃO ENCONTRADA — abra a Steam antes do jogo (overlay e conquistas)": "STEAM INTROUVABLE — ouvrez Steam avant le jeu (overlay et succès)"
  },
  "de": {
-  "SAIR": "BEENDEN"
+  "STEAM: conectada como {0}": "STEAM: verbunden als {0}",
+  "STEAM NÃO ENCONTRADA — abra a Steam antes do jogo (overlay e conquistas)": "STEAM NICHT GEFUNDEN — Steam vor dem Spiel öffnen (Overlay und Erfolge)"
  },
  "zh": {
-  "SAIR": "退出"
+  "STEAM: conectada como {0}": "STEAM：已连接为 {0}",
+  "STEAM NÃO ENCONTRADA — abra a Steam antes do jogo (overlay e conquistas)": "未找到 STEAM — 请先打开 Steam 再启动游戏（覆盖层与成就）"
  },
  "ja": {
-  "SAIR": "終了"
+  "STEAM: conectada como {0}": "STEAM：{0} として接続中",
+  "STEAM NÃO ENCONTRADA — abra a Steam antes do jogo (overlay e conquistas)": "STEAM が見つかりません — ゲームの前に Steam を起動してください（オーバーレイと実績）"
  }
 }
