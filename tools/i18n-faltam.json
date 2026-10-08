@@ -1,11 +1,17 @@
 {
- "faltam": [],
+ "faltam": [
+  "analógico esq. mover · LT = correr (faz barulho) · analógico dir. lanterna · X ou RT FOTO · RB filme · LB álbum · Y diário · A usar",
+  "O DIÁRIO GANHOU UMA PÁGINA — [Y] para ler",
+  "UM DIÁRIO — [Y] para ler",
+  "LB RB folhear · B fecha",
+  "CONTROLE CONECTADO"
+ ],
  "porIdioma": {
-  "en": 0,
-  "es": 0,
-  "fr": 0,
-  "de": 0,
-  "zh": 0,
-  "ja": 0
+  "en": 5,
+  "es": 5,
+  "fr": 5,
+  "de": 5,
+  "zh": 5,
+  "ja": 5
  }
 }

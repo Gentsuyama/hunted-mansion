@@ -1354,7 +1354,9 @@ function drawHUD() {
       ctx.fillRect(96, canvas.height - 39, 138 * folego, 3);
     }
     ctx.fillStyle = "rgba(160,160,160,0.55)";
-    ctx.fillText(tr("WASD mover · toque duplo = correr (faz barulho) · mouse lanterna · botão direito FOTO · R filme · F álbum · J diário · E usar")
+    ctx.fillText(controle.ativo
+        ? tr("analógico esq. mover · LT = correr (faz barulho) · analógico dir. lanterna · X ou RT FOTO · RB filme · LB álbum · Y diário · A usar")
+        : tr("WASD mover · toque duplo = correr (faz barulho) · mouse lanterna · botão direito FOTO · R filme · F álbum · J diário · E usar")
                    .replace("WASD", TECLAS_ANDAR),
                  12, canvas.height - 14, canvas.width - 250);
   }
@@ -1394,7 +1396,8 @@ function drawHUD() {
     const nv = diarioNovas();
     drawDiarioIcone(28, invY, 7, nv > 0);
     ctx.fillStyle = nv > 0 ? "rgba(255,170,150,0.95)" : "rgba(190,180,160,0.7)";
-    ctx.fillText(nv > 0 ? "DIÁRIO — página nova [J]" : "DIÁRIO [J]", 48, invY);
+    ctx.fillText(tr(nv > 0 ? "DIÁRIO — página nova [J]" : "DIÁRIO [J]")
+                   .replace("[J]", controle.ativo ? "[Y]" : "[J]"), 48, invY);
   }
 
   // a câmera no canto (peças coletadas + filme dentro/fora)

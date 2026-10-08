@@ -10,10 +10,12 @@ function frame(now) {
   time += dt;
   frameDt = dt;
 
+  if (typeof controleUpdate === "function") controleUpdate(dt);   // gamepad vira teclado/mouse
   if (state === "play") update(dt);
   else if (state === "ritual") ritualUpdate(dt);
   if (typeof musicaUpdate === "function") musicaUpdate(dt);   // a trilha ouve o jogo
   render();
+  if (typeof controleDesenha === "function") controleDesenha();  // cursor do controle nos menus
   requestAnimationFrame(frame);
 }
 

@@ -110,7 +110,8 @@ function diarioEvento(id) {
   if (world.flags.diarioPego) {
     d.novas++;
     sfxPage();
-    toast(touchUI.seen ? "O DIÁRIO GANHOU UMA PÁGINA — toque no caderno para ler"
+    toast(controle.ativo ? "O DIÁRIO GANHOU UMA PÁGINA — [Y] para ler"
+        : touchUI.seen ? "O DIÁRIO GANHOU UMA PÁGINA — toque no caderno para ler"
                        : "O DIÁRIO GANHOU UMA PÁGINA — [J] para ler", 5);
   }
   if (id === "assinatura") diarioAssinou();
@@ -124,7 +125,8 @@ function diarioEntrega(comVinheta) {
   diarioEvento("inicio");
   d.novas = d.paginas.length;
   sfxPage();
-  toast(touchUI.seen ? "UM DIÁRIO — toque no caderno para ler" : "UM DIÁRIO — [J] para ler", 7);
+  toast(controle.ativo ? "UM DIÁRIO — [Y] para ler"
+      : touchUI.seen ? "UM DIÁRIO — toque no caderno para ler" : "UM DIÁRIO — [J] para ler", 7);
   livePush(liveRandUser(), "um DIÁRIO?? tava do lado da câmera… de quem é isso");
   livePush(liveRandUser(), "a letra é antiga. caneta-tinteiro. e as páginas tão quase todas em branco");
   liveFixo("leia com atenção.");
@@ -498,7 +500,8 @@ function drawDiario() {
   ctx.fillText("›", b.x + b.w + 50, b.y + b.h / 2);
   drawOverlayClose();
   ctx.font = "bold 11px 'HM Mono', 'HM CJK', 'Courier New', monospace"; ctx.fillStyle = "rgba(190,170,140,0.75)";   // na borda de couro
-  ctx.fillText(touchUI.seen ? "toque nas bordas para folhear" : "← → folhear · J ou ESC fecha", canvas.width / 2, b.y + b.h + 9);
+  ctx.fillText(controle.ativo ? "LB RB folhear · B fecha"
+             : touchUI.seen ? "toque nas bordas para folhear" : "← → folhear · J ou ESC fecha", canvas.width / 2, b.y + b.h + 9);
 }
 function diarioHit(mx, my) {
   if (overlayCloseHit(mx, my)) { state = diarioReturn; return; }
