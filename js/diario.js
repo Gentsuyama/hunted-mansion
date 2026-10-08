@@ -72,11 +72,16 @@ const DIARIO_PAGINAS = [
   { id: "tomas_ajuda", titulo: "Não sei onde escrevi isto",
     texto: ["Caí. Lembro do escuro e de uma voz de criança contando. O menino me achou antes que a casa me achasse, e levantei.",
             "Ele não devia ter se apegado: a casa cobra o que empresta. Da segunda vez que caí, ele não estava lá."] },
-  { id: "loucura", titulo: "Depois",
-    texto: ["Ouvi a casa falar com a minha voz. Vi vultos onde não havia vultos e li palavras que ninguém tinha escrito.",
-            "Foi a luz que me segurou: fiquei junto de uma vela acesa até a imagem parar de dobrar. É assim que ela começa a morar em alguém.",
-            "Da próxima vez, confesso, pensei em deixar. É mais rápido."],
-    oculto: "Eu estava quase dentro." },
+  // a página da LOUCURA (aparece quando a primeira começa): a letra desanda parágrafo a
+  // parágrafo — treme, cresce, engrossa, repete — para de repente num risco de tinta, e volta
+  // calma com a luz. É o diário ensinando sem instruir: quem escreveu passou por isto.
+  { id: "loucura", titulo: "Escrito no escuro", louco: true,
+    texto: ["A casa entrou na minha cabeça. Escrevo para não ouvir: a imagem dobra nos cantos e as paredes respiram quando não olho.",
+            "Há alguém atrás de mim desde o corredor. Não há ninguém. Há alguém atrás de mim.",
+            "ela fala com a minha voz ela fala com a minha voz sai da minha cabeça sai sai",
+            "noventa e oito noventa e nove ele me acha no cem no cem no cem no c"],
+    calmo: "… finalmente encontrei a luz. Ela me salvou dessa loucura que eu estava sentindo. Fiquei junto dela até a imagem parar de dobrar.",
+    oculto: "A voz era a minha." },
   { id: "final", titulo: "Ateliê",
     // "~eu~" é RISCADO na página: o deslize dele é a pista
     texto: ["Seis. Falta o último — ~eu~, o Fotógrafo. Espera no ateliê, e só o elevador chega lá.",
@@ -168,6 +173,8 @@ function diarioPaginaAberta(lado) {       // lado 0 = esquerda, 1 = direita
   const id = diarioFlags().paginas[diarioSpread * 2 + lado];
   return id ? DIARIO_IDS[id] : null;
 }
+// sinais que não abrem linha em chinês/japonês: ficam pendurados no fim da anterior
+const DIARIO_NAO_ABRE = "，。、：；！？）」』】〉》…・ーっゃゅょッャュョ";
 // quebra em linhas que cabem (idiomas sem espaço quebram por caractere)
 function diarioLinhas(g, txt, maxW) {
   const out = [];
@@ -181,7 +188,7 @@ function diarioLinhas(g, txt, maxW) {
       if (g.measureText(p).width <= maxW) { linha = p; continue; }
       let pedaco = "";                                   // palavra (ou frase chinesa) maior que a linha
       for (const ch of p) {
-        if (g.measureText(pedaco + ch).width > maxW && pedaco) { out.push(pedaco); pedaco = ""; }
+        if (g.measureText(pedaco + ch).width > maxW && pedaco && !DIARIO_NAO_ABRE.includes(ch)) { out.push(pedaco); pedaco = ""; }
         pedaco += ch;
       }
       linha = pedaco;
@@ -192,6 +199,7 @@ function diarioLinhas(g, txt, maxW) {
 }
 // desenha UMA página num contexto; devolve a altura usada
 function diarioDesenhaPagina(g, pg, x, y, w, h, opts) {
+  if (pg.louco) return diarioDesenhaPaginaLouca(g, pg, x, y, w, h, opts);
   opts = opts || {};
   const d = world.flags.diario || { revelado: false };
   const foto = diarioFotoPagina(pg);                     // a foto presa com clipe (se a página tem)
@@ -251,24 +259,7 @@ function diarioDesenhaPagina(g, pg, x, y, w, h, opts) {
     g.save(); g.translate(x + w - 10, Math.min(y + h - 30, yy + 26)); g.rotate(-0.06);
     g.textAlign = "right"; g.fillText("— Blackwood", 0, 0); g.restore();
   }
-  // a tinta escondida: aparece em TODAS as páginas quando a assinatura surge
-  if (d.revelado && !pg.assinado) {
-    g.save();
-    g.globalAlpha = 0.13;
-    g.font = "italic 44px 'HM Script', 'HM Script CJK', 'HM CJK', 'Segoe Script', 'Comic Sans MS', cursive";
-    g.fillStyle = "rgb(110,30,26)";
-    g.translate(x + w / 2, y + h / 2); g.rotate(-0.45);
-    g.textAlign = "center";
-    for (let k = -2; k <= 2; k++) g.fillText("Blackwood", 0, k * 120);
-    g.restore();
-    if (pg.oculto) {
-      g.font = "italic 21px 'HM Script', 'HM Script CJK', 'HM CJK', 'Segoe Script', 'Comic Sans MS', cursive";
-      g.fillStyle = "rgba(120,30,26,0.8)";
-      const ls = diarioLinhas(g, tr(pg.oculto), w);
-      let y2 = Math.min(y + h - 20 - (ls.length - 1) * 28, yy + 10);
-      for (const ln of ls) { g.fillText(ln, x + 6, y2); y2 += 28; }
-    }
-  }
+  if (d.revelado && !pg.assinado) diarioTintaOculta(g, pg, x, y, w, h, yy);
   if (foto) {                                           // no alto, à direita, presa pelo clipe na borda da página
     const fx = x + w - foto.width + 10, fy = y - 6;
     g.save();
@@ -296,7 +287,7 @@ function diarioLinhasVar(g, txt, larg) {
       if (g.measureText(p).width <= larg(out.length)) { linha = p; continue; }
       let pedaco = "";                                   // palavra (ou frase chinesa) maior que a linha
       for (const ch of p) {
-        if (g.measureText(pedaco + ch).width > larg(out.length) && pedaco) { out.push(pedaco); pedaco = ""; }
+        if (g.measureText(pedaco + ch).width > larg(out.length) && pedaco && !DIARIO_NAO_ABRE.includes(ch)) { out.push(pedaco); pedaco = ""; }
         pedaco += ch;
       }
       linha = pedaco;
@@ -304,6 +295,139 @@ function diarioLinhasVar(g, txt, larg) {
     out.push(linha);
   }
   return out;
+}
+// a tinta escondida: aparece em TODAS as páginas quando a assinatura surge (yy = onde o texto acabou)
+function diarioTintaOculta(g, pg, x, y, w, h, yy) {
+  g.save();
+  g.globalAlpha = 0.13;
+  g.font = "italic 44px 'HM Script', 'HM Script CJK', 'HM CJK', 'Segoe Script', 'Comic Sans MS', cursive";
+  g.fillStyle = "rgb(110,30,26)";
+  g.translate(x + w / 2, y + h / 2); g.rotate(-0.45);
+  g.textAlign = "center";
+  for (let k = -2; k <= 2; k++) g.fillText("Blackwood", 0, k * 120);
+  g.restore();
+  if (pg.oculto) {
+    g.font = "italic 21px 'HM Script', 'HM Script CJK', 'HM CJK', 'Segoe Script', 'Comic Sans MS', cursive";
+    g.fillStyle = "rgba(120,30,26,0.8)";
+    const ls = diarioLinhas(g, tr(pg.oculto), w);
+    let y2 = Math.min(y + h - 20 - (ls.length - 1) * 28, yy + 10);
+    for (const ln of ls) { g.fillText(ln, x + 6, y2); y2 += 28; }
+  }
+}
+// número "ao acaso" FIXO para cada n (mulberry32 contado do zero): o tremor da página louca
+// sai daqui, sempre igual — a letra não pode tremer quadro a quadro
+function diarioSorte(n) {
+  let t = Math.imul(n + 1, 0x6D2B79F5);
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+// a página da LOUCURA, escrita por quem estava enlouquecendo: parágrafo a parágrafo a letra
+// cresce, treme, engrossa e sai dobrada; para de repente num risco de tinta que escorre até
+// um borrão; um silêncio; e a letra volta calma, com a luz. Não tem foto presa.
+function diarioDesenhaPaginaLouca(g, pg, x, y, w, h, opts) {
+  opts = opts || {};
+  const d = world.flags.diario || { revelado: false };
+  const fonte = (s) => `italic ${s}px 'HM Script', 'HM Script CJK', 'HM CJK', 'Segoe Script', 'Comic Sans MS', cursive`;
+  const tinta = opts.tinta || "rgba(52,38,30,0.92)";
+  g.save();
+  g.textAlign = "left"; g.textBaseline = "alphabetic";
+  if (pg.titulo) {                                       // o cabeçalho, como nas páginas sem foto
+    g.font = fonte(15);
+    g.fillStyle = "rgba(90,70,50,0.7)";
+    g.textAlign = "right"; g.fillText(tr(pg.titulo), x + w, y + 14); g.textAlign = "left";
+    g.strokeStyle = "rgba(90,70,50,0.22)"; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(x + w * 0.45, y + 22); g.lineTo(x + w, y + 22); g.stroke();
+  }
+  // a diagramação para uma letra-base `tam`: o grau de cada parágrafo louco (0 → 1) aumenta a
+  // letra, a entrelinha e a sobra para o tremor; depois vêm a parada e o parágrafo calmo
+  const n = pg.texto.length;
+  const monta = (tam) => {
+    const lhB = tam * 1.38, loucos = [];
+    let alt = 0, lhUlt = lhB;
+    pg.texto.forEach((p, k) => {
+      const grau = n > 1 ? k / (n - 1) : 0;
+      const sz = tam * (1 + 0.28 * grau), lh = sz * (1.38 + 0.12 * grau);
+      g.font = fonte(sz);
+      const linhas = diarioLinhas(g, tr(p), w * (1 - 0.08 * grau));
+      const vao = k < n - 1 ? lh * (1 - 0.6 * grau) : 0;   // os parágrafos vão se amontoando
+      loucos.push({ grau, sz, lh, linhas, vao });
+      alt += linhas.length * lh + vao; lhUlt = lh;
+    });
+    const parada = 4 * lhB - lhUlt;                        // da última linha louca à primeira calma: o risco e o silêncio
+    const szC = tam * 0.95, lhC = szC * 1.38;
+    g.font = fonte(szC);
+    const calmo = pg.calmo ? diarioLinhas(g, tr(pg.calmo), w) : [];
+    alt += parada + calmo.length * lhC;                    // sem a linha em branco do fim: o silêncio já custou caro
+    return { lhB, loucos, parada, szC, lhC, calmo, alt };
+  };
+  let L = null;
+  for (let tam = 18; tam >= 12; tam -= 1.5) { L = monta(tam); if (L.alt <= h - 70) break; }
+  // a letra que desanda, desenhada letra a letra
+  let yy = y + 48, nc = 0, fim = null;                   // nc conta os sorteios: recomeça a cada desenho
+  const sorte = () => diarioSorte(nc++) * 2 - 1;         // de −1 a 1
+  g.fillStyle = tinta; g.strokeStyle = tinta; g.lineJoin = "round";
+  for (const B of L.loucos) {
+    g.font = fonte(B.sz); g.lineWidth = 0.7 * B.grau;
+    for (const ln of B.linhas) {
+      const incl = sorte() * 0.03 * B.grau;               // a linha inteira entorta
+      g.save(); g.translate(x, yy); g.rotate(incl);
+      let cx = 0;
+      for (const ch of Array.from(ln)) {
+        const larg = g.measureText(ch).width;
+        const dy = sorte() * 3 * B.grau, rot = sorte() * 0.15 * B.grau;
+        const esc = 1 + sorte() * 0.15 * B.grau, esp = sorte() * B.grau;
+        const dobra = sorte(), ang = sorte() * Math.PI;
+        if (ch.trim()) {
+          g.save(); g.translate(cx, dy); g.rotate(rot); g.scale(esc, esc);
+          g.fillText(ch, 0, 0);
+          if (B.grau > 0.3) g.strokeText(ch, 0, 0);          // a tinta engrossa
+          if (B.grau > 0.6 && dobra < -0.4) {                // a mão treme: ~30% das letras saem dobradas
+            g.globalAlpha *= 0.35;
+            g.fillText(ch, Math.cos(ang) * 1.5, Math.sin(ang) * 1.5);
+          }
+          g.restore();
+          fim = { x: cx + larg * esc, y: dy, incl, base: yy, sz: B.sz };
+          cx += larg * esc + esp;
+        } else cx += larg * (1 + 0.2 * B.grau) + Math.max(0, esp);   // o espaço nunca encolhe: as palavras não grudam
+      }
+      g.restore();
+      yy += B.lh;
+    }
+    yy += B.vao;
+  }
+  // a PARADA: a pena escorrega da última letra num risco que afina de 3 px a 0,5 px, para
+  // num borrão — e depois nada, por duas linhas
+  if (fim) {
+    const fx = fim.x - 1, fy = fim.y - fim.sz * 0.22;     // da linha torta para a página
+    const p0x = x + fx * Math.cos(fim.incl) - fy * Math.sin(fim.incl);
+    const p0y = fim.base + fx * Math.sin(fim.incl) + fy * Math.cos(fim.incl);
+    const p1x = Math.min(p0x + 1.5 * L.lhB, x + w + 26), p1y = p0y + 1.6 * L.lhB;
+    const c1x = p0x + (p1x - p0x) * 0.6, c1y = p0y + 0.15 * (p1y - p0y);
+    const nrm = (ax, ay) => { const l = Math.hypot(ax, ay) || 1; return [-ay / l, ax / l]; };
+    const [n0x, n0y] = nrm(c1x - p0x, c1y - p0y), [ncx, ncy] = nrm(p1x - p0x, p1y - p0y);
+    const [n1x, n1y] = nrm(p1x - c1x, p1y - c1y);
+    g.fillStyle = "rgba(52,38,30,0.8)";
+    g.beginPath();                                       // as duas bordas do risco, cada uma uma curva
+    g.moveTo(p0x + n0x * 1.5, p0y + n0y * 1.5);
+    g.quadraticCurveTo(c1x + ncx * 0.9, c1y + ncy * 0.9, p1x + n1x * 0.25, p1y + n1y * 0.25);
+    g.lineTo(p1x - n1x * 0.25, p1y - n1y * 0.25);
+    g.quadraticCurveTo(c1x - ncx * 0.9, c1y - ncy * 0.9, p0x - n0x * 1.5, p0y - n0y * 1.5);
+    g.closePath(); g.fill();
+    const a = Math.atan2(p1y - c1y, p1x - c1x), bx = p1x + Math.cos(a) * 2.5, by = p1y + Math.sin(a) * 2.5;
+    g.fillStyle = "rgba(52,38,30,0.18)";                 // a tinta que o papel bebeu em volta
+    g.beginPath(); g.ellipse(bx, by, 7.5, 5, a, 0, 7); g.fill();
+    g.fillStyle = "rgba(52,38,30,0.8)";
+    g.beginPath(); g.ellipse(bx, by, 5, 3, a, 0, 7); g.fill();
+  }
+  yy += L.parada;
+  // e a letra volta: calma, um pouco menor, a tinta mais clara
+  g.font = fonte(L.szC); g.fillStyle = "rgba(52,38,30,0.8)";
+  for (const ln of L.calmo) { if (ln) g.fillText(ln, x, yy); yy += L.lhC; }
+  yy += L.lhC;
+  if (d.revelado) diarioTintaOculta(g, pg, x, y, w, h, yy);
+  g.restore();
+  return yy - y;
 }
 // ------------------------------------------------------------------
 // as FOTOS presas com clipe: a coisa de que o relato fala, fotografada por quem escreveu
@@ -404,8 +528,8 @@ function diarioDesenhaLivro(g, spread, b) {
   const sp = g.createLinearGradient(meio - 30, 0, meio + 30, 0);           // o vinco
   sp.addColorStop(0, "rgba(40,28,16,0)"); sp.addColorStop(0.5, "rgba(40,28,16,0.55)"); sp.addColorStop(1, "rgba(40,28,16,0)");
   g.fillStyle = sp; g.fillRect(meio - 30, b.y, 60, b.h);
-  g.fillStyle = "rgba(120,30,30,0.85)";                                     // a fita marcadora
-  g.fillRect(meio + b.w / 2 - 70, b.y - 18, 14, 60);
+  g.fillStyle = "rgba(120,30,30,0.85)";                                     // a fita marcadora (na margem: não cobre o cabeçalho)
+  g.fillRect(meio + b.w / 2 - 40, b.y - 18, 14, 60);
   const mg = 48, pw2 = b.w / 2 - 6 - mg * 2;
   for (const lado of [0, 1]) {
     const id = d.paginas[spread * 2 + lado], pg = id ? DIARIO_IDS[id] : null;

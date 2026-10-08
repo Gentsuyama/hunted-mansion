@@ -141,6 +141,9 @@ function loucuraComeca() {
               tropecoT: 2.5, bateT: 0, rasgoT: 0, vozes: LOUCURA_VOZES.slice(), olhos: 0, gotas };
   sanity = 0; tremor = 1; shake = 1.5;
   sfxCarga(); sfxWhisper(); audioTensao(1);
+  // a primeira loucura escreve a sua página no diário (antes do aviso: o toast é de vaga única,
+  // e o aviso da luz não pode ser coberto — o caderno fica piscando com a página nova)
+  if (typeof diarioEvento === "function") diarioEvento("loucura");
   toast("A CASA ENTROU NA SUA CABEÇA — enquanto houver LUZ, você ainda é você", 7);
   livePush(liveRandUser(), "a imagem tá… DOBRANDO? você tá bem??");
   liveFixo("agora você ouve direito.");
@@ -218,7 +221,6 @@ function loucuraTermina(viva) {
   toast("VOCÊ RESPIRA. A CASA RECUA — POR ENQUANTO", 6);
   livePush(liveRandUser(), "voltou?? você ficou um minuto falando sozinho");
   liveFixo("quase.");
-  if (typeof diarioEvento === "function") diarioEvento("loucura");
   saveRun();
 }
 // um vulto (ou um par de olhos) no escuro, à vista — que não está lá

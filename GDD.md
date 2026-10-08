@@ -311,7 +311,7 @@ conteúdo. Constantes em `js/core.js` (`BOTE`, `ECO`, `SAN_*`, `LAMP_*`); lógic
   viram com a animação do álbum. Vem quase em branco e
   as páginas APARECEM conforme a casa é descoberta (tampa, lente, obturador,
   frasco, primeira sala secreta, primeiro vulto fotografado, a bancada, cada alma que acorda,
-  o Blackwood acordando, o menino que acode, a loucura vencida). É o guia do jogador — e é
+  o Blackwood acordando, o menino que acode, a primeira loucura). É o guia do jogador — e é
   do BLACKWOOD: conduz a prender os seis (queimar, nunca libertar: os livres o enfraquecem no
   ateliê), a encher o frasco "para ele" e, no fim, a SENTAR na cadeira com o negativo — a troca
   de corpo ("O Novo Fotógrafo"). Descoberta: capturado o Blackwood, a última página se
@@ -335,6 +335,8 @@ conteúdo. Constantes em `js/core.js` (`BOTE`, `ECO`, `SAN_*`, `LAMP_*`); lógic
      (cada alma da ampola é comida antes e compra 12 s). A LUZ segura: velas acesas e a
      lamparina (+6/s), cada clarão do flash (+10). Sanidade de volta a 30 = "você respira"
      (fica uma ferida). O tempo acaba = a queda e o ritual de sempre.
+     A PRIMEIRA loucura escreve no diário "Escrito no escuro" (`louco: true`): a letra desanda a cada
+     parágrafo (cresce, treme, engrossa, dobra), para num risco de tinta e, após um silêncio, volta calma com a luz.
 
 ## 14. O SANGUE NAS PAREDES E AS SAÍDAS DA LOUCURA (leva de 2026-10-08 — ideias do Rodolfo com ajustes meus)
 
