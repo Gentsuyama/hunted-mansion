@@ -1,14 +1,28 @@
 {
  "faltam": [
-  "STEAM: conectada como {0}",
-  "STEAM NÃO ENCONTRADA — abra a Steam antes do jogo (overlay e conquistas)"
+  "O ESPELHO NÃO QUEBRA — tem alguém dentro",
+  "QUEBRAR O ESPELHO",
+  "ACENDER COM O QUE RESTA DE VOCÊ",
+  "seta de sangue",
+  "isso é SANGUE?? tem uma SETA na parede… alguém desenhou isso",
+  "a casa escreve. já disse.",
+  "quando eu me escondia, fechava os olhos até passar",
+  "não olha o espelho. ou quebra antes que ele te olhe",
+  "o sangue na parede. agora você vê.",
+  "VOCÊ FECHOU OS OLHOS ATÉ PASSAR — mas ficou menos de você",
+  "ficou PARADO no escuro de olho fechado?? e… funcionou??",
+  "O ESPELHO QUEBROU — e levou um pedaço de você",
+  "QUEBROU O ESPELHO. sete anos de azar numa casa dessas, boa sorte",
+  "A VELA ACENDEU COM O QUE RESTA DE VOCÊ",
+  "acendeu com O QUÊ?? não tinha alma nenhuma na ampola",
+  "cada atalho encurta o corredor."
  ],
  "porIdioma": {
-  "en": 2,
-  "es": 2,
-  "fr": 2,
-  "de": 2,
-  "zh": 2,
-  "ja": 2
+  "en": 16,
+  "es": 16,
+  "fr": 16,
+  "de": 16,
+  "zh": 16,
+  "ja": 16
  }
 }

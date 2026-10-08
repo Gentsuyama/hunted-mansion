@@ -129,10 +129,16 @@ const LOUCURA_VOZES = [
   ["o_hospede", "me empresta o seu rosto. só um pouco"],
   ["aurora", "por quê? por quê? por quê?"],
   ["você", "sai da minha cabeça sai da minha cabeça sai da minha"],
+  ["tomas_1951", "quando eu me escondia, fechava os olhos até passar"],
+  ["cecilia_1948", "não olha o espelho. ou quebra antes que ele te olhe"],
+  ["estudio54", "o sangue na parede. agora você vê."],
 ];
 function loucuraComeca() {
-  loucura = { t: 0, dur: LOUCURA.dur, almaT: LOUCURA.alma, falsoT: 1.2, vultos: [], vozT: 3.5,
-              tropecoT: 2.5, bateT: 0, rasgoT: 0, vozes: LOUCURA_VOZES.slice() };
+  // cada atalho usado antes (olhos, espelho, vela sem alma) encurta a próxima loucura em 10 s (piso 30 s)
+  const dur = Math.max(30, LOUCURA.dur - 10 * (world.flags.loucuraAtalhos || 0));
+  const gotas = []; for (let i = 0; i < 14; i++) gotas.push([Math.random(), 0.4 + Math.random() * 0.9, Math.random() * 6.28]);
+  loucura = { t: 0, dur, almaT: LOUCURA.alma, falsoT: 1.2, vultos: [], vozT: 3.5,
+              tropecoT: 2.5, bateT: 0, rasgoT: 0, vozes: LOUCURA_VOZES.slice(), olhos: 0, gotas };
   sanity = 0; tremor = 1; shake = 1.5;
   sfxCarga(); sfxWhisper(); audioTensao(1);
   toast("A CASA ENTROU NA SUA CABEÇA — enquanto houver LUZ, você ainda é você", 7);
@@ -177,6 +183,12 @@ function loucuraUpdate(dt) {
   }
   L.bateT -= dt;
   if (L.bateT <= 0) { L.bateT = 0.46; sfxHeart(0.32); }
+  // FECHAR OS OLHOS: parado, no escuro, sem flash nem golpe, por 10 s — a casa perde o interesse
+  // (lê a ENTRADA, não a velocidade: os tropeços da loucura empurram o corpo sozinhos)
+  const quieto = semEntrada && !luzQueSegura() && flashT <= 0 && danoT <= 0;
+  L.olhos = quieto ? L.olhos + dt : Math.max(0, L.olhos - dt * 3);
+  if (L.olhos > 1) { pvx *= 0.9; pvy *= 0.9; }         // de olhos fechados o corpo para de tropeçar
+  if (L.olhos >= 10) { L.olhos = 0; loucuraAtalho("olhos"); }
   if (sanity >= LOUCURA.sai) { loucuraTermina(true); return; }
   if (L.t >= L.dur) loucuraTermina(false);
 }
@@ -249,12 +261,34 @@ function drawLoucuraTela() {
   if (L.rasgoT <= 0) { L.rasgoT = 0.25 + Math.random() * 0.9; L.rasgos = [];
     for (let i = 0; i < 4; i++) L.rasgos.push([Math.random() * H, 6 + Math.random() * 30, (Math.random() - 0.5) * 40]); }
   for (const [y, h, off] of L.rasgos || []) ctx.drawImage(canvas, 0, y, W, h, off, y, W, h);
-  // a vinheta que respira com o coração
+  // a BORDA VERMELHA: respira com o coração e AVANÇA para dentro conforme a loucura cresce
   const bat = 0.5 + 0.5 * Math.max(0, Math.sin(time * 13.6));
-  const vg = ctx.createRadialGradient(W / 2, H / 2, H * 0.25, W / 2, H / 2, H * 0.78);
-  vg.addColorStop(0, "rgba(40,0,0,0)");
-  vg.addColorStop(1, `rgba(60,4,6,${(0.55 + 0.25 * bat + 0.2 * (1 - falta)).toFixed(3)})`);
+  const p = Math.min(1, 1 - falta);
+  const rIn = H * (0.74 - 0.5 * p) - bat * H * 0.03, rOut = H * 0.98;
+  const vg = ctx.createRadialGradient(W / 2, H / 2, Math.max(10, rIn), W / 2, H / 2, rOut);
+  vg.addColorStop(0, "rgba(90,4,6,0)");
+  vg.addColorStop(0.55, `rgba(110,6,8,${(0.25 + 0.35 * p + 0.12 * bat).toFixed(3)})`);
+  vg.addColorStop(1, `rgba(70,2,4,${(0.65 + 0.3 * p).toFixed(3)})`);
   ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  // sangue escorrendo das bordas, mais comprido quanto pior
+  ctx.save(); ctx.lineCap = "round"; ctx.strokeStyle = `rgba(120,8,10,${(0.35 + 0.45 * p).toFixed(3)})`;
+  for (const [u, k, fase] of L.gotas) {
+    const len = H * (0.05 + 0.42 * p) * k * (0.85 + 0.15 * Math.sin(time * 0.9 + fase));
+    ctx.lineWidth = 3 + 5 * k * p;
+    if (u < 0.6) { const x = W * (u / 0.6); ctx.beginPath(); ctx.moveTo(x, -4); ctx.lineTo(x + Math.sin(fase) * 6, len); ctx.stroke(); }
+    else if (u < 0.8) { const y = H * ((u - 0.6) / 0.2); ctx.beginPath(); ctx.moveTo(-4, y); ctx.lineTo(len * 0.8, y + Math.sin(fase) * 6); ctx.stroke(); }
+    else { const y = H * ((u - 0.8) / 0.2); ctx.beginPath(); ctx.moveTo(W + 4, y); ctx.lineTo(W - len * 0.8, y + Math.sin(fase) * 6); ctx.stroke(); }
+  }
+  ctx.restore();
+  // as PÁLPEBRAS: parado no escuro, os olhos vão fechando (10 s)
+  if (L.olhos > 0.4) {
+    const k = Math.pow(Math.min(1, L.olhos / 10), 1.4), hh = H * 0.5 * k;
+    ctx.fillStyle = "rgba(0,0,0,0.96)";
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(W, 0); ctx.lineTo(W, hh * 0.85);
+    ctx.quadraticCurveTo(W / 2, hh * 1.25, 0, hh * 0.85); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(0, H); ctx.lineTo(W, H); ctx.lineTo(W, H - hh * 0.85);
+    ctx.quadraticCurveTo(W / 2, H - hh * 1.25, 0, H - hh * 0.85); ctx.closePath(); ctx.fill();
+  }
 }
 // a barra: o que resta de você (vermelha) e a luz que já te devolveu (clara)
 function drawLoucuraBarra(x, y, w, h, M) {

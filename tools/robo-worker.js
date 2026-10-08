@@ -32,7 +32,7 @@ self.requestAnimationFrame = () => 0;
 const V = "?v=" + Date.now();
 const JOGO = ["core", "plataforma", "i18n", "fontes", "lang/chaves", "audio", "musica", "sprites", "tex", "photo", "mansion", "interiores",
               "mapa", "game", "live", "souls", "puzzles", "ritual", "energia", "planta",
-              "album", "diario", "sanidade", "controle", "fx", "intro", "main"];
+              "album", "diario", "sanidade", "sangue", "controle", "fx", "intro", "main"];
 try {
   // o http.server do Python derruba um pedido de vez em quando com muitos workers
   // subindo juntos: cada script tenta até 4 vezes

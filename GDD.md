@@ -335,3 +335,38 @@ conteúdo. Constantes em `js/core.js` (`BOTE`, `ECO`, `SAN_*`, `LAMP_*`); lógic
      (cada alma da ampola é comida antes e compra 12 s). A LUZ segura: velas acesas e a
      lamparina (+6/s), cada clarão do flash (+10). Sanidade de volta a 30 = "você respira"
      (fica uma ferida). O tempo acaba = a queda e o ritual de sempre.
+
+## 14. O SANGUE NAS PAREDES E AS SAÍDAS DA LOUCURA (leva de 2026-10-08 — ideias do Rodolfo com ajustes meus)
+
+- **Setas de sangue** (`js/sangue.js`). A casa escreve nas paredes para onde a história segue:
+  `objetivoAtual()` (tampa → lente → marcas → cofre → obturador → ampola → bancada → retratos
+  acordados → fusíveis/quadro → chave → espelho da Cecília → sinal → ateliê → porta) e, quando o
+  objetivo é noutro andar, a escada ou o elevador. Até 5 setas por andar, nas curvas e bifurcações
+  do caminho da escada ao objetivo, 8 células entre uma e outra, sempre numa parede lateral. Em sã
+  consciência obedecem à **visão de cima abstrata**: o mapa não mostra nada; só a FOTO revela
+  (sprite de sangue escorrido de 160×110, pista "seta de sangue", o chat reage na primeira:
+  "isso é SANGUE?? tem uma SETA na parede…" / "a casa escreve. já disse.").
+- **Na loucura você vê o que não via.** As setas trocam de dono: deixam de apontar a história e
+  passam a apontar a **luz mais perto** (candelabro aceso ou apagável, lamparina) a partir de onde
+  você está, e BRILHAM no mapa (clarão vermelho pulsando, até 14 células) — a casa te mostra a
+  saída porque quer que você volte para ser pego de novo. Recalcula a cada 2 s.
+- **Três saídas novas da loucura**, além da luz com alma e do flash:
+  1. **Fechar os olhos** — parado (sem entrada de movimento), no escuro, sem flash nem golpe, por 10 s:
+     as pálpebras fecham na tela e a casa perde o interesse. De olhos fechados (mais de 1,5 s) o eco
+     não enxerga você nem dá o bote: vagueia e PASSA (é o que o Tomás fazia: "fechava os olhos até
+     passar"). Ao abrir, quem estava em cima vai embora gasto. Um golpe zera a contagem.
+  2. **Quebrar o espelho** — qualquer espelho da casa, só na loucura (`QUEBRAR O ESPELHO`); o da
+     Cecília, enquanto ela dorme, não quebra ("tem alguém dentro").
+  3. **Acender a vela com o que resta de você** — candelabro sem alma guardada, só na loucura.
+  **O preço** (pedido do Rodolfo: "quebrar a loucura com esses métodos diminui a barra"): a ferida de
+  sempre (teto −10) e a PRÓXIMA loucura 10 s mais curta (70 → 60 → 50 → … piso 30). Usar sempre o
+  atalho é uma espiral: menos tempo são, menos tempo para sair. Medido (lote 8): duas feridas por
+  atalho levavam o teto 60 ao piso 20 em dois usos — penhasco; ficou uma. Com dois atalhos o chat
+  fixo avisa: "cada atalho encurta o corredor."
+- **A borda vermelha** (`drawLoucuraTela`): a vinheta vira sangue que respira com o coração e AVANÇA
+  para o centro conforme a loucura cresce (raio interno de 0,74·H até 0,24·H), com gotas escorrendo
+  das três bordas, mais compridas quanto pior; o WebGL soma vinheta. De olhos fechando, duas pálpebras
+  pretas descem/sobem até se encontrarem.
+- Vozes novas da loucura: Tomás ("quando eu me escondia, fechava os olhos até passar"), Cecília ("não
+  olha o espelho. ou quebra antes que ele te olhe"), o estúdio ("o sangue na parede. agora você vê.").
+- O robô humano conhece as três saídas (`humLoucura`); resultados em `estudos/robo-humano-resultados.md`.

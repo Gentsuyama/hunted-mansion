@@ -164,6 +164,7 @@ function acenderVela(cd) {
   world.flags.almas--;
   world.flags.velas[cd.id] = n + 1;
   sfxVela();
+  if (typeof loucura !== "undefined" && loucura) sanity = Math.max(sanity, LOUCURA.sai);   // chegou na luz: volta
   if (!live.hinted.has("vela1")) {
     live.hinted.add("vela1");
     livePush(liveRandUser(), "FOGO AZUL?? isso não é fogo normal… e não apaga");

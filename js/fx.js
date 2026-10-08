@@ -171,6 +171,7 @@ function fxPerfil() {
     if (typeof loucura !== "undefined" && loucura) {
       const falta = 1 - loucura.t / loucura.dur;
       P.warp = 0.003 + 0.005 * (1 - falta); P.aber += 1.2 + 1.0 * (1 - falta); P.grao += 0.04; P.bloom += 0.2;
+      P.vinh += 0.35 * (1 - falta);
     }
   } else if (["album", "diario", "chat", "safe", "elevator", "fusebox", "darkroom", "win"].includes(s)) {
     P.grao = 0.012; P.vinh = 0.12; P.aber = 0.25; P.bloom = 0;       // papel e painéis: só a lente

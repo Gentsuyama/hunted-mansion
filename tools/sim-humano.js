@@ -1127,20 +1127,59 @@ function humLoucura() {
   if (typeof loucura === "undefined" || !loucura || state !== "play") return false;
   if (H.loucuraDecidiu === undefined || H.loucuraDecidiu !== loucura) {
     H.loucuraDecidiu = loucura; H.loucuraSabe = Math.random() < (H.p.luz || 0);
-    L(H.loucuraSabe ? "loucura: vai para a luz (flash)" : "loucura: não entendeu");
     H.st.loucuras = (H.st.loucuras || 0) + 1;
+    // o que ele vai tentar: flash se tem bateria; senão a luz que as setas mostram
+    // (candelabro deste andar), um espelho que já viu, ou fechar os olhos
+    let plano = "flash";
+    if (bateria <= 0) { humEnergia(); }
+    if (bateria <= 0) {
+      const cds = fl().candelabros || [];
+      const esp = fl().furn.filter(f => f.type === "espelho" && !f.quebrado);
+      const dCd = cds.length ? Math.min(...cds.map(c => hyp(c.x - player.x, c.y - player.y))) : 99;
+      const dEs = esp.length ? Math.min(...esp.map(f => hyp(f.x - player.x, f.y - player.y))) : 99;
+      plano = dCd < 22 ? "vela" : dEs < 14 ? "espelho" : "olhos";
+      if (Math.random() < 0.35) plano = "olhos";          // gente em pânico às vezes só para
+    }
+    H.loucuraPlano = plano;
+    L(H.loucuraSabe ? "loucura: entendeu, plano " + plano : "loucura: não entendeu");
   }
   if (!H.loucuraSabe) return false;
-  if (bateria <= 0) humEnergia();
-  if (bateria <= 0) return false;                 // sem carga não há luz: segue como der
-  if (flashCd <= 0) {
-    if (!world.flags.filmLoaded && world.flags.cam.tampa) toggleFilm();
-    takePhoto(); H.st.flashesLoucura = (H.st.flashesLoucura || 0) + 1;
+  const plano = H.loucuraPlano;
+  if (plano === "flash") {
+    if (bateria <= 0) humEnergia();
+    if (bateria <= 0) { H.loucuraPlano = "olhos"; return true; }
+    if (flashCd <= 0) {
+      if (!world.flags.filmLoaded && world.flags.cam.tampa) toggleFilm();
+      takePhoto(); H.st.flashesLoucura = (H.st.flashesLoucura || 0) + 1;
+    }
+    parar(); return true;
   }
+  if (plano === "vela") {                                  // segue as setas até a luz mais perto
+    const cds = fl().candelabros || [];
+    let alvo = null, bd = 1e9;
+    for (const c of cds) { const d = hyp(c.x - player.x, c.y - player.y); if (d < bd) { bd = d; alvo = c; } }
+    if (!alvo) { H.loucuraPlano = "olhos"; return true; }
+    const r = irLocal(alvo.x, alvo.y, 1.6, "luz");
+    if (r === "chegou") { updatePrompt(); if (prompt && prompt.action && prompt.text.indexOf("ACENDER") === 0) { prompt.action(); H.st.velasLoucura = (H.st.velasLoucura || 0) + 1; } }
+    if (r === "impossivel") H.loucuraPlano = "olhos";
+    return true;
+  }
+  if (plano === "espelho") {
+    const esp = fl().furn.filter(f => f.type === "espelho" && !f.quebrado);
+    let alvo = null, bd = 1e9;
+    for (const f of esp) { const d = hyp(f.x - player.x, f.y - player.y); if (d < bd) { bd = d; alvo = f; } }
+    if (!alvo) { H.loucuraPlano = "olhos"; return true; }
+    const r = irLocal(alvo.x, alvo.y, 1.8, "espelho");
+    if (r === "chegou") { updatePrompt(); if (prompt && prompt.action && prompt.text.indexOf("QUEBRAR") === 0) { prompt.action(); H.st.espelhosLoucura = (H.st.espelhosLoucura || 0) + 1; } else if (prompt && !prompt.action) H.loucuraPlano = "olhos"; }
+    if (r === "impossivel") H.loucuraPlano = "olhos";
+    return true;
+  }
+  parar();                                                  // "olhos": fica parado no escuro
+  if (H.olhosContou !== loucura) { H.olhosContou = loucura; H.st.olhosLoucura = (H.st.olhosLoucura || 0) + 1; }
   return true;
 }
 function agir() {
-  if (humLoucura()) { parar(); return; }
+  if (humLoucura()) return;
   if (!H.tarefa || H.tReal >= H.tDecide) {
     H.tDecide = H.tReal + 0.8;
     humEnergia();
@@ -1295,7 +1334,7 @@ function resumo() {
     marcos: H.st.marcos, despertas, livres, queimadas,
     fotos: H.st.fotos, flashes: H.st.flashes, filme: film, sustos: H.st.sustos,
     dano: Math.round(H.st.dano), sanMin: Math.round(H.st.sanMin),
-    errosBanho: H.st.errosBanho, dicasVistas: H.st.dicasVistas, loucuras: H.st.loucuras || 0, flashesLoucura: H.st.flashesLoucura || 0,
+    errosBanho: H.st.errosBanho, dicasVistas: H.st.dicasVistas, loucuras: H.st.loucuras || 0, flashesLoucura: H.st.flashesLoucura || 0, velasLoucura: H.st.velasLoucura || 0, espelhosLoucura: H.st.espelhosLoucura || 0, olhosLoucura: H.st.olhosLoucura || 0, atalhos: world.flags.loucuraAtalhos || 0, feridas: world.flags.feridas || 0,
     dicasIgnoradas: H.st.dicasIgnoradas, perdidas: H.st.perdidas,
     minSemFilme: +(H.st.tSemFilme / 60).toFixed(1),
     minOverlay: +(H.st.tOverlay / 60).toFixed(1), explorado: expl,
@@ -1390,12 +1429,15 @@ function tique() {
     } else agir();
   }
   aimSource = "stick"; aimDirStick = H.mira;
-  const s0 = sanity;
+  const s0 = sanity, louAntes = typeof loucura !== "undefined" && !!loucura;
   update(DT);
+  // a loucura acabou o tempo: a casa pega (o ritual começa sem ninguém ter batido)
+  if (louAntes && !loucura && state === "ritual") H.st.causa = "loucura (tempo)";
   if (sanity < s0 - 0.01) {
     H.st.dano += s0 - sanity;
     // quem está encostado? (para o relatório de causa da morte)
-    let quem = "flash do Blackwood", bd = 1.6;
+    // sem ninguém encostado: golpe à distância (o flash do Blackwood, uma alma de longe)
+    let quem = "golpe à distância", bd = 1.6;
     for (const g of fl().ghosts) {
       const d = hyp(g.x - player.x, g.y - player.y);
       if (g.respawn <= 0 && d < bd) { bd = d; quem = "eco"; }

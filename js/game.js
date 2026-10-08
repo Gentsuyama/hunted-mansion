@@ -99,6 +99,7 @@ let folego = 1, folegoT = 0, semFolego = false;
 let movModo = "parado";              // parado | furtivo | andar | correr (é o BARULHO)
 let movendo = false;
 let tremor = 0;                      // o susto fica no corpo por alguns segundos
+let semEntrada = true;               // true quando o jogador não está pedindo movimento
 let aimVis = 0;                      // direção VISUAL da lanterna (tem inércia)
 let vistoCd = 0, sinalT = 0;         // "fui visto": um som só para isso + queda de sinal
 let boteLivreT = 0, danoT = 0;       // intervalo entre botes · clarão vermelho do golpe
@@ -373,6 +374,21 @@ function updatePrompt() {
       return;
     }
   }
+  // na LOUCURA: quebrar um espelho encerra a loucura (e cobra caro)
+  if (loucura && typeof espelhoPerto === "function") {
+    const esp = espelhoPerto();
+    if (esp) {
+      const daCecilia = world.espelhoCecilia && world.espelhoCecilia.furn === esp &&
+                        world.flags.souls.cecilia && world.flags.souls.cecilia.state === "dormant";
+      prompt = daCecilia
+        ? { text: "O ESPELHO NÃO QUEBRA — tem alguém dentro", action: null }
+        : { text: "QUEBRAR O ESPELHO", action: () => {
+            esp.quebrado = true; sfxDry(); shake = 1.2; tremor = 1;
+            loucuraAtalho("espelho");
+          }};
+      return;
+    }
+  }
   // candelabros: alma guardada vira fogo azul — POR ÚLTIMO: a vela não pode roubar o
   // prompt da bancada, do retrato, do cofre ou dos fusíveis (achado pelo robô em 2026-10-08)
   for (const cd of fl().candelabros || []) {
@@ -382,7 +398,11 @@ function updatePrompt() {
       prompt = { text: "CANDELABRO ACESO — as cinco velas", action: null };
     else if (world.flags.almas > 0)
       prompt = { text: tf("ACENDER UMA VELA COM UMA ALMA ({0}/{1})", n, VELAS.max),
-                 action: () => acenderVela(cd) };
+                 action: () => { acenderVela(cd); if (loucura) sanity = Math.max(sanity, LOUCURA.sai); } };
+    else if (loucura)                              // na loucura a casa aceita acender com você
+      prompt = { text: "ACENDER COM O QUE RESTA DE VOCÊ", action: () => {
+          world.flags.velas[cd.id] = n + 1; sfxVela(); loucuraAtalho("vela");
+        }};
     else
       prompt = { text: tf("CANDELABRO — {0}/{1} velas (precisa de alma guardada)", n, VELAS.max),
                  action: null };
@@ -415,6 +435,7 @@ function update(dt) {
     mag = 1; toqueCorre = jm > 0.72;
   }
   if (mag === 0) corridaTap = false;
+  semEntrada = mag === 0;                 // ninguém mexendo: a loucura lê isto como "fechou os olhos"
   const querCorrer = mag > 0 &&
     (keys.has("ShiftLeft") || keys.has("ShiftRight") || corridaTap || toqueCorre);
   let alvoV = MOV.andar * mag, modo = "andar";
@@ -544,6 +565,9 @@ function update(dt) {
   const ruido = movModo === "correr" ? 1.5 : 0;
   const lamp = lampAcesa() ? world.lamp : null;
   const naLamp = !!lamp && Math.hypot(lamp.x - player.x, lamp.y - player.y) < LAMP_RAIO;
+  // de OLHOS FECHADOS na loucura (parado, no escuro) a casa perde o interesse: o eco
+  // não enxerga você nem dá o bote — ele passa. É o que o Tomás fazia.
+  const cego = typeof loucura !== "undefined" && !!loucura && loucura.olhos > 1.5;
   for (const g of gs) {
     if (g.respawn > 0) {
       g.respawn -= dt * (movModo === "correr" ? 2.2 : 1);   // correr acorda a casa
@@ -595,7 +619,7 @@ function update(dt) {
     // Uma vez atrás de você, só larga se a distância abrir um pouco (+2).
     const antes = g.chase;
     const ve = d < ECO.ve && hasLOS(g.x, g.y, player.x, player.y);
-    g.chase = !pac && !(g.gasto > 0) &&
+    g.chase = !pac && !cego && !(g.gasto > 0) &&
               ((attractT > 0 && d < ECO.atraiRaio) || ve || d < (antes ? percep + 2 : percep));
     if (g.chase && !antes && attractT <= 0 && vistoCd <= 0) {
       sfxVisto(); vistoCd = 8; sinalT = 1.3;   // UM som, UM significado: fui visto
@@ -613,7 +637,7 @@ function update(dt) {
       continue;
     }
     let tx, ty, sp;
-    const vagueia = pac || g.gasto > 0;    // andar manso, ou eco gasto depois do bote: vagueia
+    const vagueia = pac || g.gasto > 0 || cego;   // andar manso, eco gasto, ou você de olhos fechados: vagueia
     if (g.chase) {
       const suaVez = !emBote && boteLivreT <= 0 && !naLamp;
       if (!suaVez && d < BOTE.dist + 1.2) {   // perto, mas não é a vez dele: ronda em volta
@@ -658,6 +682,7 @@ function update(dt) {
   // zerou: o menino acode (uma vez) ou a loucura começa; a queda só vem depois dela
   if (sanity <= 0) { sanidadeZerou(); if (tomasEvt) return; }
   if (loucura) { loucuraUpdate(dt); if (state !== "play") return; }
+  if (typeof setasUpdate === "function") setasUpdate(dt);   // o sangue nas paredes segue a história (ou a luz)
   // sozinha, a cabeça só volta até certo ponto; o resto é com a lamparina
   if (!loucura && nearest > 10 && sanity < sanTeto())
     sanity = Math.min(sanTeto(), sanity + SAN_VOLTA * dt);
@@ -988,6 +1013,7 @@ function render() {
 
   drawTomasMundo();
   drawLoucuraMundo();
+  if (typeof drawSetasMapa === "function") drawSetasMapa();   // na loucura, as setas brilham no mapa
 
   // partículas
   ctx.font = "bold 11px 'HM Mono', 'HM CJK', 'Courier New', monospace";

@@ -797,6 +797,9 @@ function renderPhoto(px, py, dir, escuro) {
   // marcas com dígitos do cofre: SÓ a foto enxerga
   for (const mk of fl().marks)
     sprites.push({ x: mk.x, y: mk.y, kind: "mark", mk });
+  // as SETAS DE SANGUE que a casa escreve: só a foto lê (em sã consciência)
+  if (typeof setasFoto === "function")
+    for (const st of setasFoto()) sprites.push({ x: st.x, y: st.y, kind: "seta", seta: st });
   // retratos aprisionadores escondidos: SÓ a foto denuncia
   for (const r of world.retratos)
     if (r.floor === world.cur && !world.taken.has(r.id))
@@ -991,6 +994,23 @@ function renderPhoto(px, py, dir, escuro) {
       } else if (!nitida && bright > 0.25 && !live.hinted.has("lenteruim")) {
         live.hinted.add("lenteruim");
         livePush(liveRandUser(), "tem ALGO escrito aí mas a lente tá RACHADA… precisa de outra");
+      }
+    } else if (s.kind === "seta") {
+      const spr = setaSprite(s.seta.tela);
+      const hPx = Math.min(areaH * 0.8, 1.9 * cell);
+      const wPx = hPx * 1.45;
+      blitOccluded(cc, spr, zbuf, ty, centerX, yAt(3.7, ty), wPx, hPx,
+                   Math.min(1, 0.35 + k * 0.65), Wc, CWc, FR);
+      if (bright > 0.2 && Math.abs(sxCol - Wc / 2) < Wc * 0.45 && ty < zAqui + 0.6) {
+        fotoPista("seta de sangue", !s.seta.vista, "seta");
+        if (!s.seta.vista) {
+          s.seta.vista = true;
+          if (!live.hinted.has("seta1")) {
+            live.hinted.add("seta1");
+            livePush(liveRandUser(), "isso é SANGUE?? tem uma SETA na parede… alguém desenhou isso");
+            liveFixo("a casa escreve. já disse.");
+          }
+        }
       }
     } else if (s.kind === "ret") {
       const spr = retratoSprite(s.ret.soul);
