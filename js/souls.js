@@ -511,6 +511,7 @@ function soulsOnFlash(dir, fotoReal, comFlash) {
     if (fotoReal && temRetrato && world.flags.cam.obturador) {
       // CAPTURA: a alma é sugada para o próprio retrato
       soulFlags()[e.id].state = "captured";
+      conquista("alma_" + e.id);
       soulEnts.splice(i, 1);
       showVinheta("captura");          // quadrinho da 1ª alma presa
       sfxDissolve(); shake = 1.2;

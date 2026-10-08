@@ -1,0 +1,85 @@
+{
+  "name": "hunted-mansion-desktop",
+  "productName": "Hunted Mansion",
+  "version": "0.9.0",
+  "description": "Hunted Mansion — uma live na casa errada (edição desktop)",
+  "author": "Gentsuyama",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "dev": "node build.js dev",
+    "build:win": "node build.js win",
+    "build:linux": "node build.js linux",
+    "copia": "node build.js copia"
+  },
+  "dependencies": {
+    "@fishpondstudio/steamworks.js": "0.3.8"
+  },
+  "devDependencies": {
+    "electron": "42.11.12",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "io.github.gentsuyama.huntedmansion",
+    "productName": "Hunted Mansion",
+    "copyright": "Gentsuyama",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "conquistas.json",
+      "game/**",
+      "!game/Assets/**",
+      "!node_modules/@fishpondstudio/steamworks.js/dist/*/**",
+      "node_modules/@fishpondstudio/steamworks.js/dist/${os}64/**"
+    ],
+    "extraResources": [
+      {
+        "from": "game/Assets",
+        "to": "Assets"
+      }
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/@fishpondstudio/steamworks.js/**"
+    ],
+    "npmRebuild": false,
+    "nodeGypRebuild": false,
+    "electronFuses": {
+      "runAsNode": false,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "enableCookieEncryption": true,
+      "onlyLoadAppFromAsar": true
+    },
+    "win": {
+      "target": [
+        "dir"
+      ],
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": true
+    },
+    "linux": {
+      "target": [
+        "dir"
+      ],
+      "icon": "build/icon.png",
+      "category": "Game",
+      "executableName": "HuntedMansion"
+    },
+    "electronLanguages": [
+      "pt-BR",
+      "en-US",
+      "es",
+      "es-419",
+      "fr",
+      "de",
+      "zh-CN",
+      "ja"
+    ]
+  }
+}

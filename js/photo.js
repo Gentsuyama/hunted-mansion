@@ -100,6 +100,7 @@ function takePhoto() {
                   escuro: !comFlash, sepia: !!window._fotoSepia, quimica: window._fotoQuimica,
                   semFilme: !!FOTO.rapido };
     album.push(ent);
+    if (!FOTO.rapido) conquista("primeira_foto");
     albumLimita();
     if (typeof polaroidEjeta === "function") polaroidEjeta(cv);
     // a noiva apareceu no reflexo? (desperta DEPOIS da foto renderizada)

@@ -1,0 +1,5 @@
+node_modules/
+dist/
+game/
+steam_appid.txt
+*.log

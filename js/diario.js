@@ -138,6 +138,7 @@ function diarioAssinou() {
   const d = diarioFlags();
   if (d.revelado) return;
   d.revelado = true;
+  conquista("diario_assinatura");
   let dly = 1200;
   for (const [u, l] of [[null, "a última página do diário… apareceu uma ASSINATURA"],
                         [null, "Blackwood?? o diário era DELE esse tempo todo??"],

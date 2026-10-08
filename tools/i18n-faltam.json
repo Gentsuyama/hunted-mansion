@@ -1,15 +1,13 @@
 {
  "faltam": [
-  "EFEITOS VISUAIS: LIGADOS",
-  "EFEITOS VISUAIS: LEVES",
-  "EFEITOS VISUAIS: DESLIGADOS"
+  "SAIR"
  ],
  "porIdioma": {
-  "en": 3,
-  "es": 3,
-  "fr": 3,
-  "de": 3,
-  "zh": 3,
-  "ja": 3
+  "en": 1,
+  "es": 1,
+  "fr": 1,
+  "de": 1,
+  "zh": 1,
+  "ja": 1
  }
 }

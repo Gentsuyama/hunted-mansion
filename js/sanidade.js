@@ -35,6 +35,7 @@ function tomasPodeAcudir() {
 }
 function tomasAcode() {
   world.flags.tomasAcudiu = true;
+  conquista("tomas_acudiu");
   let x = player.x + 1.4, y = player.y + 0.5;
   for (let k = 0; k < 16 && isSolid(x | 0, y | 0); k++) {
     const a = Math.random() * 6.283; x = player.x + Math.cos(a) * 1.5; y = player.y + Math.sin(a) * 1.5;
@@ -200,6 +201,7 @@ function luzQueSegura() {
 function loucuraTermina(viva) {
   loucura = null;
   if (!viva) { casaPega(); return; }
+  conquista("loucura_sobreviveu");
   ferida(); tremor = 1; floorFadeT = 0.5; sfxSting();
   toast("VOCÊ RESPIRA. A CASA RECUA — POR ENQUANTO", 6);
   livePush(liveRandUser(), "voltou?? você ficou um minuto falando sozinho");

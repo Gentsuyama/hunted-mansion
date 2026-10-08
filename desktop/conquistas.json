@@ -1,0 +1,17 @@
+{
+  "_": "id usado no jogo (js/plataforma.js: conquista(id)) -> nome da API na Steamworks. Criar estes nomes em Stats & Achievements quando houver o App ID real.",
+  "primeira_foto": "FIRST_PHOTO",
+  "alma_tomas": "SOUL_TOMAS",
+  "alma_cecilia": "SOUL_CECILIA",
+  "alma_bento": "SOUL_BENTO",
+  "alma_olivia": "SOUL_OLIVIA",
+  "alma_hospede": "SOUL_GUEST",
+  "alma_aurora": "SOUL_AURORA",
+  "alma_blackwood": "SOUL_BLACKWOOD",
+  "final_alvorada": "ENDING_DAWN",
+  "final_cinzas": "ENDING_ASHES",
+  "final_fotografo": "ENDING_PHOTOGRAPHER",
+  "tomas_acudiu": "SAVED_BY_THE_BOY",
+  "loucura_sobreviveu": "BACK_FROM_MADNESS",
+  "diario_assinatura": "READ_THE_SIGNATURE"
+}

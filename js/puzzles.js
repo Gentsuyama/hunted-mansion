@@ -690,6 +690,7 @@ function winGame(tipo) {
     tipo = queimada ? "cinzas" : "alvorada";
   }
   world.endType = tipo;
+  conquista("final_" + tipo);
   if (tipo === "alvorada") {
     livePush(liveRandUser(), "eu tô CHORANDO, eles foram EMBORA JUNTOS");
     livePush(liveRandUser(), "melhor final da história das lives");

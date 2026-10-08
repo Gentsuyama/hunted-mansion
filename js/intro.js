@@ -155,11 +155,13 @@ try { noGhosts = localStorage.getItem("hm_noghosts") === "1"; } catch (e) {}
 const CHK_GHOST = { x: 26, y: 620, w: 28, h: 28, label: "testar sem fantasmas (modo puzzle)" };
 function titleButtons() {
   const hasSave = !!loadRunData();
-  const btns = [];
-  let y = 400;
-  if (hasSave) { btns.push({ id: "cont", x: 460, y, w: 280, h: 64, label: "RETOMAR A LIVE" }); y += 84; }
-  btns.push({ id: "new", x: 460, y, w: 280, h: 64, label: hasSave ? "NOVA LIVE" : "ENTRAR AO VIVO" }); y += 84;
-  btns.push({ id: "intro", x: 460, y, w: 280, h: 52, label: "REVER INTRO" });
+  const btns = [], desk = noDesktop();
+  let y = hasSave && desk ? 376 : 400;            // com quatro botões a coluna sobe um pouco
+  const passo = desk ? 80 : 84;
+  if (hasSave) { btns.push({ id: "cont", x: 460, y, w: 280, h: 64, label: "RETOMAR A LIVE" }); y += passo; }
+  btns.push({ id: "new", x: 460, y, w: 280, h: 64, label: hasSave ? "NOVA LIVE" : "ENTRAR AO VIVO" }); y += passo;
+  btns.push({ id: "intro", x: 460, y, w: 280, h: 52, label: "REVER INTRO" }); y += 62;
+  if (desk) btns.push({ id: "sair", x: 460, y, w: 280, h: 44, label: "SAIR" });   // só no executável
   return btns;
 }
 
@@ -273,6 +275,7 @@ function titleHit(px2, py2) {
     if (px2 >= b.x && px2 <= b.x + b.w && py2 >= b.y && py2 <= b.y + b.h) {
       if (b.id === "cont") continueRun();
       else if (b.id === "new") startCinematic(() => newRun());  // abertura SEMPRE
+      else if (b.id === "sair") plataformaSair();
       else startCinematic(null);                                // rever, volta ao título
       return;
     }
