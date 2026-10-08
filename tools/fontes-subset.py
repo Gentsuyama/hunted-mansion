@@ -72,10 +72,13 @@ def conjunto(tipo):
         return (chars_de("chaves.js", "en.js", "es.js", "fr.js", "de.js") | ascii_
                 | faixa(0xA0, 0x17F) | faixa(0x2010, 0x2027) | faixa(0x2030, 0x203A)
                 | faixa(0x2190, 0x2199) | {"•", "…", "×", "★", "☆", "♥"})
+    # CJK SEM o alfabeto latino: letras e dígitos ficam sempre com HM Mono/HM Script
+    # (senão, enquanto a Caveat carrega, o Long Cang responderia pelo 'a' e a tela
+    # mistura duas letras à mão)
     if tipo == "zh":
-        return chars_de("zh.js") | ascii_ | faixa(0x3000, 0x303F) | faixa(0xFF01, 0xFF5E)
+        return (chars_de("zh.js") - ascii_) | faixa(0x3000, 0x303F) | faixa(0xFF01, 0xFF5E)
     if tipo == "ja":
-        return (chars_de("ja.js") | ascii_ | faixa(0x3000, 0x303F) | faixa(0x3040, 0x30FF)
+        return ((chars_de("ja.js") - ascii_) | faixa(0x3000, 0x303F) | faixa(0x3040, 0x30FF)
                 | faixa(0xFF01, 0xFF5E))
     raise ValueError(tipo)
 

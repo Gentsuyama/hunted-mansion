@@ -1,17 +1,15 @@
 {
  "faltam": [
-  "analógico esq. mover · LT = correr (faz barulho) · analógico dir. lanterna · X ou RT FOTO · RB filme · LB álbum · Y diário · A usar",
-  "O DIÁRIO GANHOU UMA PÁGINA — [Y] para ler",
-  "UM DIÁRIO — [Y] para ler",
-  "LB RB folhear · B fecha",
-  "CONTROLE CONECTADO"
+  "EFEITOS VISUAIS: LIGADOS",
+  "EFEITOS VISUAIS: LEVES",
+  "EFEITOS VISUAIS: DESLIGADOS"
  ],
  "porIdioma": {
-  "en": 5,
-  "es": 5,
-  "fr": 5,
-  "de": 5,
-  "zh": 5,
-  "ja": 5
+  "en": 3,
+  "es": 3,
+  "fr": 3,
+  "de": 3,
+  "zh": 3,
+  "ja": 3
  }
 }

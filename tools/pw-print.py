@@ -41,8 +41,17 @@ with sync_playwright() as p:
     pg = b.new_page(viewport={"width": a.w, "height": a.h})
     erros = []
     pg.on("pageerror", lambda e: erros.append(str(e)))
-    pg.goto(a.url, wait_until="load", timeout=20000)
-    pg.wait_for_function("typeof state !== 'undefined' && typeof ECO_IMGS !== 'undefined'", timeout=15000)
+    # o http.server do Python às vezes derruba um dos ~40 pedidos paralelos e um script
+    # não carrega: confere o ÚLTIMO script (main.js) e recarrega se faltou algo
+    for tent in range(3):
+        try:
+            pg.goto(a.url + ("&r=%d" % tent if tent else ""), wait_until="load", timeout=30000)
+            pg.wait_for_function("typeof state !== 'undefined' && typeof ECO_IMGS !== 'undefined' && "
+                                 "typeof frame === 'function' && typeof toast === 'function' && "
+                                 "typeof showVinheta === 'function'", timeout=8000)
+            break
+        except Exception:
+            print("aviso: script faltando, recarregando (%d)" % (tent + 1))
     pg.wait_for_timeout(1500)
     if js:
         res = pg.evaluate("async () => { " + js + " }")

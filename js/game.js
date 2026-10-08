@@ -1541,6 +1541,7 @@ function toggleFullscreen() {
 window.addEventListener("keydown", e => {
   if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"].includes(e.code))
     e.preventDefault();
+  if (e.code === "F10") { e.preventDefault(); if (typeof fxAlterna === "function") fxAlterna(); return; }
 
   if (state === "ritual") return;
   if (state === "lang")  { langKey(e.code); return; }
