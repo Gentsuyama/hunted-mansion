@@ -34,8 +34,13 @@ const JOGO = ["core", "plataforma", "i18n", "fontes", "lang/chaves", "audio", "m
               "mapa", "game", "live", "souls", "puzzles", "ritual", "energia", "planta",
               "album", "diario", "sanidade", "controle", "fx", "intro", "main"];
 try {
-  importScripts(...JOGO.map(f => "../js/" + f + ".js" + V));
-  importScripts("sim.js" + V, "sim-humano.js" + V);
+  // o http.server do Python derruba um pedido de vez em quando com muitos workers
+  // subindo juntos: cada script tenta até 4 vezes
+  const carrega = (url) => { let erro = null;
+    for (let t = 0; t < 4; t++) { try { importScripts(url + (t ? "&r=" + t : "")); return; } catch (e) { erro = e; } }
+    throw erro; };
+  for (const f of JOGO) carrega("../js/" + f + ".js" + V);
+  carrega("sim.js" + V); carrega("sim-humano.js" + V);
   setLang("pt");
   SEM_ARQUIVO = true;
 } catch (e) {

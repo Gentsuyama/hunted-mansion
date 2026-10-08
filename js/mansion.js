@@ -557,7 +557,8 @@ function genFloor(seed, f) {
   // --- CANDELABROS: dois por andar, nas salas comuns (acendem com almas) ---
   floor.candelabros = [];
   {                                                  // um por sala, em salas diferentes (sorteadas)
-    const salas = rooms.filter(r => r.fixed !== "elev" && r.w >= 6 && r.h >= 6);
+    // (nunca no poço do elevador nem no quarto escuro: são apertados e têm a própria interação)
+    const salas = rooms.filter(r => r.fixed !== "elev" && r.fixed !== "dark" && r.w >= 6 && r.h >= 6);
     for (let i = salas.length - 1; i > 0; i--) { const j = rng() * (i + 1) | 0; [salas[i], salas[j]] = [salas[j], salas[i]]; }
     for (const r of salas) {
       if (floor.candelabros.length >= VELAS.porAndar) break;

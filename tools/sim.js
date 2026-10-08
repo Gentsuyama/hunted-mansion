@@ -45,7 +45,7 @@ function simWalk(path, st, maxSteps) {
   const dt = 1 / 30;
   for (let s = 0; s < maxSteps; s++) {
     // quadrinho de história no meio do caminho: o robô "clica" e segue andando
-    if (state === "vinheta") vinhetaAdvance();
+    simVinheta();
     if (state !== "play") return "stateChange";
     if (pi >= path.length) return "arrived";
     const [tx, ty2] = path[pi];
@@ -57,15 +57,21 @@ function simWalk(path, st, maxSteps) {
     if (!collides(nx, player.y)) player.x = nx;
     if (!collides(player.x, ny)) player.y = ny;
     simTick(st, dt);
-    if (state === "vinheta") vinhetaAdvance();
+    simVinheta();
     if (state !== "play") return "stateChange";
     if (st.caiu) { st.caiu = false; return "caiu"; }   // acordou no hall: a rota morreu
   }
   return "timeout";
 }
 
+// quadrinhos e eventos que seguram a tela: o robô "clica" (a vinheta segura 1 s de
+// jogo antes de aceitar o clique — o robô não espera) e deixa o Tomás contar até o fim
+function simVinheta() {
+  if (state === "vinheta") { vinT = -1e9; vinhetaAdvance(); }
+  if (typeof tomasEvt !== "undefined" && tomasEvt) { let g = 0; while (tomasEvt && g++ < 400) tomasEvtUpdate(0.25); }
+}
 function simTick(st, dt) {
-  if (state === "vinheta") vinhetaAdvance();   // o robô "clica" nos quadrinhos
+  simVinheta();   // o robô "clica" nos quadrinhos
   if (world.cur !== st.lastFloor) {
     st.trace.push("f" + st.lastFloor + ">" + world.cur);
     st.lastFloor = world.cur;
@@ -177,8 +183,9 @@ function simGotoFloor(st, target, budget) {
 function simElevatorTo(st, target) {
   if (world.cur === target) return true;
   if (!world.flags.elevatorOn) { st.trace.push("elevDesligado"); return false; }
-  // vai até o poço do andar atual (se estiver no topo, já nasce perto)
-  const ec = roomCenter(ELEV_ROOM);
+  // vai até o PISO DE CHAMADA (T_ELEV, em frente à grade) do andar atual —
+  // desde 2026-10-03 a grade fica num trecho de parede e o piso na frente dela
+  const el = fl().elev, ec = el ? { x: el.tile.x + 0.5, y: el.tile.y + 0.5 } : roomCenter(ELEV_ROOM);
   if (!simGotoPoint(st, ec.x, ec.y, 6000)) {
     st.trace.push("semCaminhoElev f" + world.cur); return false;
   }
@@ -188,7 +195,7 @@ function simElevatorTo(st, target) {
   if (state !== "elevator") { st.trace.push("overlayElevNaoAbriu"); return false; }
   const bp = elevBtnPos(target);
   elevatorHit(bp.x, bp.y);                // aperta o botão do andar
-  if (state === "vinheta") vinhetaAdvance();
+  simVinheta();
   for (let i = 0; i < 40 && state === "play"; i++) simTick(st, 1 / 30);
   return world.cur === target;
 }
@@ -230,7 +237,7 @@ function simPhotoAt(st, tx, ty2, pronto) {
     simEnergia(st);
     if (!world.flags.filmLoaded) toggleFilm();
     takePhoto();
-    if (state === "vinheta") vinhetaAdvance();
+    simVinheta();
   }
   return pronto ? !!pronto() : true;
 }
@@ -298,7 +305,7 @@ function simCaca(st, id) {
         simEnergia(st);
         if (!world.flags.filmLoaded) toggleFilm();
         takePhoto(); st.fotosDeAlma++;
-        if (state === "vinheta") vinhetaAdvance();
+        simVinheta();
       } else simTick(st, 1 / 30);
       guard--;
       continue;
@@ -329,7 +336,7 @@ function simResolveAlma(st, id, modo) {
         updatePrompt();
         if (prompt && prompt.action && prompt.text.includes("RETRATO"))
           prompt.action();
-        if (state === "vinheta") vinhetaAdvance();
+        simVinheta();
       }
       if (!world.taken.has(r.id)) { st.trace.push(id + ":semRetrato"); return false; }
     }
@@ -384,11 +391,12 @@ function simCacaEcos(st) {
 }
 
 // ------------------------------------------------------------------
-function simRun(policy, useNoGhosts) {
+function simRun(policy, useNoGhosts, seedFixa) {
   const prevNo = (typeof noGhosts !== "undefined") ? noGhosts : false;
   noGhosts = !!useNoGhosts;
   SEM_ARQUIVO = true;                    // as mortes do robô não entram no arquivo do canal
   newRun();
+  if (seedFixa !== undefined) { genWorld(seedFixa); state = "play"; }   // a mesma casa de novo
   noGhosts = prevNo;
   simAnda = "andar";                     // o robô move o jogador por fora: ele FAZ barulho de passo
 
@@ -434,7 +442,9 @@ function simRun(policy, useNoGhosts) {
     simCollectFilms(st);
     simPegaItem(st, "fuse1");
     const fb = fl().fusebox;
-    if (fb && simGotoPoint(st, fb.x, fb.y + 1.2, B)) {
+    // o quadro fica na parede norte OU sul do poço (lado da grade): aproxima por dentro
+    const fbDy = fb && fb.y < roomCenter(ELEV_ROOM).y ? 1.2 : -1.2;
+    if (fb && simGotoPoint(st, fb.x, fb.y + fbDy, B)) {
       updatePrompt(); if (prompt && prompt.action) prompt.action();
       if (state === "fusebox") {
         // painel novo: clica nos soquetes vazios e puxa a alavanca
@@ -533,7 +543,7 @@ function simRun(policy, useNoGhosts) {
           simGotoPoint(st, r.x, r.y, 4000);
           updatePrompt();
           if (prompt && prompt.action && prompt.text.includes("RETRATO")) prompt.action();
-          if (state === "vinheta") vinhetaAdvance();
+          simVinheta();
           simCaca(st, "blackwood");
           if (world.flags.souls.blackwood.state === "captured") {
             simGotoPoint(st, ATELIER_CADEIRA.x, ATELIER_CADEIRA.y + 0.5, 4000);
@@ -565,7 +575,7 @@ function simRun(policy, useNoGhosts) {
     if (s2.state === "burned") queimadas++;
   }
   return {
-    policy, noGhosts: !!useNoGhosts,
+    policy, noGhosts: !!useNoGhosts, seed: world.seed,       // seed: para reproduzir a casa
     outcome: state === "win" ? "VITÓRIA" : state === "dead" ? "MORTE"
              : "INCOMPLETA(" + state + ")",
     final: world.endType || "",

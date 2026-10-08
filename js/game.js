@@ -293,25 +293,8 @@ function updatePrompt() {
                  action: lampDescansa };
     return;
   }
-  // candelabros: alma guardada vira fogo azul
-  for (const cd of fl().candelabros || []) {
-    if (Math.hypot(cd.x - player.x, cd.y - player.y) >= 2.2) continue;
-    const n = world.flags.velas[cd.id] || 0;
-    if (n >= VELAS.max)
-      prompt = { text: "CANDELABRO ACESO — as cinco velas", action: null };
-    else if (world.flags.almas > 0)
-      prompt = { text: tf("ACENDER UMA VELA COM UMA ALMA ({0}/{1})", n, VELAS.max),
-                 action: () => acenderVela(cd) };
-    else
-      prompt = { text: tf("CANDELABRO — {0}/{1} velas (precisa de alma guardada)", n, VELAS.max),
-                 action: null };
-    if (!live.hinted.has("cande1")) {
-      live.hinted.add("cande1");
-      livePush(liveRandUser(), "será que não dá pra acender aquele castiçal? tá muito escuro!");
-    }
-    return;
-  }
-  // retrato aprisionador (depois que a foto o revelou)
+  // retrato aprisionador (depois que a foto o revelou) — ANTES do candelabro: um
+  // candelabro a 2 células do retrato escondia o 'PEGAR' (achado pelo robô em 2026-10-08)
   for (const r of world.retratos) {
     if (r.floor !== world.cur || world.taken.has(r.id)) continue;
     if (!world.flags.retSeen.includes(r.id)) continue;
@@ -389,6 +372,25 @@ function updatePrompt() {
         prompt = { text: tf("QUADRO DE FUSÍVEIS ({0}/3) — faltam fusíveis", total), action: null };
       return;
     }
+  }
+  // candelabros: alma guardada vira fogo azul — POR ÚLTIMO: a vela não pode roubar o
+  // prompt da bancada, do retrato, do cofre ou dos fusíveis (achado pelo robô em 2026-10-08)
+  for (const cd of fl().candelabros || []) {
+    if (Math.hypot(cd.x - player.x, cd.y - player.y) >= 2.2) continue;
+    const n = world.flags.velas[cd.id] || 0;
+    if (n >= VELAS.max)
+      prompt = { text: "CANDELABRO ACESO — as cinco velas", action: null };
+    else if (world.flags.almas > 0)
+      prompt = { text: tf("ACENDER UMA VELA COM UMA ALMA ({0}/{1})", n, VELAS.max),
+                 action: () => acenderVela(cd) };
+    else
+      prompt = { text: tf("CANDELABRO — {0}/{1} velas (precisa de alma guardada)", n, VELAS.max),
+                 action: null };
+    if (!live.hinted.has("cande1")) {
+      live.hinted.add("cande1");
+      livePush(liveRandUser(), "será que não dá pra acender aquele castiçal? tá muito escuro!");
+    }
+    return;
   }
 }
 
