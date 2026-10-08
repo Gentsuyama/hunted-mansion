@@ -1,20 +1,62 @@
 {
  "en": {
-  "Gelada, de prata, com um resíduo azul no fundo. Encaixou na câmera como se fosse dela.": "Ice-cold, silver, a blue residue at the bottom. It fitted the camera as if it belonged to it."
+  "analógico esq. mover · LT = correr (faz barulho) · analógico dir. lanterna · X ou RT FOTO · RB filme · LB álbum · Y diário · A usar": "left stick move · LT = run (it's loud) · right stick flashlight · X or RT PHOTO · RB film · LB album · Y diary · A use",
+  "O DIÁRIO GANHOU UMA PÁGINA — [Y] para ler": "THE DIARY GAINED A PAGE — [Y] to read",
+  "UM DIÁRIO — [Y] para ler": "A DIARY — [Y] to read",
+  "LB RB folhear · B fecha": "LB RB turn pages · B closes",
+  "CONTROLE CONECTADO": "CONTROLLER CONNECTED",
+  "EFEITOS VISUAIS: LIGADOS": "VISUAL EFFECTS: ON",
+  "EFEITOS VISUAIS: LEVES": "VISUAL EFFECTS: LIGHT",
+  "EFEITOS VISUAIS: DESLIGADOS": "VISUAL EFFECTS: OFF"
  },
  "es": {
-  "Gelada, de prata, com um resíduo azul no fundo. Encaixou na câmera como se fosse dela.": "Helada, de plata, con un residuo azul en el fondo. Encajó en la cámara como si fuera suya."
+  "analógico esq. mover · LT = correr (faz barulho) · analógico dir. lanterna · X ou RT FOTO · RB filme · LB álbum · Y diário · A usar": "stick izq. mover · LT = correr (hace ruido) · stick der. linterna · X o RT FOTO · RB película · LB álbum · Y diario · A usar",
+  "O DIÁRIO GANHOU UMA PÁGINA — [Y] para ler": "EL DIARIO GANÓ UNA PÁGINA — [Y] para leer",
+  "UM DIÁRIO — [Y] para ler": "UN DIARIO — [Y] para leer",
+  "LB RB folhear · B fecha": "LB RB pasar páginas · B cierra",
+  "CONTROLE CONECTADO": "MANDO CONECTADO",
+  "EFEITOS VISUAIS: LIGADOS": "EFECTOS VISUALES: ACTIVADOS",
+  "EFEITOS VISUAIS: LEVES": "EFECTOS VISUALES: LIGEROS",
+  "EFEITOS VISUAIS: DESLIGADOS": "EFECTOS VISUALES: DESACTIVADOS"
  },
  "fr": {
-  "Gelada, de prata, com um resíduo azul no fundo. Encaixou na câmera como se fosse dela.": "Glacée, en argent, un résidu bleu au fond. Elle s'est emboîtée dans l'appareil comme si elle lui appartenait."
+  "analógico esq. mover · LT = correr (faz barulho) · analógico dir. lanterna · X ou RT FOTO · RB filme · LB álbum · Y diário · A usar": "stick gauche déplacer · LT = courir (ça fait du bruit) · stick droit lampe · X ou RT PHOTO · RB pellicule · LB album · Y journal · A utiliser",
+  "O DIÁRIO GANHOU UMA PÁGINA — [Y] para ler": "LE JOURNAL A GAGNÉ UNE PAGE — [Y] pour lire",
+  "UM DIÁRIO — [Y] para ler": "UN JOURNAL — [Y] pour lire",
+  "LB RB folhear · B fecha": "LB RB tourner les pages · B ferme",
+  "CONTROLE CONECTADO": "MANETTE CONNECTÉE",
+  "EFEITOS VISUAIS: LIGADOS": "EFFETS VISUELS : ACTIVÉS",
+  "EFEITOS VISUAIS: LEVES": "EFFETS VISUELS : LÉGERS",
+  "EFEITOS VISUAIS: DESLIGADOS": "EFFETS VISUELS : DÉSACTIVÉS"
  },
  "de": {
-  "Gelada, de prata, com um resíduo azul no fundo. Encaixou na câmera como se fosse dela.": "Eiskalt, aus Silber, ein blauer Rückstand am Boden. Es passte in die Kamera, als gehörte es zu ihr."
+  "analógico esq. mover · LT = correr (faz barulho) · analógico dir. lanterna · X ou RT FOTO · RB filme · LB álbum · Y diário · A usar": "linker Stick gehen · LT = rennen (macht Lärm) · rechter Stick Taschenlampe · X oder RT FOTO · RB Film · LB Album · Y Tagebuch · A benutzen",
+  "O DIÁRIO GANHOU UMA PÁGINA — [Y] para ler": "DAS TAGEBUCH HAT EINE SEITE DAZUBEKOMMEN — [Y] zum Lesen",
+  "UM DIÁRIO — [Y] para ler": "EIN TAGEBUCH — [Y] zum Lesen",
+  "LB RB folhear · B fecha": "LB RB blättern · B schließt",
+  "CONTROLE CONECTADO": "CONTROLLER VERBUNDEN",
+  "EFEITOS VISUAIS: LIGADOS": "VISUELLE EFFEKTE: AN",
+  "EFEITOS VISUAIS: LEVES": "VISUELLE EFFEKTE: LEICHT",
+  "EFEITOS VISUAIS: DESLIGADOS": "VISUELLE EFFEKTE: AUS"
  },
  "zh": {
-  "Gelada, de prata, com um resíduo azul no fundo. Encaixou na câmera como se fosse dela.": "冰凉的，银制的，瓶底有一层蓝色残渣。它嵌进相机，就像本来就属于它。"
+  "analógico esq. mover · LT = correr (faz barulho) · analógico dir. lanterna · X ou RT FOTO · RB filme · LB álbum · Y diário · A usar": "左摇杆 移动 · LT = 奔跑（有声响） · 右摇杆 手电 · X 或 RT 拍照 · RB 胶卷 · LB 相册 · Y 日记 · A 使用",
+  "O DIÁRIO GANHOU UMA PÁGINA — [Y] para ler": "日记多了一页 — 按 [Y] 阅读",
+  "UM DIÁRIO — [Y] para ler": "一本日记 — 按 [Y] 阅读",
+  "LB RB folhear · B fecha": "LB RB 翻页 · B 关闭",
+  "CONTROLE CONECTADO": "手柄已连接",
+  "EFEITOS VISUAIS: LIGADOS": "视觉效果：开启",
+  "EFEITOS VISUAIS: LEVES": "视觉效果：轻度",
+  "EFEITOS VISUAIS: DESLIGADOS": "视觉效果：关闭"
  },
  "ja": {
-  "Gelada, de prata, com um resíduo azul no fundo. Encaixou na câmera como se fosse dela.": "氷のように冷たい銀製で、底に青い残滓。カメラにはめ込むと、まるで元からその一部だったかのように収まった。"
+  "analógico esq. mover · LT = correr (faz barulho) · analógico dir. lanterna · X ou RT FOTO · RB filme · LB álbum · Y diário · A usar": "左スティック 移動 · LT = 走る（音が出る） · 右スティック ライト · X か RT 撮影 · RB フィルム · LB アルバム · Y 日記 · A 使う",
+  "O DIÁRIO GANHOU UMA PÁGINA — [Y] para ler": "日記にページが増えた — [Y] で読む",
+  "UM DIÁRIO — [Y] para ler": "日記だ — [Y] で読む",
+  "LB RB folhear · B fecha": "LB RB ページをめくる · B で閉じる",
+  "CONTROLE CONECTADO": "コントローラー接続",
+  "EFEITOS VISUAIS: LIGADOS": "映像効果：オン",
+  "EFEITOS VISUAIS: LEVES": "映像効果：軽め",
+  "EFEITOS VISUAIS: DESLIGADOS": "映像効果：オフ"
  }
 }
