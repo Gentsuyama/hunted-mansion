@@ -45,12 +45,30 @@ function genWorld(seed) {
 
   // --- conteúdo especial da run ---
   // marcas com os dígitos (invisíveis no jogo, saem na FOTO): térreo, 1º, 3º
+  // (na parede NORTE de uma sala comum, num trecho SEM móvel na frente — com os
+  // interiores, uma estante encostada ali esconderia o dígito da foto)
+  function pontoDeParede(flo) {
+    for (let t = 0; t < 60; t++) {
+      const r = pickRoom(flo, rng);
+      const x = r.x + 2 + rng() * (r.w - 4), cx = x | 0;
+      let livre = true;
+      for (let dx = -1; dx <= 1 && livre; dx++) for (let dy = 0; dy <= 2 && livre; dy++) {
+        const id = (r.y + dy) * COLS + cx + dx;
+        if (flo.grid[id] !== T_FLOOR || flo.furnGrid[id]) livre = false;
+      }
+      if (flo.grid[(r.y - 1) * COLS + cx] !== T_WALL) livre = false;   // tem de haver parede atrás
+      if (livre) return { r, x };
+    }
+    const r = pickRoom(flo, rng), x = r.x + 2 + rng() * (r.w - 4);
+    clearFurnAround(flo, x, r.y + 1.6, 1);                           // último recurso: abre espaço
+    return { r, x };
+  }
   const markFloors = [1, 2, 4];
   for (let i = 0; i < 3; i++) {
     const flo = world.floors[markFloors[i]];
-    const r = pickRoom(flo, rng);
+    const { r, x } = pontoDeParede(flo);
     flo.marks.push({
-      x: r.x + 2 + rng() * (r.w - 4), y: r.y + 1.6,
+      x, y: r.y + 1.6,
       digit: world.code[i], ord: i + 1, seen: false,
     });
   }
@@ -188,8 +206,8 @@ function genWorld(seed) {
 
   // O SINAL do Hóspede: olho riscado numa parede, só sai na foto
   { const sf2 = [2, 3, 5][rng() * 3 | 0];
-    const r = pickRoom(world.floors[sf2], rng);
-    world.sinal = { floor: sf2, x: r.x + 2 + rng() * (r.w - 4), y: r.y + 1.6 }; }
+    const { r, x } = pontoDeParede(world.floors[sf2]);
+    world.sinal = { floor: sf2, x, y: r.y + 1.6 }; }
 
   // --- RETRATOS APRISIONADORES (um por alma; a foto denuncia) ---
   world.retratos = [];

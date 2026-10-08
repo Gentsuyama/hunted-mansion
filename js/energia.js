@@ -112,7 +112,9 @@ function fotoQueimaVulto(cv, m) {
   t.globalAlpha = 0.5; t.drawImage(tmp2, 0, 0); t.globalAlpha = 1;
   // borda macia (retângulo arredondado por dois degradês): o miolo cobre de verdade
   t.globalCompositeOperation = "destination-in";
-  const fx = Math.max(6, w * 0.14), fy = Math.max(6, h * 0.12);
+  // (vulto minúsculo: a borda não pode passar da metade, senão o degradê estoura [0,1]
+  //  e a conversão da alma morria num IndexSizeError — achado pelo robô em 2026-10-08)
+  const fx = Math.min(w / 2, Math.max(6, w * 0.14)), fy = Math.min(h / 2, Math.max(6, h * 0.12));
   const mh = t.createLinearGradient(0, 0, w, 0);
   mh.addColorStop(0, "rgba(0,0,0,0)"); mh.addColorStop(fx / w, "rgba(0,0,0,1)");
   mh.addColorStop(1 - fx / w, "rgba(0,0,0,1)"); mh.addColorStop(1, "rgba(0,0,0,0)");

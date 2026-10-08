@@ -172,10 +172,13 @@ function interioresComodo(floor, g, furnGrid, r, tipo, rng) {
             if (!paredeAtras(i, dir === DIR_N ? r.y : r.y + r.h - 1, dir)) ok = false;
             for (let j = y0; j < y0 + h && ok; j++) if (!livre(i, j)) ok = false;
           }
-          // respiro de uma célula entre peças (menos onde o cômodo é amontoado)
+          // respiro de uma célula entre peças e a FRENTE livre (menos onde o cômodo é amontoado):
+          // um espelho encaixotado num canto não dá foto nem acorda alma
           if (ok && !def.junto) {
             for (let j = y0; j < y0 + h; j++)
               if ((dentro(x0 - 1, j) && furnGrid[j * COLS + x0 - 1]) || (dentro(x0 + w, j) && furnGrid[j * COLS + x0 + w])) ok = false;
+            const jf = dir === DIR_N ? y0 + h : y0 - 1;
+            for (let i = x0 - 1; i <= x0 + w && ok; i++) if (dentro(i, jf) && furnGrid[jf * COLS + i]) ok = false;
           }
           if (ok) vagas.push([x0, y0]);
         }
@@ -190,6 +193,8 @@ function interioresComodo(floor, g, furnGrid, r, tipo, rng) {
           if (ok && !def.junto) {
             for (let i = x0; i < x0 + w; i++)
               if ((dentro(i, y0 - 1) && furnGrid[(y0 - 1) * COLS + i]) || (dentro(i, y0 + h) && furnGrid[(y0 + h) * COLS + i])) ok = false;
+            const ifr = dir === DIR_W ? x0 + w : x0 - 1;
+            for (let j = y0 - 1; j <= y0 + h && ok; j++) if (dentro(ifr, j) && furnGrid[j * COLS + ifr]) ok = false;
           }
           if (ok) vagas.push([x0, y0]);
         }

@@ -223,7 +223,8 @@ function simUnstick() {
 
 // fotografa um ALVO fixo (marca/espelho/sinal/retrato): acha ponto com visão
 function simPhotoAt(st, tx, ty2, pronto) {
-  for (const [ox, oy] of [[0,4],[0,-4],[4,0],[-4,0],[0,6],[3,3],[-3,3],[0,-6]]) {
+  // de longe primeiro (poupa sanidade); de perto quando o alvo está num canto mobiliado
+  for (const [ox, oy] of [[0,4],[0,-4],[4,0],[-4,0],[0,6],[3,3],[-3,3],[0,-6],[0,2],[0,-2],[2,0],[-2,0],[2,2],[-2,2],[2,-2],[-2,-2]]) {
     if (pronto && pronto()) return true;
     const px2 = tx + ox, py2 = ty2 + oy;
     if (isSolid(px2 | 0, py2 | 0)) continue;

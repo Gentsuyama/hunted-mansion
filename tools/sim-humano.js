@@ -41,19 +41,19 @@ const PERFIS = {
             chat: [0.30, 0.60, 0.92], leitura: 4.5, verFoto: 3.4, curiosa: 0.20,
             perdido: 0.20, ejeta: false, banho: 0.11, fotosDica: 2, olhada: 0.5,
             sabeLente: false, distFlash: 7.5, lamp: 25, soBote: false, atento: 0.72,
-            guarda: 0.35, bateriaMin: 0 },
+            guarda: 0.35, bateriaMin: 0, luz: 0.25 },
   medio:  { nome: "MÉDIO", reacao: 0.38, erroMira: 0.17, panico: 0.20, notar: 0.40,
             chat: [0.55, 0.85, 0.98], leitura: 3.0, verFoto: 2.4, curiosa: 0.10,
             perdido: 0.10, ejeta: true, banho: 0.08, fotosDica: 3, olhada: 0.75,
             sabeLente: false, distFlash: 5, lamp: 35, soBote: false, atento: 0.86,
-            guarda: 0.70, bateriaMin: 1 },
+            guarda: 0.70, bateriaMin: 1, luz: 0.65 },
   // já zerou: sabe as REGRAS (não a planta, que muda a cada run)
   veterano: { nome: "VETERANO", reacao: 0.26, erroMira: 0.10, panico: 0.06, notar: 0.60,
             chat: [0.92, 0.98, 1.0], leitura: 1.2, verFoto: 0.8, curiosa: 0.03,
             perdido: 0.04, ejeta: true, banho: 0.055, fotosDica: 4, olhada: 0.95,
             // sabe que o eco só fere no BOTE: não gasta flash em vulto que só ronda
             sabeLente: true, distFlash: 4, lamp: 45, soBote: true, atento: 0.95,
-            guarda: 0.95, bateriaMin: 2 },
+            guarda: 0.95, bateriaMin: 2, luz: 0.92 },
 };
 
 let H = null;
@@ -1120,7 +1120,27 @@ const EXEC = {
   },
 };
 
+// LOUCURA (sanidade zero): a casa suga a alma; a luz devolve. O jogador que
+// entendeu o aviso ("enquanto houver LUZ") dispara o flash (+10 por clarão) — cada
+// perfil entende com uma probabilidade; sem bateria, converte alma e recarrega
+function humLoucura() {
+  if (typeof loucura === "undefined" || !loucura || state !== "play") return false;
+  if (H.loucuraDecidiu === undefined || H.loucuraDecidiu !== loucura) {
+    H.loucuraDecidiu = loucura; H.loucuraSabe = Math.random() < (H.p.luz || 0);
+    L(H.loucuraSabe ? "loucura: vai para a luz (flash)" : "loucura: não entendeu");
+    H.st.loucuras = (H.st.loucuras || 0) + 1;
+  }
+  if (!H.loucuraSabe) return false;
+  if (bateria <= 0) humEnergia();
+  if (bateria <= 0) return false;                 // sem carga não há luz: segue como der
+  if (flashCd <= 0) {
+    if (!world.flags.filmLoaded && world.flags.cam.tampa) toggleFilm();
+    takePhoto(); H.st.flashesLoucura = (H.st.flashesLoucura || 0) + 1;
+  }
+  return true;
+}
 function agir() {
+  if (humLoucura()) { parar(); return; }
   if (!H.tarefa || H.tReal >= H.tDecide) {
     H.tDecide = H.tReal + 0.8;
     humEnergia();
@@ -1275,7 +1295,7 @@ function resumo() {
     marcos: H.st.marcos, despertas, livres, queimadas,
     fotos: H.st.fotos, flashes: H.st.flashes, filme: film, sustos: H.st.sustos,
     dano: Math.round(H.st.dano), sanMin: Math.round(H.st.sanMin),
-    errosBanho: H.st.errosBanho, dicasVistas: H.st.dicasVistas,
+    errosBanho: H.st.errosBanho, dicasVistas: H.st.dicasVistas, loucuras: H.st.loucuras || 0, flashesLoucura: H.st.flashesLoucura || 0,
     dicasIgnoradas: H.st.dicasIgnoradas, perdidas: H.st.perdidas,
     minSemFilme: +(H.st.tSemFilme / 60).toFixed(1),
     minOverlay: +(H.st.tOverlay / 60).toFixed(1), explorado: expl,
