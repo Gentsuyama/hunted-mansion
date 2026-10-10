@@ -615,10 +615,10 @@ function update(dt) {
     nearest = Math.min(nearest, d);
     g.bob += dt * 2.2;
     if (g.gasto > 0) g.gasto -= dt;
-    // O TOQUE: encostou, feriu. Sem aviso, sem golpe — só o frio de algo passando por dentro
+    // O TOQUE: encostou, tirou sanidade. Sem aviso, sem golpe — só o frio de algo passando por
+    // dentro. NÃO deixa ferida (o teto fica): ferida é das almas, do Blackwood e dos atalhos
     if (d < TOQUE.dist && !naLamp && !(g.gasto > 0) && !pac && !cego && toqueLivreT <= 0) {
       sanity -= TOQUE.dano; shake = 1.2; tremor = 1; danoT = 0.5;
-      ferida();
       sfxDamage(); sfxToque(); dmgSfxT = 0.5;
       world.flags.toques = (world.flags.toques || 0) + 1;
       toqueLivreT = TOQUE.pausa;

@@ -280,11 +280,12 @@ conteúdo. Constantes em `js/core.js` (`TOQUE` — antes `BOTE` —, `ECO`, `SAN
   demais); fotografado, some por 50–80 s; ele só se arrasta até você se você faz barulho.
 - **O TOQUE (2026-10-10 — substitui o bote de 2026-10-03).** O Rodolfo reprovou o "carregar e
   soltar uma magia" (inspirar, aro vermelho, golpe): o eco que caça vem DIRETO para cima de você e
-  SÓ ENCOSTAR já fere (`TOQUE`: a 1,05 célula, −16 de sanidade + ferida; fora da lamparina, nunca
-  manso, nunca de olhos fechados na loucura). Depois do toque ele sai para o escuro, gasto por 10 s,
-  e volta a caçar. Colado (< 2,2 células) ele se acende no mapa para dar para mirar; o flash empurra.
-  Medido (lotes 10/10b, `estudos/robo-humano-resultados.md`): com −20 o veterano venceu 4/28; com −16,
-  10/28 (o bote dava 26/28) — 38 a 49 toques por run. Calibragem pendente, decisão do Rodolfo.
+  SÓ ENCOSTAR já tira sanidade (`TOQUE`: a 1,05 célula, −10 de sanidade, SEM ferida; fora da
+  lamparina, nunca manso, nunca de olhos fechados na loucura). Depois do toque ele sai para o escuro,
+  gasto por 14 s, e volta a caçar. Colado (< 2,2 células) ele se acende no mapa para dar para mirar; o
+  flash empurra. Ferida (teto −10) ficou para o flash do Blackwood e as saídas da loucura: com ferida a
+  cada toque (~40 por run) o teto ia ao piso depois do 4º — lote 10, veterano 4/28. Sem ferida, −10 e
+  gasto 14 (lote 11b): 25 / 13 / 7 de 28 (o bote dava 26 / 16 / 10). Ver `estudos/robo-humano-resultados.md`.
 - **Feridas e lamparina.** A sanidade só volta sozinha até um teto (60). Cada golpe baixa o
   teto em 10 (marca âmbar na barra). A lamparina do hall de entrada cura tudo, tem 3 doses de
   óleo e cada descanso acorda mais um eco na casa. Os ecos não entram na luz dela. Quando o
