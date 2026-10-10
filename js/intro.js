@@ -1,6 +1,9 @@
 "use strict";
 // ==================================================================
-// INTRO em quadrinhos (6 painéis) + TELA DE TÍTULO
+// INTRO em quadrinhos (7 painéis) + TELA DE TÍTULO
+// Ordem da história: portão, live, porta aberta, a CÂMERA, o DIÁRIO ao lado dela,
+// e só então ele entra ("Bora") e a porta bate. (O diário era vinheta do começo da
+// run — aparecia depois da entrada, fora de ordem: Rodolfo, 2026-10-10.)
 // ==================================================================
 const CINE_PANELS = [
   { img: "Assets/Intro/intro1.jpg",
@@ -11,6 +14,9 @@ const CINE_PANELS = [
     cap: "…a porta também estava aberta." },
   { img: "Assets/Intro/intro4.jpg",
     cap: "\"Uma câmera antiga? …Parece NOVA. Quem deixou isso aqui?\"" },
+  // a mesma frase da vinheta (VIN_DEFS.diario): mesma chave de idioma
+  { img: "Assets/Vinhetas/diario.jpg",
+    cap: "Ao lado de onde a câmera estava, um diário. Quase todo em branco. Quase." },
   { img: "Assets/Intro/intro5.jpg",
     cap: "\"Bora. É só uma casa velha.\"" },
   { img: "Assets/Intro/intro6.jpg", cap: null, slam: true },

@@ -637,7 +637,11 @@ function newRun() {
   if (typeof liveReset === "function") liveReset();
   if (typeof corpoReset === "function") corpoReset();
   state = "play";
-  diarioEntrega(true);     // o diário veio junto com a câmera: a live começa com ele (e a vinheta)
+  // o diário veio junto com a câmera: a live começa com ele. O painel dele já passou
+  // na abertura (entre a câmera e a entrada), então a vinheta fica dada como vista
+  if (!world.flags.vinhetasVistas) world.flags.vinhetasVistas = [];
+  if (!world.flags.vinhetasVistas.includes("diario")) world.flags.vinhetasVistas.push("diario");
+  diarioEntrega(false);
   saveRun();
 }
 

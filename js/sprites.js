@@ -805,6 +805,7 @@ function keyBlackToAlpha(im) {
   const out = document.createElement("canvas");
   out.width = cw2; out.height = ch2;
   out.getContext("2d").drawImage(cv, minX, minY, cw2, ch2, 0, 0, cw2, ch2);
+  canvasSolta(cv);                     // o rascunho do tamanho da imagem inteira (core.js)
   return out;
 }
 function furnArt(name) { return FURN_IMGS[name] || furnSprite(name); }
@@ -1011,6 +1012,7 @@ function keyLumToAlpha(im) {
   out.width = cw2; out.height = ch2;
   out.getContext("2d").drawImage(cv, minX, minY, cw2, ch2, 0, 0, cw2, ch2);
   out._x0 = minX; out._y0 = minY; out._w0 = w; out._h0 = h;   // onde o recorte caiu na imagem original
+  canvasSolta(cv);
   return out;
 }
 const SOUL_IMGS = {};
@@ -1368,6 +1370,7 @@ function bancadaSprite() {
   g.fillStyle = halo; g.fillRect(bx - R, by - R, 2 * R, 2 * R);
   g.fillStyle = "rgba(255,200,170,0.95)";                          // o filamento
   g.beginPath(); g.ellipse(bx, by, cv.width * 0.012, cv.width * 0.016, 0, 0, 7); g.fill();
+  if (BANCADA_CACHE) canvasSolta(BANCADA_CACHE.cv);   // a versão de antes (uma por foto nova)
   BANCADA_CACHE = { chave, cv };
   return cv;
 }

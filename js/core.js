@@ -90,6 +90,29 @@ function hash(x, y, t) {
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
+// Safari antes do 16 (iPhone no iOS 15) e WebViews antigas não têm roundRect: o ícone
+// do diário no HUD o chama a cada quadro, e o erro parava o laço do jogo logo no início
+// da run. Reserva própria (raio único), só quando o navegador não tem.
+if (typeof CanvasRenderingContext2D !== "undefined" && !CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+    let k = Array.isArray(r) ? r[0] : r;
+    k = Math.max(0, Math.min(+k || 0, Math.abs(w) / 2, Math.abs(h) / 2));
+    this.moveTo(x + k, y);
+    this.arcTo(x + w, y, x + w, y + h, k);
+    this.arcTo(x + w, y + h, x, y + h, k);
+    this.arcTo(x, y + h, x, y, k);
+    this.arcTo(x, y, x + w, y, k);
+    this.closePath();
+  };
+}
+// Libera JÁ a memória de um canvas que não será mais usado. O Safari do iPhone tem
+// teto para a soma de todos os canvases ("Total canvas memory use exceeds the maximum
+// limit") e só devolve a de um canvas solto quando o coletor de lixo passa — enquanto
+// isso, canvas novo nasce SEM memória e tudo o que se desenha nele some.
+function canvasSolta(cv) {
+  if (cv && cv.width) { cv.width = 0; cv.height = 0; }
+}
+
 const IS_TOUCH = ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
 
 let state = "boot";          // lang | cine | title | play | album | diario | chat | safe |

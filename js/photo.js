@@ -48,11 +48,32 @@ function fotoPista(texto, nova, tipo) {
   if (nova) { window._fotoPistaAuto = true; if (!window._fotoFita) window._fotoFita = tipo || "manual"; }
 }
 
+// revela a foto; se ela não nascer, diz por quê em vez de só piscar. No celular uma foto
+// que falhasse sumia em silêncio (só o flash, e o rolo gasto): exceção no meio do desenho
+// (API que o navegador não tem) ou canvas sem memória (o Safari do iPhone tem teto para a
+// soma dos canvases — canvas novo nasce sem memória e a foto sai transparente)
+let FILME_ALFA = -1;                    // opacidade do 1º pixel do vidro, lida na revelação
+function fotoRevela(escuro) {
+  let cv;
+  FILME_ALFA = -1;
+  try { cv = renderPhoto(player.x, player.y, flashDir, escuro); }
+  catch (e) { return { erro: e && e.message ? (e.name || "Error") + ": " + e.message : String(e) }; }
+  // o vidro é pintado de preto opaco antes da cena: se a revelação o leu transparente,
+  // o canvas não guardou nada do que se desenhou nele
+  // (aspas simples: texto técnico, fica fora das chaves de idioma — tools/i18n-extrai.py)
+  if (FILME_ALFA >= 0 && FILME_ALFA < 128) { canvasSolta(cv); return { erro: 'out of canvas memory' }; }
+  return { cv };
+}
+function fotoFalhou(erro) {
+  console.error('Hunted Mansion: photo failed:', erro);
+  toast(tf("A FOTO NÃO SAIU — o rolo voltou ({0})", String(erro).slice(0, 46)), 8);
+}
+
 function takePhoto() {
   if (flashCd > 0) return;
   const cam = world.flags.cam;
   // FOTO REAL exige: tampa na câmera + filme CARREGADO (R põe/tira) + rolos
-  const fotoReal = cam.tampa && world.flags.filmLoaded && film > 0;
+  let fotoReal = cam.tampa && world.flags.filmLoaded && film > 0;
   // o FLASH exige bateria; sem ela, a foto sai no escuro (e sem foto, nada acontece)
   const comFlash = bateria > 0;
   if (!comFlash && !fotoReal) {
@@ -79,12 +100,21 @@ function takePhoto() {
     }
   }
 
+  let cv = null;
   if (fotoReal) {
-    film--;
-    photoCount++;
+    photoCount++;                       // (a legenda da foto já sai com o número)
     window._espelhoPend = -1; window._pianoPend = -1; window._fotoAlmas = [];
     window._fotoPistas = []; window._fotoPistaAuto = false; window._fotoFita = null;
-    const cv = renderPhoto(player.x, player.y, flashDir, !comFlash);
+    const rev = fotoRevela(!comFlash);
+    if (rev.erro) {                     // não saiu: o rolo não é gasto e o clarão vale como flash vazio
+      photoCount--; fotoReal = false;
+      fotoFalhou(rev.erro);
+      if (!comFlash) { saveRun(); return; }   // sem flash nem foto, nada mais acontece
+    } else cv = rev.cv;
+  }
+
+  if (fotoReal) {
+    film--;
     const ent = { cv, caption: `FOTO ${photoCount} · ${FLOOR_NAMES[world.cur]}`,
                   almas: 0, armazenadas: 0, marcas: [], t: world.timeSec,
                   pistas: window._fotoPistas.slice(), pista: window._fotoPistaAuto, fita: window._fotoFita,
@@ -449,7 +479,7 @@ function renderRealisticScene(c, px, py, FR, PW, PH, dirX, dirY, planeX, planeY,
 function filmePass(cv, x, y, iw, ih, sepia, escuro) {
   const c = cv.getContext("2d");
   filmeHalacao(c, cv, x, y, iw, ih, null);
-  filmePixels(c, x, y, iw, ih, sepia, escuro, null);
+  FILME_ALFA = filmePixels(c, x, y, iw, ih, sepia, escuro, null);
   const q = filmeQuimicaSorteia(x, y, iw, ih);
   filmeQuimicaDesenha(c, x, y, iw, ih, q, null);
   window._fotoQuimica = q;               // a foto guarda o sorteio: a conversão repete igual
@@ -507,8 +537,9 @@ function filmePixels(c, x, y, iw, ih, sepia, escuro, sub) {
   const sx = sub ? Math.max(x, sub.x) : x, sy = sub ? Math.max(y, sub.y) : y;
   const sw = sub ? Math.min(x + iw, sub.x + sub.w) - sx : iw;
   const sh = sub ? Math.min(y + ih, sub.y + sub.h) - sy : ih;
-  if (sw <= 0 || sh <= 0) return;
+  if (sw <= 0 || sh <= 0) return -1;
   const im = c.getImageData(sx, sy, sw, sh), p = im.data;
+  const alfa0 = p[3];                    // (o vidro é opaco: 0 aqui = canvas sem memória)
   const SAT = sepia ? 0 : 0.5;
   for (let yy = 0, i = 0; yy < sh; yy++) {
     let n = (sy - y + yy) * iw + (sx - x);
@@ -528,6 +559,7 @@ function filmePixels(c, x, y, iw, ih, sepia, escuro, sub) {
     }
   }
   c.putImageData(im, sx, sy);
+  return alfa0;
 }
 // 3) química: bordas mal reveladas, nuvens, vazamento de luz, poeira, fio
 function filmeQuimicaSorteia(x, y, iw, ih) {
@@ -641,8 +673,12 @@ function blitRuns(c, src, srcW, srcH, zbuf, ty, destX, topY, wPx, hPx, Wc, CWc, 
     const x0 = Math.max(destX, FR + run * CWc);
     const x1 = Math.min(destX + wPx, FR + col * CWc);
     if (x1 > x0) {
-      const sx0 = (x0 - destX) / wPx * srcW, sw = (x1 - x0) / wPx * srcW;
-      c.drawImage(src, sx0, 0, sw, srcH, x0, topY, x1 - x0, hPx);
+      // o recorte de origem nunca pode passar da borda do sprite: com origem CANVAS o
+      // WebKit (Safari) não desenha NADA se ele sai um fio para fora (o Chrome recorta) e
+      // a fatia sumia da foto; largura zero lá é exceção (IndexSizeError), por isso o "> 0"
+      const sx0 = (x0 - destX) / wPx * srcW;
+      const sw = Math.min((x1 - x0) / wPx * srcW, srcW - sx0);
+      if (sw > 0) c.drawImage(src, sx0, 0, sw, srcH, x0, topY, x1 - x0, hPx);
     }
     run = -1;
   }
@@ -1094,8 +1130,10 @@ function renderPhoto(px, py, dir, escuro) {
       m.fundo = recorte(cv2, fx, fy, fx1 - fx, fy1 - fy);
       m.vulto = recorte(m.lay, fx, fy, fx1 - fx, fy1 - fy);
     }
+    canvasSolta(m.lay);                  // camadas do tamanho da foto: só os recortes ficam
     m.lay = null;
   }
+  canvasSolta(cv2);
 
   // LENTE DO PASSADO: perto do lugar de uma alma, a foto volta décadas
   let passadoSpot = null;
