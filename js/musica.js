@@ -137,7 +137,7 @@ function musicaCenaAlvo() {
     if (g.respawn > 0) continue;
     const d = Math.hypot(g.x - player.x, g.y - player.y);
     perto = Math.min(perto, d);
-    if (g.bote || (g.chase && d < 10)) caca = true;
+    if (g.chase && d < 10) caca = true;
   }
   if (typeof soulEnts !== "undefined")
     for (const e of soulEnts) if (e.floor === world.cur)

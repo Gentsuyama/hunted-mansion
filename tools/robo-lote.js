@@ -4,7 +4,7 @@
 //   roboLote({ "sim:REVELADOR": 10, "sim:CRUEL": 10 });      // robô antigo
 //   roboStatus();          // andamento e resumo por perfil
 //   roboRes("medio");      // as runs de um perfil, uma por linha
-// opts.ajuste = { "ECO.deriva": 0.1, "BOTE.dano": 15 } muda constantes só no lote.
+// opts.ajuste = { "ECO.deriva": 0.1, "TOQUE.dano": 15 } muda constantes só no lote.
 window.roboLote = function (quantos, opts) {
   opts = opts || {};
   if (window.__robo) for (const w of window.__robo.ws) w.terminate();
@@ -53,7 +53,7 @@ window.roboStatus = function () {
   const por = {};
   for (const r of R.res) {
     const p = por[r.perfilLote] || (por[r.perfilLote] = { n: 0, vit: 0, morte: 0, tempo: 0, outro: 0,
-      minVit: [], minMorte: [], quedas: 0, desc: 0, dano: 0, botes: 0, flashes: 0, fotos: 0, minTot: 0, travou: {} });
+      minVit: [], minMorte: [], quedas: 0, desc: 0, dano: 0, toques: 0, flashes: 0, fotos: 0, fotosSeta: 0, minTot: 0, travou: {} });
     p.n++;
     const sim = r.outcome !== undefined;
     const fim = sim ? (r.outcome === "VITÓRIA" ? "VITÓRIA" : r.outcome === "MORTE" ? "MORTE" : "OUTRO") : r.fim;
@@ -63,7 +63,8 @@ window.roboStatus = function () {
     else if (fim === "TEMPO") p.tempo++; else p.outro++;
     if (fim !== "VITÓRIA") { const t = sim ? (r.outcome + " " + (r.trace || "")).slice(0, 40) : r.travou; p.travou[t] = (p.travou[t] || 0) + 1; }
     p.quedas += r.quedas || 0; p.desc += r.descansos || 0; p.dano += r.dano || 0;
-    p.botes += r.botes || 0; p.flashes += r.flashes || 0; p.fotos += r.fotos || 0; p.minTot += min || 0;
+    p.toques += r.toques || 0; p.flashes += r.flashes || 0; p.fotos += r.fotos || 0; p.minTot += min || 0;
+    p.fotosSeta += r.fotosSeta || 0;
   }
   const med = (a) => { if (!a.length) return null; const s = a.slice().sort((x, y) => x - y); return s[s.length >> 1]; };
   const out = {};
@@ -75,7 +76,9 @@ window.roboStatus = function () {
       morteMin: p.minMorte.length ? [Math.min(...p.minMorte), med(p.minMorte), Math.max(...p.minMorte)] : null,
       quedasPorRun: +(p.quedas / p.n).toFixed(2), descansosPorRun: +(p.desc / p.n).toFixed(2),
       danoPorMin: +(p.dano / Math.max(1, p.minTot)).toFixed(2),
-      botesPorMin: +(p.botes / Math.max(1, p.minTot)).toFixed(2),
+      toquesPorMin: +(p.toques / Math.max(1, p.minTot)).toFixed(2),
+      // fração das fotos que pegaram uma seta de sangue (só o robô humano conta)
+      fotosSeta: p.fotos ? +(p.fotosSeta / p.fotos).toFixed(3) : null, fotos: p.fotos,
       flashesPorMin: +((p.flashes + p.fotos) / Math.max(1, p.minTot)).toFixed(2),
       travou: p.travou,
     };
@@ -91,7 +94,7 @@ window.roboRes = function (perfil) {
   return R.res.filter(r => !perfil || r.perfilLote === perfil).map(r => r.outcome !== undefined
     ? [r.outcome, r.final, r.timeMin + "m", "quedas" + r.quedas, "desc" + r.descansos, "san" + r.sanityMin, r.error || r.trace].join(" ")
     : [r.fim, r.final, r.min + "m", "travou:" + r.travou, "quedas" + r.quedas, "desc" + r.descansos,
-       "dano" + r.dano, "botes" + r.botes, "filme" + r.filme, "livres" + r.livres, r.causa].join(" "));
+       "dano" + r.dano, "toques" + r.toques, "fotos" + r.fotos + "/seta" + r.fotosSeta, "filme" + r.filme, "livres" + r.livres, r.causa].join(" "));
 };
 // depuração: roda um trecho de código dentro de um worker novo (rápido, fora da aba)
 window.roboEval = function (codigo, maxMs) {

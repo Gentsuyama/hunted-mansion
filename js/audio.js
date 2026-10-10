@@ -258,37 +258,15 @@ function sfxVisto() {
   n.connect(f); f.connect(g2); g2.connect(master); n.start(t);
 }
 
-// O BOTE — o eco PUXA O AR (chiado que cresce e sobe, do lado de onde ele vem)…
-function sfxInspira(pan) {
-  if (!AC) return;
-  const t = AC.currentTime, T = BOTE.inspira, out = panOut(pan);
-  const n = AC.createBufferSource(); n.buffer = noiseBuf(1.5);
-  const f = AC.createBiquadFilter(); f.type = "bandpass"; f.Q.value = 2.2;
-  f.frequency.setValueAtTime(240, t);
-  f.frequency.exponentialRampToValueAtTime(2500, t + T);
-  const g = AC.createGain();
-  g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(0.22, t + T * 0.93);
-  g.gain.exponentialRampToValueAtTime(0.0001, t + T);
-  n.connect(f); f.connect(g); g.connect(out); n.start(t); n.stop(t + T + 0.05);
-  const o = AC.createOscillator(); o.type = "sine";
-  o.frequency.setValueAtTime(104, t);
-  o.frequency.exponentialRampToValueAtTime(340, t + T);
-  const g2 = AC.createGain();
-  g2.gain.setValueAtTime(0.0001, t);
-  g2.gain.exponentialRampToValueAtTime(0.1, t + T * 0.9);
-  g2.gain.exponentialRampToValueAtTime(0.0001, t + T);
-  o.connect(g2); g2.connect(out); o.start(t); o.stop(t + T + 0.05);
-}
-// …e SALTA: um rasgo de ar que desce
-function sfxBote() {
+// O TOQUE — o eco encostou: um sopro frio e curto que desce (sem carga, sem aviso)
+function sfxToque() {
   if (!AC) return;
   const t = AC.currentTime;
   const n = AC.createBufferSource(); n.buffer = noiseBuf(0.5);
-  const f = AC.createBiquadFilter(); f.type = "bandpass"; f.Q.value = 1.3;
-  f.frequency.setValueAtTime(2800, t);
-  f.frequency.exponentialRampToValueAtTime(170, t + 0.4);
-  n.connect(f); f.connect(envGain(0.36, 0.45)); n.start(t);
+  const f = AC.createBiquadFilter(); f.type = "bandpass"; f.Q.value = 1.5;
+  f.frequency.setValueAtTime(1500, t);
+  f.frequency.exponentialRampToValueAtTime(150, t + 0.38);
+  n.connect(f); f.connect(envGain(0.34, 0.42)); n.start(t);
 }
 // a lamparina: um fósforo e duas notas quentes que demoram a morrer
 function sfxLamparina() {

@@ -388,16 +388,10 @@ function mapaJogador(px, py, dir, passo, movendo, agachado, tremor) {
 function fumacaRuido(k, t) { return Math.sin(t * 1.7 + k * 12.9898) * 0.5 + Math.sin(t * 2.9 + k * 78.233) * 0.3 + Math.sin(t * 0.7 + k * 3.3) * 0.2; }
 function mapaVulto(x, y, L, bob, raio, rgb, caca, semOlhos, veu, fx) {
   const a = 0.3 + 0.6 * L;
-  const insp = fx && fx.insp !== undefined ? fx.insp : -1;   // 0..1: puxando o ar
   const ang = Math.atan2(y - player.y * CELL, x - player.x * CELL);   // de onde você o vê
   const t = time * 0.9 + bob;
   ctx.save();
   ctx.translate(x, y);
-  if (insp >= 0) {                                    // o AVISO: um aro que se fecha
-    ctx.strokeStyle = `rgba(255,74,60,${(0.22 + 0.6 * insp).toFixed(3)})`;
-    ctx.lineWidth = 1.2 + insp;
-    ctx.beginPath(); ctx.arc(0, 0, raio * (3.5 - 2.4 * insp), 0, 7); ctx.stroke();
-  }
   // halo frio bem fraco em volta (é o que diferencia as almas, pelo tom)
   const ag = ctx.createRadialGradient(0, 0, raio * 0.4, 0, 0, raio * 2.4);
   ag.addColorStop(0, `rgba(${rgb},${(a * 0.16).toFixed(3)})`);
@@ -406,7 +400,6 @@ function mapaVulto(x, y, L, bob, raio, rgb, caca, semOlhos, veu, fx) {
   ctx.fillRect(-raio * 2.4, -raio * 2.4, raio * 4.8, raio * 4.8);
   // a FUMAÇA: novelos pretos que fervem; os de trás (longe de você) se soltam e esgarçam
   const bx = -Math.cos(ang), by = -Math.sin(ang);            // "frente" = o lado virado para você
-  const sopro = insp >= 0 ? 1 - 0.25 * insp : 1;             // ao inspirar ela se contrai
   const novelo = (cx, cy, rr, al, cor) => {
     const c = cor || "6,4,8";
     const sg = ctx.createRadialGradient(cx, cy, 0, cx, cy, rr);
@@ -419,10 +412,10 @@ function mapaVulto(x, y, L, bob, raio, rgb, caca, semOlhos, veu, fx) {
   for (let i = 0; i < 11; i++) {                            // o corpo, da frente para a cauda
     const f = i / 10;
     const r1 = fumacaRuido(i, t), r2 = fumacaRuido(i + 40, t * 1.3);
-    const d = (f * 3.0 - 0.6) * raio * sopro;
+    const d = (f * 3.0 - 0.6) * raio;
     const lado = r1 * raio * (0.45 + f * 1.1);
     const cx = -bx * d - by * lado, cy = -by * d + bx * lado;
-    novelo(cx, cy, raio * (1.1 - f * 0.65) * (0.8 + 0.25 * r2) * sopro, Math.min(1, a * (1 - f * 0.8) * (0.75 + 0.25 * r1)));
+    novelo(cx, cy, raio * (1.1 - f * 0.65) * (0.8 + 0.25 * r2), Math.min(1, a * (1 - f * 0.8) * (0.75 + 0.25 * r1)));
   }
   for (let i = 0; i < 6; i++) {                             // a borda fervendo: novelos pequenos em volta
     const r1 = fumacaRuido(i + 20, t * 1.6), r2 = fumacaRuido(i + 60, t);
@@ -463,11 +456,11 @@ function mapaVulto(x, y, L, bob, raio, rgb, caca, semOlhos, veu, fx) {
     ctx.stroke();
   }
   // os OLHOS: dois pontos vermelhos dentro da fumaça, virados para você; brasa que pulsa
-  // e, quando ele puxa o ar, cresce e acende de vez
+  // (mais acesa quando ele caça)
   if (!semOlhos) {
     const pulso = 0.75 + 0.25 * Math.sin(time * 5.3 + bob * 3);
-    const forca = insp >= 0 ? 0.9 + 0.5 * insp : (caca ? 0.85 : 0.55) * pulso;
-    const ke = raio * (0.17 + (insp >= 0 ? 0.09 * insp : 0));
+    const forca = (caca ? 0.85 : 0.55) * pulso;
+    const ke = raio * 0.17;
     const ox = bx * raio * 0.3, oy = by * raio * 0.3;            // um pouco à frente do centro
     const ex = -by * raio * 0.3, ey = bx * raio * 0.3;            // separação, perpendicular
     novelo(ox, oy, raio * 0.75, Math.min(1, a * 0.3 * forca), "255,60,40");   // a brasa acende a fumaça por dentro
@@ -608,17 +601,20 @@ function hudChave(x, y, tem) {
 
 // (a memória de planta — paredes já vistas em cinza — foi retirada em 2026-10-03)
 
-// a cabeça no chão vê o que não está lá: um par de olhos no escuro
+// a cabeça vê o que não está lá: um par de olhos no escuro, que PISCA uma vez
 function mapaOlhosFalsos(f) {
   const a = Math.min(1, f.t / 0.25) * Math.min(1, (f.dur - f.t) / 0.3);
   if (a <= 0) return;
+  // a piscada: as pálpebras descem e sobem em ~0,16 s (abertura 1 = aberto)
+  const pk = f.pisca !== undefined ? Math.abs(f.t - f.pisca) / 0.08 : 9;
+  const abre = pk < 1 ? Math.max(0.1, pk) : 1;
   ctx.save();
   ctx.translate(f.x * CELL, f.y * CELL);
   ctx.shadowColor = "rgba(255,60,40,0.9)"; ctx.shadowBlur = 8;
   ctx.fillStyle = `rgba(255,92,70,${(0.85 * a).toFixed(3)})`;
   ctx.beginPath();
-  ctx.ellipse(-2.0, 0, 1.3, 1.7, 0, 0, 7);
-  ctx.ellipse(2.0, 0, 1.3, 1.7, 0, 0, 7);
+  ctx.ellipse(-2.0, 0, 1.3, 1.7 * abre, 0, 0, 7);
+  ctx.ellipse(2.0, 0, 1.3, 1.7 * abre, 0, 0, 7);
   ctx.fill();
   ctx.restore();
 }

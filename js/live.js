@@ -272,7 +272,8 @@ function liveTick(dt) {
   if (live.viewers > live.pico) live.pico = live.viewers;
 
   // mensagens genéricas — no pico da tensão, o chat se cala
-  const tenso = bossWarnT > 0 || fl().ghosts.some(g => g.bote && g.respawn <= 0);
+  const tenso = bossWarnT > 0 || fl().ghosts.some(g => g.chase && g.respawn <= 0 &&
+    Math.hypot(g.x - player.x, g.y - player.y) < 3);           // um eco vindo reto, quase encostando
   if (!tenso) live.msgT -= dt;
   if (live.msgT <= 0) {
     live.msgT = (4 + Math.random() * 7) * (tom === 3 ? 3.5 : tom === 2 ? 1.6 : 1);

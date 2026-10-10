@@ -24,9 +24,15 @@ const DIARIO_PAGINAS = [
     texto: ["Achei a tampa do filme a dois passos de onde a câmera caiu, como se tivesse esperado por mim. Com ela a câmera fechou, e pela primeira vez a foto guardou algo além do clarão.",
             "Fotografei a parede do corredor por desespero e a emulsão mostrou um número riscado que meus olhos nunca viram. A casa escreve nas paredes.",
             "Gastei três rolos fotografando o escuro vazio antes de aprender. A casa repõe o filme, mas devagar — e sempre longe de onde estou."] },
+  // a primeira SETA DE SANGUE que sai numa foto
+  { id: "seta", titulo: "Corredor do térreo",
+    texto: ["A foto revelou o que o corredor escondia: uma seta na parede, de sangue, traçada com o dedo e ainda escorrendo. Eu tinha passado a mão ali um minuto antes, procurando onde me apoiar.",
+            "Fotografei a parede seguinte, e a do canto. Cada uma tinha a sua, e todas apontavam para onde eu ainda não tinha ido. Segui, porque não havia mais nada a seguir.",
+            "Parecia que alguém queria me mostrar para onde eu deveria ir."],
+    oculto: "Fui eu quem desenhou." },
   { id: "vulto", titulo: "Corredor, não sei qual",
     texto: ["Havia um deles no fim do corredor. Não é dos sete: é um resto, um hóspede que a casa não achou digno de moldura.",
-            "Veio na minha direção sem pressa e sem desistir. Corri; quando parei, ele ainda vinha. Chegou colado e puxou o ar — e aí já era tarde para andar. O clarão o tirou de cima de mim.",
+            "Veio na minha direção sem pressa e sem desistir. Corri; quando parei, ele ainda vinha. Encostou em mim — frio, por dentro, como se levasse um pedaço. O clarão o tirou de cima de mim, e ele voltou assim que pôde.",
             "Não senti pena. Não há rosto ali para se ter pena."] },
   { id: "ampola", titulo: "Primeiro andar",
     texto: ["Tropecei no frasco. Prata, gelado, um resíduo azul no fundo; encaixou na câmera como se fosse dela.",
@@ -224,7 +230,8 @@ function diarioDesenhaPagina(g, pg, x, y, w, h, opts) {
   const MARCA = "\u200b";
   const riscos = [];
   const pars = pg.texto.map(p => tr(p).replace(/~([^~]+)~/g, (m, w) => { riscos.push(w); return MARCA + w + MARCA; }));
-  const fotoFim = foto ? y - 6 + foto.height + 14 : 0;        // até onde a foto desce na página
+  const topo = y - 30;                                         // a borda de cima da folha
+  const fotoFim = foto ? topo + 1 + foto.height + 14 : 0;      // até onde a foto desce na página
   let tam = 19, linhas = [], alt = 0, lh = 0;
   for (; tam >= 13; tam -= 1.5) {
     g.font = `italic ${tam}px 'HM Script', 'HM Script CJK', 'HM CJK', 'Segoe Script', 'Comic Sans MS', cursive`;
@@ -260,15 +267,16 @@ function diarioDesenhaPagina(g, pg, x, y, w, h, opts) {
     g.textAlign = "right"; g.fillText("— Blackwood", 0, 0); g.restore();
   }
   if (d.revelado && !pg.assinado) diarioTintaOculta(g, pg, x, y, w, h, yy);
-  if (foto) {                                           // no alto, à direita, presa pelo clipe na borda da página
-    const fx = x + w - foto.width + 10, fy = y - 6;
+  if (foto) {                                           // no alto, à direita, RENTE à borda de cima da folha
+    const fx = x + w - foto.width + 10, fy = topo + 1;
     g.save();
     g.translate(fx + foto.width / 2, fy + foto.height / 2); g.rotate(0.035);
     g.shadowColor = "rgba(0,0,0,0.35)"; g.shadowBlur = 8; g.shadowOffsetY = 3;
     g.drawImage(foto, -foto.width / 2, -foto.height / 2);
     g.shadowColor = "rgba(0,0,0,0)"; g.shadowBlur = 0; g.shadowOffsetY = 0;
     g.restore();
-    diarioClipe(g, fx + foto.width / 2 - 2, y - 30 + 6);   // o clipe abraça a borda de cima da folha
+    // o clipe ABRAÇA a borda: começa 11 px acima da folha (sobre a capa) e desce 29 px sobre a foto
+    diarioClipe(g, fx + foto.width / 2 - 2, topo - 11);
   }
   g.restore();
   return yy - y;
@@ -433,7 +441,7 @@ function diarioDesenhaPaginaLouca(g, pg, x, y, w, h, opts) {
 // as FOTOS presas com clipe: a coisa de que o relato fala, fotografada por quem escreveu
 // ------------------------------------------------------------------
 const DIARIO_FOTOS = {
-  inicio: ["cam", "corpo"], tampa: ["digito"], vulto: ["eco"], ampola: ["prop", "candelabro"],
+  inicio: ["cam", "corpo"], tampa: ["digito"], seta: ["seta"], vulto: ["eco"], ampola: ["prop", "candelabro"],
   lente: ["cam", "lente"], segredo: ["alma", "tomas"], obturador: ["cam", "obturador"],
   alma_tomas: ["furn", "berco"], alma_cecilia: ["furn", "espelho"], alma_bento: ["prop", "grade"],
   alma_olivia: ["furn", "piano"], alma_hospede: ["furn", "relogio"], alma_aurora: ["furn", "poltrona"],
@@ -449,6 +457,7 @@ function diarioFotoSprite(spec) {
       case "eco":    return ghostSprite(0.37);
       case "alma":   return soulSprite(spec[1]);
       case "digito": return digitSprite(7, 1);
+      case "seta":   return setaSprite("dir");
     }
   } catch (e) {}
   return null;
@@ -466,16 +475,17 @@ function diarioFotoPagina(pg) {
   const c = cv.getContext("2d");
   c.fillStyle = "#ebe5d6"; c.fillRect(0, 0, W, H);
   c.strokeStyle = "rgba(90,80,60,0.3)"; c.lineWidth = 1; c.strokeRect(0.5, 0.5, W - 1, H - 1);
-  c.fillStyle = "#17140f"; c.fillRect(FR, FR, pw, ph);
+  const naParede = spec[0] === "seta";                 // a seta é sangue NUMA PAREDE: o flash pega o reboco
+  c.fillStyle = naParede ? "#5a5244" : "#17140f"; c.fillRect(FR, FR, pw, ph);
   c.save();
   c.beginPath(); c.rect(FR, FR, pw, ph); c.clip();
   const sw = spr.width || spr.naturalWidth, sh = spr.height || spr.naturalHeight;
   const esc = Math.min((pw - 14) / sw, (ph - 10) / sh);
   const dw = sw * esc, dh = sh * esc;
   const vg = c.createRadialGradient(W / 2, FR + ph * 0.55, 6, W / 2, FR + ph * 0.55, pw * 0.7);   // o flash no escuro
-  vg.addColorStop(0, "rgba(120,104,80,0.55)"); vg.addColorStop(1, "rgba(0,0,0,0)");
+  vg.addColorStop(0, naParede ? "rgba(170,156,128,0.6)" : "rgba(120,104,80,0.55)"); vg.addColorStop(1, "rgba(0,0,0,0)");
   c.fillStyle = vg; c.fillRect(FR, FR, pw, ph);
-  c.drawImage(spr, FR + (pw - dw) / 2, FR + ph - dh - 4, dw, dh);
+  c.drawImage(spr, FR + (pw - dw) / 2, naParede ? FR + (ph - dh) / 2 : FR + ph - dh - 4, dw, dh);
   c.globalCompositeOperation = "multiply";              // banho de sépia, como as fotos antigas
   c.fillStyle = "rgb(222,196,150)"; c.fillRect(FR, FR, pw, ph);
   c.globalCompositeOperation = "source-over";
@@ -502,16 +512,19 @@ function diarioClipe(g, x, y) {
   g.restore();
 }
 // tudo o que está no livro (capa, folhas, texto, fotos) num contexto qualquer — a tela ou
-// as duas fotografias da virada de página
-function diarioDesenhaLivro(g, spread, b) {
+// as fotografias da virada de página. soFolhas: sem a capa (fundo transparente), para a folha
+// que GIRA levar junto o clipe, que passa da borda de cima do papel
+function diarioDesenhaLivro(g, spread, b, soFolhas) {
   const d = diarioFlags();
-  g.save();
-  g.shadowColor = "rgba(0,0,0,0.7)"; g.shadowBlur = 40; g.shadowOffsetY = 12;
-  g.fillStyle = "#2a1d14";
-  g.beginPath(); g.roundRect(b.x - 22, b.y - 18, b.w + 44, b.h + 36, 10); g.fill();
-  g.restore();
-  g.strokeStyle = "rgba(120,90,60,0.35)"; g.lineWidth = 1.5;
-  g.beginPath(); g.roundRect(b.x - 14, b.y - 10, b.w + 28, b.h + 20, 7); g.stroke();
+  if (!soFolhas) {
+    g.save();
+    g.shadowColor = "rgba(0,0,0,0.7)"; g.shadowBlur = 40; g.shadowOffsetY = 12;
+    g.fillStyle = "#2a1d14";
+    g.beginPath(); g.roundRect(b.x - 22, b.y - 18, b.w + 44, b.h + 36, 10); g.fill();
+    g.restore();
+    g.strokeStyle = "rgba(120,90,60,0.35)"; g.lineWidth = 1.5;
+    g.beginPath(); g.roundRect(b.x - 14, b.y - 10, b.w + 28, b.h + 20, 7); g.stroke();
+  }
   const meio = b.x + b.w / 2;
   for (const lado of [0, 1]) {
     const px = lado === 0 ? b.x : meio + 6, pw = b.w / 2 - 6;
@@ -552,15 +565,16 @@ function diarioVira(dir) {
   const n = diarioSpread + dir;
   if (n < 0 || n >= diarioSpreads()) return;
   const b = diarioRect();
-  const snap = (sp) => {
+  const snap = (sp, soFolhas) => {
     const cv = document.createElement("canvas");
     cv.width = b.w + 60; cv.height = b.h + 60;
     const g = cv.getContext("2d");
     g.translate(-(b.x - 30), -(b.y - 30));
-    diarioDesenhaLivro(g, sp, b);
+    diarioDesenhaLivro(g, sp, b, soFolhas);
     return cv;
   };
-  diarioFlip = { dir, t: 0, antes: snap(diarioSpread), depois: snap(n) };
+  diarioFlip = { dir, t: 0, antes: snap(diarioSpread), depois: snap(n),
+                 antesF: snap(diarioSpread, true), depoisF: snap(n, true) };   // F: só as folhas
   diarioSpread = n;
   sfxPage();
 }
@@ -580,17 +594,17 @@ function diarioDesenhaFlip(b) {
   const P = { dx0: 6, dx1: b.w / 2, y0: b.y, y1: b.y + b.h }, pw = P.dx1 - P.dx0, ph = P.y1 - P.y0;
   const frente = t < 0.5;
   let src, lado;
-  if (F.dir > 0) { if (frente) { src = F.antes; lado = 1; } else { src = F.depois; lado = -1; } }
-  else           { if (frente) { src = F.antes; lado = -1; } else { src = F.depois; lado = 1; } }
-  const N = 26, sw = pw / N;
+  if (F.dir > 0) { if (frente) { src = F.antesF; lado = 1; } else { src = F.depoisF; lado = -1; } }
+  else           { if (frente) { src = F.antesF; lado = -1; } else { src = F.depoisF; lado = 1; } }
+  const N = 26, sw = pw / N, M = 14;          // M: o que passa da borda de cima (o clipe) gira junto
   for (let i = 0; i < N; i++) {
     const u0 = i / N, u1 = (i + 1) / N;
-    const p0 = 1 + 0.15 * u0 * s, p1 = 1 + 0.15 * u1 * s;
+    const p0 = 1 + 0.15 * u0 * s, p1 = 1 + 0.15 * u1 * s, pm = (p0 + p1) / 2;
     const sx = (lado > 0 ? w2 + P.dx0 + u0 * pw : w2 - P.dx0 - u1 * pw);
     const x0 = lado > 0 ? meio + (P.dx0 + u0 * pw) * k : meio - (P.dx0 + u1 * pw) * k;
     const x1 = lado > 0 ? meio + (P.dx0 + u1 * pw) * k : meio - (P.dx0 + u0 * pw) * k;
-    const hh = ph * (p0 + p1) / 2;
-    ctx.drawImage(src, sx, P.y0 - Y, sw, ph, x0, P.y0 - (hh - ph) / 2, Math.max(1, x1 - x0 + 0.8), hh);
+    const hh = ph * pm, mm = M * pm;
+    ctx.drawImage(src, sx, P.y0 - Y - M, sw, ph + M, x0, P.y0 - (hh - ph) / 2 - mm, Math.max(1, x1 - x0 + 0.8), hh + mm);
   }
   const xa = lado > 0 ? meio + P.dx0 * k : meio - P.dx1 * k, xb = lado > 0 ? meio + P.dx1 * k : meio - P.dx0 * k;
   if (xb - xa > 1) {

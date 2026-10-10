@@ -164,7 +164,7 @@ function ritualAcorda() {
   world.flags.feridas = 0;
   sanity = SAN_TETO; film = Math.floor(film / 2);
   corpoReset(); tremor = 1; flashT = 0; flashCd = 0; attractT = 0;
-  for (const g of fl().ghosts) { g.bote = null; g.gasto = 8; g.chase = false; }
+  for (const g of fl().ghosts) { g.gasto = 8; g.chase = false; }
   world.timeSec += 40;
   floorFadeT = 1.4;
   ritual = null;

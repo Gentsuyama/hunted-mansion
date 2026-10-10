@@ -93,9 +93,9 @@ function simTick(st, dt) {
   // capturada se o retrato+obturador já estiverem na mão)
   if (flashCd <= 0) {
     let alvo = null, melhor = 2.6;
-    // eco PUXANDO O AR: flash nele, onde estiver (é a contra-jogada do bote)
+    // eco CAÇANDO, vindo reto e quase encostando: flash nele (é a contra-jogada do toque)
     for (const g of gs)
-      if (g.respawn <= 0 && g.bote && g.bote.fase === "inspira" &&
+      if (g.respawn <= 0 && g.chase && Math.hypot(g.x - player.x, g.y - player.y) < 2.5 &&
           hasLOS(player.x, player.y, g.x, g.y)) { alvo = g; melhor = 0; }
     if (typeof soulEnts !== "undefined")
       for (const e of soulEnts) {

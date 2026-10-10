@@ -2,7 +2,7 @@
 // ==================================================================
 // A ENERGIA DAS ALMAS
 //  · BATERIA do flash: cada disparo gasta uma carga. Sem carga a foto sai
-//    NO ESCURO (só o que a lanterna alcança; não espanta, não corta bote).
+//    NO ESCURO (só o que a lanterna alcança; não espanta, não empurra eco).
 //  · ARMAZENAR: no álbum, a alma fotografada pode ser guardada na câmera.
 //    Alma guardada recarrega a bateria (tecla B / toque na bateria)…
 //  · …ou acende uma vela de CANDELABRO: fogo azul. Uma vela acende só o

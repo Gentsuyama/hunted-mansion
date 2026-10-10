@@ -43,11 +43,11 @@ function tomasAcode() {
   tomasEvt = { t: 0, dur: 8.4, x, y, bob: 0, falas: 0 };
   sanity = 1; tremor = 0; limpaEntradas(); pvx = 0; pvy = 0; movendo = false;
   for (const g of fl().ghosts) {                 // os ecos recuam para o escuro enquanto ele conta
-    g.bote = null; g.chase = false; g.gasto = 25;
+    g.chase = false; g.gasto = 25;
     const d = Math.hypot(g.x - player.x, g.y - player.y) || 1;
     g.wx = g.x + (g.x - player.x) / d * 9; g.wy = g.y + (g.y - player.y) / d * 9;
   }
-  boteLivreT = 4;
+  toqueLivreT = 4;
   audioTensao(0); sfxWhisper();
   livePush(liveRandUser(), "a tela ficou PRETA. você caiu?? VOCÊ CAIU??");
 }
@@ -230,7 +230,7 @@ function loucuraVulto() {
     const x = player.x + Math.cos(a) * rr, y = player.y + Math.sin(a) * rr * 0.7;
     if (isSolid(x | 0, y | 0) || isOpaque(x | 0, y | 0)) continue;
     if (lightAt(x, y) > 0.35 || !hasLOS(player.x, player.y, x, y)) continue;
-    if (Math.random() < 0.45) olhosFalsos = { x, y, t: 0, dur: 1.2 + Math.random() };
+    if (Math.random() < 0.45) { if (olhosFalsos.length < 2) olhosFalsos.push({ x, y, t: 0, dur: 1.2 + Math.random() }); }
     else loucura.vultos.push({ x, y, t: 0, dur: 1.4 + Math.random() * 1.6, bob: Math.random() * 6 });
     if (Math.random() < 0.5) sfxWhisper();
     return;

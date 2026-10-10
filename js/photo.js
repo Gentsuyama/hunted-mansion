@@ -41,15 +41,6 @@ function inFlashCone(ex, ey, dir, fator) {
   return hasLOS(player.x, player.y, ex, ey);
 }
 
-// o flash pegou um eco no meio da inspiração: o bote não sai
-function boteCortado() {
-  boteLivreT = BOTE.pausa;
-  if (!live.hinted.has("bote3")) {
-    live.hinted.add("bote3");
-    livePush(liveRandUser(), "CORTOU o bote no meio!! é ISSO: flash quando ele puxa o ar");
-  }
-}
-
 // esta foto guarda uma PISTA (vai para as páginas vinho do álbum se for nova)
 function fotoPista(texto, nova, tipo) {
   if (!window._fotoPistas) return;
@@ -121,9 +112,8 @@ function takePhoto() {
     for (const g of fl().ghosts) {
       if (g.respawn > 0) continue;
       if (inFlashCone(g.x, g.y, flashDir, comFlash ? 1 : 0.2)) {
-        if (comFlash && g.bote && g.bote.fase === "inspira") boteCortado();
         g.respawn = ECO.volta[0] + Math.random() * ECO.volta[1];
-        g.chase = false; g.bote = null;
+        g.chase = false;
         ent.almas++;                     // essa alma está na foto: dá para GUARDAR
         const mk = (window._fotoAlmas || []).find(m => m.gh === g);
         if (mk) ent.marcas.push(mk);
@@ -150,8 +140,7 @@ function takePhoto() {
         // recuo: ele é arremessado para trás (3–4 células, em meio segundo) e fica tonto —
         // mas continua lá, e volta
         g.kb = { dx: (g.x - player.x) / d, dy: (g.y - player.y) / d, t: 0.7 };
-        if (g.bote && g.bote.fase === "inspira") boteCortado();
-        g.chase = false; g.stun = 1.4; g.bote = null; g.gasto = BOTE.gasto * 0.5;
+        g.chase = false; g.stun = 1.4; g.gasto = 7;   // empurrado: sete segundos sem interesse
         for (let i = 0; i < 10; i++) {
           const a = Math.random() * 6.28, s = 3 + Math.random() * 8;
           particles.push({ x: g.x, y: g.y, vx: Math.cos(a) * s,
@@ -1001,6 +990,8 @@ function renderPhoto(px, py, dir, escuro) {
       const wPx = hPx * 1.45;
       blitOccluded(cc, spr, zbuf, ty, centerX, yAt(3.7, ty), wPx, hPx,
                    Math.min(1, 0.35 + k * 0.65), Wc, CWc, FR);
+      // saiu na foto: aquela parede fica assim (fotografada de novo, a seta continua lá, igual)
+      if (ty < zAqui + 0.6 && sxCol > 0 && sxCol < Wc && typeof setaFixa === "function") setaFixa(s.seta);
       if (bright > 0.2 && Math.abs(sxCol - Wc / 2) < Wc * 0.45 && ty < zAqui + 0.6) {
         fotoPista("seta de sangue", !s.seta.vista, "seta");
         if (!s.seta.vista) {
@@ -1009,6 +1000,7 @@ function renderPhoto(px, py, dir, escuro) {
             live.hinted.add("seta1");
             livePush(liveRandUser(), "isso é SANGUE?? tem uma SETA na parede… alguém desenhou isso");
             liveFixo("a casa escreve. já disse.");
+            if (typeof diarioEvento === "function") diarioEvento("seta");
           }
         }
       }

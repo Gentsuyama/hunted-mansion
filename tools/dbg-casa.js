@@ -142,10 +142,10 @@ window.dbgMapa = () => {
   for (let k = 0; k < 8; k++) { aimDirStick = k * Math.PI / 4; aimVis = aimDirStick; anda(2); render(); }
   aimDirStick = Math.atan2(-sr.dn[1], -sr.dn[0]) + 1.2; aimVis = aimDirStick; anda(2);
   player.x = px; player.y = py; cam.x = px * CELL; cam.y = py * CELL;
-  sanity = 20; olhosFalsos = { x: px - sr.dn[1] * 8 + sr.dn[0] * 3, y: py + sr.dn[0] * 8 + sr.dn[1] * 3, t: 0.4, dur: 1.2 };
+  sanity = 20; olhosFalsos = [{ x: px - sr.dn[1] * 8 + sr.dn[0] * 3, y: py + sr.dn[0] * 8 + sr.dn[1] * 3, t: 0.4, dur: 1.2 }];
   render(); G.tira();
   // 2) as almas em volta, iluminadas pela lamparina (traço de cada uma)
-  sanity = 100; olhosFalsos = null;
+  sanity = 100; olhosFalsos = [];
   const lp = world.lamp;
   player.x = lp.x - 5; player.y = lp.y + 3; cam.x = player.x * CELL; cam.y = player.y * CELL;
   soulEnts = [];

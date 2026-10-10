@@ -44,12 +44,15 @@ const ECO = { vem: 0.45,   // sem ouvir nem ver você, o eco ainda vem: fração
               ve: 16,      // VENDO você (linha de visada) até esta distância, ele vem direto
               atraiFlash: 4, atraiRaio: 34, volta: [50, 30],
               ouve: [6, 14, 22] };
-// O GOLPE: o eco não fere por encostar. Ele chega colado, INSPIRA (os olhos
-// acendem, o som cresce) e golpeia no lugar — sem salto. Flash durante a
-// inspiração cancela; dar dois passos para trás também. Um de cada vez.
-const BOTE = { dist: 1.9, inspira: 0.9, alcance: 2.4, dano: 24, gasto: 14, pausa: 0.5, desiste: 4 }
+// O TOQUE: o eco não golpeia — ele vem para cima de você e ENCOSTAR já fere. Depois do
+// toque ele se afasta para o escuro, gasto, e volta. (Substitui o bote de 2026-10-03 —
+// inspirar, aro vermelho, golpe: "não é habilidade ou golpe", Rodolfo, 2026-10-10.)
+//   dist = encostou (células) · gasto = segundos sem caçar depois do toque
+//   pausa = intervalo mínimo entre dois toques (de ecos diferentes)
+//   dano: 20 derrubou o lote 10 (veterano 4/28, médio 1/28); a regra do briefing baixou para 16
+const TOQUE = { dist: 1.05, dano: 16, gasto: 10, pausa: 0.8 };
 // SANIDADE: sozinha ela só volta até o TETO; acima disso, só a lamparina do hall
-// …e cada GOLPE (bote de eco, flash do Blackwood) deixa uma ferida que baixa esse teto
+// …e cada FERIDA (toque de eco, flash do Blackwood) baixa esse teto
 const SAN_TETO = 60, SAN_VOLTA = 2.5, SAN_FERIDA = 10, SAN_PISO = 20;
 const LAMP_OLEO = 3, LAMP_RAIO = 7.5;
 // SANIDADE ZERO não derruba na hora. Primeiro, UMA vez por live e só enquanto o menino ainda

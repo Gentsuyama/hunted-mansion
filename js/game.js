@@ -102,9 +102,9 @@ let tremor = 0;                      // o susto fica no corpo por alguns segundo
 let semEntrada = true;               // true quando o jogador não está pedindo movimento
 let aimVis = 0;                      // direção VISUAL da lanterna (tem inércia)
 let vistoCd = 0, sinalT = 0;         // "fui visto": um som só para isso + queda de sinal
-let boteLivreT = 0, danoT = 0;       // intervalo entre botes · clarão vermelho do golpe
+let toqueLivreT = 0, danoT = 0;      // intervalo entre toques · clarão vermelho do toque
 let simAnda = "";                    // só os robôs de teste: "andar" | "correr" | "furtivo"
-let olhosFalsos = null, falsoT = 9;  // sanidade no chão: olhos que não estão lá
+let olhosFalsos = [], falsoT = 9;    // olhos vermelhos no escuro que não estão lá (até dois pares)
 // O jogo lê a POSIÇÃO das teclas (KeyW/A/S/D). Num teclado AZERTY elas estão
 // rotuladas Z Q S D: pergunta ao navegador o que está escrito nelas.
 let TECLAS_ANDAR = "WASD";
@@ -139,8 +139,32 @@ function corpoReset() {
   folego = 1; folegoT = 0; semFolego = false;
   movModo = "parado"; movendo = false; tremor = 0;
   vistoCd = 0; sinalT = 0; polaroid = null;
-  boteLivreT = 0; danoT = 0;
-  olhosFalsos = null; falsoT = 9;
+  toqueLivreT = 0; danoT = 0;
+  olhosFalsos = []; falsoT = 9;
+}
+// onde um par de olhos falsos acende: célula ESCURA (luz < 0,06), livre, à vista, a 5–13
+// células — de preferência num corredor ou numa porta (paredes dos dois lados, perto);
+// dos 24 sorteados, o mais escuro. longeDe: o outro par (os dois não nascem colados)
+function olhosNoEscuro(longeDe) {
+  const estreito = (cx, cy) => {
+    const ate = (dx, dy) => { for (let k = 1; k <= 3; k++) if (isOpaque(cx + dx * k, cy + dy * k)) return true; return false; };
+    return (ate(-1, 0) && ate(1, 0)) || (ate(0, -1) && ate(0, 1));
+  };
+  let melhor = null, bs = 1e9;
+  for (let k = 0; k < 24; k++) {
+    const a = Math.random() * 6.283, rr = 5 + Math.random() * 8;
+    const x = player.x + Math.cos(a) * rr, y = player.y + Math.sin(a) * rr;
+    const cx = x | 0, cy = y | 0;
+    if (isSolid(cx, cy) || isOpaque(cx, cy)) continue;
+    const L = lightAt(x, y);
+    if (L >= 0.06 || !hasLOS(player.x, player.y, x, y)) continue;    // no escuro, mas à vista
+    if (longeDe && Math.hypot(x - longeDe.x, y - longeDe.y) < 3) continue;
+    const s = L - (estreito(cx, cy) ? 0.05 : 0);
+    if (s < bs) { bs = s; melhor = { x, y }; }
+  }
+  if (!melhor) return null;
+  const dur = 1.5 + Math.random() * 2.5;
+  return { x: melhor.x, y: melhor.y, t: 0, dur, pisca: dur * (0.35 + Math.random() * 0.3) };   // pisca UMA vez
 }
 function tremorAtual() {
   return Math.max(tremor, sanity < 40 ? (40 - sanity) / 40 : 0);
@@ -519,27 +543,27 @@ function update(dt) {
   if (flickDip > 0) flickDip -= dt;
   if (dmgSfxT > 0) dmgSfxT -= dt;
 
-  // um par de olhos acende no escuro ATRÁS de você e, quando a lanterna vira, não há nada.
-  // Sanidade baixa: toda hora. Sanidade alta: de vez em quando, para ninguém se sentir seguro.
-  if (olhosFalsos) {
-    olhosFalsos.t += dt;
-    if (lightAt(olhosFalsos.x, olhosFalsos.y) > 0.12)          // a luz chegou: some na hora
-      olhosFalsos.dur = Math.min(olhosFalsos.dur, olhosFalsos.t + 0.1);
-    if (olhosFalsos.t >= olhosFalsos.dur) olhosFalsos = null;
+  // olhos vermelhos acendem nas partes ESCURAS — num corredor, numa porta — e somem quando
+  // a luz chega. Sanidade baixa: toda hora. Alta: com frequência, para ninguém se sentir seguro.
+  for (let i = olhosFalsos.length - 1; i >= 0; i--) {
+    const o = olhosFalsos[i];
+    o.t += dt;
+    if (lightAt(o.x, o.y) > 0.12) o.dur = Math.min(o.dur, o.t + 0.1);   // a luz chegou: some na hora
+    if (o.t >= o.dur) olhosFalsos.splice(i, 1);
   }
-  falsoT -= dt * (sanity < 28 ? 1 : sanity < 60 ? 0.3 : 0.12);
-  if (falsoT <= 0 && !olhosFalsos) {
-    falsoT = 7 + Math.random() * 8;
-    const fx = Math.cos(aimVis), fy = Math.sin(aimVis);
-    for (let k = 0; k < 24; k++) {
-      const a = Math.random() * 6.283, rr = 5 + Math.random() * 8;
-      const x = player.x + Math.cos(a) * rr, y = player.y + Math.sin(a) * rr * 0.7;
-      if (isSolid(x | 0, y | 0) || isOpaque(x | 0, y | 0)) continue;
-      if ((x - player.x) * fx + (y - player.y) * fy > -1.5) continue;   // tem que ser ATRÁS
-      if (lightAt(x, y) > 0.05 || !hasLOS(player.x, player.y, x, y)) continue;   // no escuro, mas à vista
-      olhosFalsos = { x, y, t: 0, dur: 1.4 + Math.random() * 1.2 };
-      sfxWhisper();
-      break;
+  if (!loucura) {                       // na loucura os olhos são dela (loucuraVulto): não duplica
+    falsoT -= dt * (sanity < 28 ? 1 : sanity < 60 ? 0.6 : 0.4);
+    if (falsoT <= 0) {
+      falsoT = 6 + Math.random() * 8;
+      const o = olhosNoEscuro(null);
+      if (o && olhosFalsos.length < 2) {
+        olhosFalsos.push(o); sfxWhisper();
+        // de cabeça baixa, às vezes são DOIS pares olhando ao mesmo tempo
+        if (sanity < 60 && olhosFalsos.length < 2 && Math.random() < 0.3) {
+          const o2 = olhosNoEscuro(o);
+          if (o2) olhosFalsos.push(o2);
+        }
+      }
     }
   }
   // eventos de tensão
@@ -554,10 +578,8 @@ function update(dt) {
   let nearest = 999;
   const gs = fl().ghosts;
   const pac = !!fl().pacified;          // alma do andar libertada: ecos mansos
-  if (boteLivreT > 0) boteLivreT -= dt;
+  if (toqueLivreT > 0) toqueLivreT -= dt;
   if (danoT > 0) danoT -= dt;
-  let emBote = false;
-  for (const g of gs) if (g.bote && g.respawn <= 0) { emBote = true; break; }
   // o eco OUVE: pé ante pé ele quase não percebe; correndo, ouve de longe —
   // e só se arrasta na sua direção enquanto você faz barulho
   // (parado é tão silencioso quanto pé ante pé)
@@ -566,7 +588,7 @@ function update(dt) {
   const lamp = lampAcesa() ? world.lamp : null;
   const naLamp = !!lamp && Math.hypot(lamp.x - player.x, lamp.y - player.y) < LAMP_RAIO;
   // de OLHOS FECHADOS na loucura (parado, no escuro) a casa perde o interesse: o eco
-  // não enxerga você nem dá o bote — ele passa. É o que o Tomás fazia.
+  // não enxerga você nem encosta — ele passa. É o que o Tomás fazia.
   const cego = typeof loucura !== "undefined" && !!loucura && loucura.olhos > 1.5;
   for (const g of gs) {
     if (g.respawn > 0) {
@@ -575,7 +597,7 @@ function update(dt) {
         let p = fl().freeSpot();
         for (let k = 0; k < 20 && Math.hypot(p.x - player.x, p.y - player.y) < 18; k++) p = fl().freeSpot();
         g.x = p.x; g.y = p.y;
-        g.wx = g.x; g.wy = g.y; g.chase = false; g.bote = null; g.gasto = 0;
+        g.wx = g.x; g.wy = g.y; g.chase = false; g.gasto = 0;
         g.artSeed = Math.random(); g.artIdx = undefined; g.sprCv = null;   // carta nova do baralho
       }
       continue;
@@ -592,30 +614,23 @@ function update(dt) {
     const d = Math.hypot(player.x - g.x, player.y - g.y) || 0.001;
     nearest = Math.min(nearest, d);
     g.bob += dt * 2.2;
-    if (pac) g.bote = null;
-    if (g.bote) {                       // ele INSPIRA, parado, colado em você… e golpeia
-      const b = g.bote;
-      b.t -= dt;
-      if (d > BOTE.desiste) { g.bote = null; boteLivreT = 0.5; continue; }   // você abriu distância
-      if (b.t <= 0) {
-        sfxBote();
-        if (d < BOTE.alcance) {         // ainda colado: o golpe pega
-          sanity -= BOTE.dano; shake = 1.2; tremor = 1; danoT = 0.5;
-          ferida();
-          sfxDamage(); dmgSfxT = 0.5;
-          if (!live.hinted.has("bote2")) {
-            live.hinted.add("bote2");
-            livePush(liveRandUser(), "ELE TE PEGOU. os olhos dele acenderam antes… você viu?");
-          } else if (Math.random() < 0.4) liveEvent("damage");
-        }
-        // pegou ou não: fica gasto e se afasta para o escuro
-        g.wx = g.x + (g.x - player.x) / d * 7; g.wy = g.y + (g.y - player.y) / d * 7;
-        g.bote = null; g.gasto = BOTE.gasto; g.chase = false;
-        boteLivreT = BOTE.pausa;
-      }
+    if (g.gasto > 0) g.gasto -= dt;
+    // O TOQUE: encostou, feriu. Sem aviso, sem golpe — só o frio de algo passando por dentro
+    if (d < TOQUE.dist && !naLamp && !(g.gasto > 0) && !pac && !cego && toqueLivreT <= 0) {
+      sanity -= TOQUE.dano; shake = 1.2; tremor = 1; danoT = 0.5;
+      ferida();
+      sfxDamage(); sfxToque(); dmgSfxT = 0.5;
+      world.flags.toques = (world.flags.toques || 0) + 1;
+      toqueLivreT = TOQUE.pausa;
+      if (!live.hinted.has("toque1")) {
+        live.hinted.add("toque1");
+        livePush(liveRandUser(), "ELE ENCOSTOU EM VOCÊ. olha a barra… olha a BARRA");
+      } else if (Math.random() < 0.4) liveEvent("damage");
+      // e sai: gasto, se afasta para o escuro — e volta a caçar quando o gasto passar
+      g.wx = g.x + (g.x - player.x) / d * 7; g.wy = g.y + (g.y - player.y) / d * 7;
+      g.gasto = TOQUE.gasto; g.chase = false;
       continue;
     }
-    if (g.gasto > 0) g.gasto -= dt;
     // Uma vez atrás de você, só larga se a distância abrir um pouco (+2).
     const antes = g.chase;
     const ve = d < ECO.ve && hasLOS(g.x, g.y, player.x, player.y);
@@ -624,26 +639,16 @@ function update(dt) {
     if (g.chase && !antes && attractT <= 0 && vistoCd <= 0) {
       sfxVisto(); vistoCd = 8; sinalT = 1.3;   // UM som, UM significado: fui visto
     }
-    // perto, com você à vista e ninguém mais no bote: é a vez dele
-    if (g.chase && d < BOTE.dist && !emBote && boteLivreT <= 0 && !naLamp &&
-        hasLOS(g.x, g.y, player.x, player.y)) {
-      g.bote = { fase: "inspira", t: BOTE.inspira };
-      emBote = true;
-      sfxInspira(Math.max(-1, Math.min(1, (g.x - player.x) / 6)));
-      if (!live.hinted.has("bote1")) {
-        live.hinted.add("bote1");
-        livePush(liveRandUser(), "os olhos dele ACENDERAM. ele tá puxando o ar… SAI DAÍ");
-      }
-      continue;
+    // vindo RETO e já perto — o chat só grita se dá para VÊ-LO (na luz, ou aceso de tão colado)
+    if (g.chase && d < 3 && !live.hinted.has("toque0") &&
+        (d < 2.2 || lightAt(g.x, g.y) * 1.9 > 0.04) && hasLOS(player.x, player.y, g.x, g.y)) {
+      live.hinted.add("toque0");
+      livePush(liveRandUser(), "ele tá vindo RETO em você. não deixa encostar");
     }
     let tx, ty, sp;
     const vagueia = pac || g.gasto > 0 || cego;   // andar manso, eco gasto, ou você de olhos fechados: vagueia
-    if (g.chase) {
-      const suaVez = !emBote && boteLivreT <= 0 && !naLamp;
-      if (!suaVez && d < BOTE.dist + 1.2) {   // perto, mas não é a vez dele: ronda em volta
-        const a = Math.atan2(g.y - player.y, g.x - player.x) + 0.5;
-        tx = player.x + Math.cos(a) * (BOTE.dist + 1.2); ty = player.y + Math.sin(a) * (BOTE.dist + 1.2);
-      } else { tx = player.x; ty = player.y; }   // é a vez dele: vem colar
+    if (g.chase) {                                // caçando: vem DIRETO para cima de você
+      tx = player.x; ty = player.y;
       sp = GHOST_SPEED;
     } else if (vagueia) {
       if (Math.hypot(g.wx - g.x, g.wy - g.y) < 1.5) {
@@ -977,17 +982,12 @@ function render() {
   // ecos: mancha espectral que respira (olhos acendem quando te caçam)
   for (const g of fl().ghosts) {
     if (g.respawn > 0) continue;
-    let L = Math.min(1, lightAt(g.x, g.y) * 1.9), fx = null;
-    // no bote ele se ACENDE sozinho: dá para ver (e mirar) mesmo no escuro
-    if (g.bote) {
-      if (g.bote.fase === "inspira") {
-        const k = 1 - Math.max(0, g.bote.t) / BOTE.inspira;
-        fx = { insp: k }; L = Math.max(L, 0.3 + 0.6 * k);
-      } else { fx = { dx: g.bote.dx, dy: g.bote.dy }; L = Math.max(L, 0.9); }
-    }
+    let L = Math.min(1, lightAt(g.x, g.y) * 1.9);
+    // caçando e já colado ele se ACENDE: dá para ver (e mirar) mesmo no escuro
+    if (g.chase && Math.hypot(g.x - player.x, g.y - player.y) < 2.2) L = Math.max(L, 0.5);
     if (L <= 0.04) continue;
     mapaVulto(g.x * CELL, g.y * CELL, L, g.bob, 6.2,
-              g.streamer ? "232,190,198" : "205,220,246", g.chase || !!g.bote, false, false, fx);
+              g.streamer ? "232,190,198" : "205,220,246", g.chase, false, false, null);
   }
   // almas nomeadas: cada uma com um traço seu
   for (const e of soulEnts) {
@@ -1023,7 +1023,7 @@ function render() {
     ctx.fillText(p.ch, p.x * CELL, p.y * CELL);
   }
 
-  if (olhosFalsos) mapaOlhosFalsos(olhosFalsos);
+  for (const o of olhosFalsos) mapaOlhosFalsos(o);
   // o streamer
   mapaJogador(player.x * CELL, player.y * CELL, dir, passoFase, movendo,
               movModo === "furtivo", trem);
@@ -1041,7 +1041,7 @@ function render() {
     ctx.fillStyle = `rgba(255,255,255,${(flashT * flashT * 0.18).toFixed(3)})`;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
-  // o golpe do bote: a tela lateja em vermelho
+  // o toque do eco: a tela lateja em vermelho
   if (danoT > 0) {
     const vg = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 160,
                                         canvas.width / 2, canvas.height / 2, 720);

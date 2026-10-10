@@ -40,19 +40,19 @@ const PERFIS = {
   novato: { nome: "NOVATO", reacao: 0.55, erroMira: 0.28, panico: 0.45, notar: 0.25,
             chat: [0.30, 0.60, 0.92], leitura: 4.5, verFoto: 3.4, curiosa: 0.20,
             perdido: 0.20, ejeta: false, banho: 0.11, fotosDica: 2, olhada: 0.5,
-            sabeLente: false, distFlash: 7.5, lamp: 25, soBote: false, atento: 0.72,
+            sabeLente: false, distFlash: 7.5, lamp: 25, soToque: false, atento: 0.72,
             guarda: 0.35, bateriaMin: 0, luz: 0.25 },
   medio:  { nome: "MÉDIO", reacao: 0.38, erroMira: 0.17, panico: 0.20, notar: 0.40,
             chat: [0.55, 0.85, 0.98], leitura: 3.0, verFoto: 2.4, curiosa: 0.10,
             perdido: 0.10, ejeta: true, banho: 0.08, fotosDica: 3, olhada: 0.75,
-            sabeLente: false, distFlash: 5, lamp: 35, soBote: false, atento: 0.86,
+            sabeLente: false, distFlash: 5, lamp: 35, soToque: false, atento: 0.86,
             guarda: 0.70, bateriaMin: 1, luz: 0.65 },
   // já zerou: sabe as REGRAS (não a planta, que muda a cada run)
   veterano: { nome: "VETERANO", reacao: 0.26, erroMira: 0.10, panico: 0.06, notar: 0.60,
             chat: [0.92, 0.98, 1.0], leitura: 1.2, verFoto: 0.8, curiosa: 0.03,
             perdido: 0.04, ejeta: true, banho: 0.055, fotosDica: 4, olhada: 0.95,
-            // sabe que o eco só fere no BOTE: não gasta flash em vulto que só ronda
-            sabeLente: true, distFlash: 4, lamp: 45, soBote: true, atento: 0.95,
+            // sabe que o eco só fere ao ENCOSTAR: não gasta flash em vulto que só ronda
+            sabeLente: true, distFlash: 4, lamp: 45, soToque: true, atento: 0.95,
             guarda: 0.95, bateriaMin: 2, luz: 0.92 },
 };
 
@@ -78,14 +78,15 @@ function novo(perfil, opts) {
     alerta: -1, alinhar: 0, queimar: false, proxOlhada: 0, fugaT: 0, fugaDe: null,
     encarando: -1, danoLog: 0, dicaDirs: new Map(),
     fugaDir: null, fugaDirT: 0, fugaK: -1, fugaRuim: -1,
+    vemRef: null, vemAte: -1, vemCego: false,       // o eco vindo reto (a investida que assusta)
     voltas: new Array(NFLOORS).fill(0), rondaCd: 0,
     enrosco: new Map(), ancora: { x: 0, y: 0, f: -1, t: 0 },
     sabeHall: false, feito: new Array(NFLOORS).fill(false), prefExp: null,
     ovT: 0, banhoErros: 0, elevAlvo: -1, ronda: null, vagar: null,
     prev: new Int32Array(COLS * ROWS), fila: new Int32Array(COLS * ROWS),
-    st: { fotos: 0, flashes: 0, sustos: 0, dano: 0, errosBanho: 0, dicasVistas: 0,
+    st: { fotos: 0, fotosSeta: 0, flashes: 0, sustos: 0, dano: 0, errosBanho: 0, dicasVistas: 0,
           dicasIgnoradas: 0, perdidas: 0, sanMin: 100, filmeZerou: 0, tSemFilme: 0,
-          rondas: 0, quedas: 0, descansos: 0, botes: 0, botesCortados: 0,
+          rondas: 0, quedas: 0, descansos: 0, investidas: 0,
           tOverlay: 0, tLendo: 0, marcos: {}, causa: "" },
     log: [], limite: (o.limiteMin || 90) * 60,
     saveAntes: null,
@@ -427,6 +428,7 @@ function tirarFoto(dir, real) {
     if (batAntes <= 0) H.st.fotosEscuras = (H.st.fotosEscuras || 0) + 1;
     // a foto pegou um vulto: com a ampola, ele guarda a alma (olhando a foto no álbum)
     const e = album[album.length - 1];
+    if (e && e.pistas && e.pistas.includes("seta de sangue")) H.st.fotosSeta++;   // a foto pegou sangue na parede
     if (e && almasSoltas(e) > 0 && world.flags.cam.ampola && rnd() < H.p.guarda) {
       armazenarFoto(e); H.st.almasGuardadas = (H.st.almasGuardadas || 0) + 1;
       H.espera += H.p.verFoto; L("guardou alma da foto");
@@ -580,39 +582,42 @@ function perigo() {
     H.alerta = H.tReal + 6;
     if (!H.olhar) olhada(1.2);
   }
-  let bote = null;                       // eco puxando o ar: ele se acende sozinho
+  // eco CAÇANDO, a menos de 2,5 células e vindo RETO (linha livre até você): vai encostar.
+  // Colado assim ele se acende no mapa — dá para ver mesmo no escuro
+  let vem = null, dVem = 1e9;
   if (!fl().pacified)
     for (const g of fl().ghosts) {
       if (g.respawn > 0) continue;
       const d = hyp(g.x - player.x, g.y - player.y);
-      if (g.bote && naTela(g.x, g.y)) { if (g.bote.fase === "inspira") bote = g; }
-      else if (d > 16 || !vejoEnte(g.x, g.y)) continue;
+      if (g.chase && d < 2.5 && naTela(g.x, g.y) && hasLOS(player.x, player.y, g.x, g.y)) {
+        if (d < dVem) { dVem = d; vem = g; }
+      } else if (d > 16 || !vejoEnte(g.x, g.y)) continue;
       if (d < bd) { bd = d; alvo = g; ehAlma = false; }
     }
-  if (bote) {                            // o aviso manda em tudo
-    if (H.boteRef !== bote.bote) {       // um bote NOVO: susto novo
-      H.boteRef = bote.bote; H.st.botes++;
+  if (vem) {                             // o aviso manda em tudo
+    if (H.vemRef !== vem || H.tReal > H.vemAte) {   // uma investida NOVA: susto novo
+      H.vemRef = vem; H.st.investidas++;
       // gente nem sempre percebe a tempo (olhando o chat, a foto, o outro lado)
-      H.boteCego = rnd() > H.p.atento ? bote.bote : null;
+      H.vemCego = rnd() > H.p.atento;
       H.reacaoT = H.p.reacao * (0.8 + rnd() * 0.5) * (H.alerta > H.tReal ? 0.7 : 1);
       H.st.sustos++;
     }
-    if (H.boteCego === bote.bote) return false;          // não viu: segue o que fazia
+    H.vemAte = H.tReal + 1.5;            // a mesma investida enquanto ele seguir colado
+    if (H.vemCego) return false;         // não viu: segue o que fazia
     H.olhar = null; H.encarando = H.tReal + 4;
     if (H.reacaoT > 0) { H.reacaoT -= DT; if (H.reacaoT > 0) return false; }
     H.reacaoT = 0;
-    const angB = Math.atan2(bote.y - player.y, bote.x - player.x);
+    const angV = Math.atan2(vem.y - player.y, vem.x - player.x);
     if (flashCd <= 0) {
       const erro = gauss() * H.p.erroMira * (rnd() < H.p.panico ? 2.2 : 1);
       const real = !(H.p.ejeta && (film <= 4 ||
         ((world.flags.ecosFotografados || 0) >= 7 && film <= 7)));
-      if (!tirarFoto(angB + erro, real && podeFotoReal())) tirarFoto(angB + erro, false);
-      if (!bote.bote) H.st.botesCortados++;
+      if (!tirarFoto(angV + erro, real && podeFotoReal())) tirarFoto(angV + erro, false);
       H.rota = null;
     }
     // com ou sem flash: sai da frente (de lado), que é o que salva
     H.fugaT = 0.9 + rnd() * 0.5;
-    H.fugaDe = { x: bote.x, y: bote.y };
+    H.fugaDe = { x: vem.x, y: vem.y };
     fugir(H.fugaDe);
     return true;
   }
@@ -649,7 +654,7 @@ function perigo() {
   }
   H.reacaoT = 0;
   const ang = Math.atan2(alvo.y - player.y, alvo.x - player.x);
-  if (!ehAlma && H.p.soBote) return false;    // vulto que só ronda não merece flash
+  if (!ehAlma && H.p.soToque) return false;   // vulto que só ronda não merece flash
   if (flashCd <= 0 && bd < H.p.distFlash) {
     const erro = gauss() * H.p.erroMira * (rnd() < H.p.panico ? 2.2 : 1);
     // alma que dá para PRENDER leva foto de verdade; eco: quem sabe ejetar
@@ -1332,7 +1337,7 @@ function resumo() {
     min: +(H.tReal / 60).toFixed(1), minJogo: +(world.timeSec / 60).toFixed(1),
     travou: H.fim === "VITÓRIA" ? "" : (ORDEM.find(m => H.st.marcos[m] === undefined) || "porta"),
     marcos: H.st.marcos, despertas, livres, queimadas,
-    fotos: H.st.fotos, flashes: H.st.flashes, filme: film, sustos: H.st.sustos,
+    fotos: H.st.fotos, fotosSeta: H.st.fotosSeta, flashes: H.st.flashes, filme: film, sustos: H.st.sustos,
     dano: Math.round(H.st.dano), sanMin: Math.round(H.st.sanMin),
     errosBanho: H.st.errosBanho, dicasVistas: H.st.dicasVistas, loucuras: H.st.loucuras || 0, flashesLoucura: H.st.flashesLoucura || 0, velasLoucura: H.st.velasLoucura || 0, espelhosLoucura: H.st.espelhosLoucura || 0, olhosLoucura: H.st.olhosLoucura || 0, atalhos: world.flags.loucuraAtalhos || 0, feridas: world.flags.feridas || 0,
     dicasIgnoradas: H.st.dicasIgnoradas, perdidas: H.st.perdidas,
@@ -1348,7 +1353,8 @@ function resumo() {
            world.flags.retSeen.includes("ret_" + id) ? "+visto" : "") : "");
     }).join(" "),
     ecos: world.flags.ecosFotografados || 0, rondas: H.st.rondas,
-    quedas: H.st.quedas, descansos: H.st.descansos, botes: H.st.botes,
+    quedas: H.st.quedas, descansos: H.st.descansos,
+    toques: world.flags.toques || 0, investidas: H.st.investidas,
     destravaPor: H.st.destravaPor || {}, empurroes: H.st.empurroes || 0,
     oleo: world.flags.lampOleo,
     destravou: H.st.destravou || 0,

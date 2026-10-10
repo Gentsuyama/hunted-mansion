@@ -53,7 +53,7 @@ onmessage = (e) => {
     if (d.ajuste) {                       // experimentos de balanceamento: muda constantes
       for (const k in d.ajuste) {
         const [obj, campo] = k.split(".");
-        const alvo = { ECO, BOTE, MOV, LANTERNA, FLASH }[obj];
+        const alvo = { ECO, TOQUE, MOV, LANTERNA, FLASH }[obj];
         if (alvo) alvo[campo] = d.ajuste[k];
       }
     }

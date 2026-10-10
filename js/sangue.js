@@ -4,8 +4,12 @@
 //
 // Regra da casa: o mapa não mostra o que há nas paredes; só a FOTO lê. As
 // setas seguem a regra: em sã consciência existem só na foto (como os
-// dígitos), raras, só em pontos de decisão (porta, esquina, cruzamento) do
-// andar onde está o PRÓXIMO PASSO da história. Na LOUCURA o jogador passa a
+// dígitos). Desde 2026-10-10 a casa escreve NA SUA FRENTE: a trilha sai de
+// onde você está até o PRÓXIMO PASSO da história (ou a escada que leva a ele),
+// a primeira seta na primeira parede ao lado do caminho, as outras a cada
+// poucos passos — como se alguém desenhasse para mostrar o caminho. A seta que
+// saiu numa foto FICA (é sangue na parede: não some nem muda, mesmo que aponte
+// para algo já feito — é a casa, não um GPS). Na LOUCURA o jogador passa a
 // ver o que não deveria: as setas a até 14 células brilham no mapa e deixam
 // de apontar para a história — apontam para a LUZ mais perto (candelabro,
 // lamparina): chegou nela antes de a loucura acabar, volta. Na loucura a casa
@@ -17,8 +21,12 @@
 //   quebrar um espelho (perto dele)         → 2 feridas e a próxima loucura 10 s mais curta
 // Repetir os atalhos encurta o tempo são e o tempo para escapar: é o preço.
 // ==================================================================
-const SETAS = { max: 5, espaco: 8, raioLoucura: 14, recalc: 2.0, luzPerto: 2.2 };
-let setas = { andar: -1, chave: null, lista: [], t: 0, modo: "sa", ini: null };
+// em sã consciência: até `max` setas na trilha, uma a cada `espaco` passos, numa parede a até
+// `alcance` células do caminho; perto (`perto` células) de uma seta já fotografada a casa não
+// escreve outra. Na loucura (como era): `maxLoucura` setas, só nas curvas, `espacoLoucura` entre elas
+const SETAS = { max: 10, espaco: 6, alcance: 3, perto: 3, raioLoucura: 14, recalc: 2.0, luzPerto: 2.2,
+                maxLoucura: 6, espacoLoucura: 8 };
+let setas = { andar: -1, chave: null, lista: [], t: 0, tObj: 0, modo: "sa", ini: null, mundo: null };
 
 // ------------------------------------------------------------------
 // O PRÓXIMO PASSO da história: {id, floor, x, y} ou null
@@ -137,11 +145,11 @@ function setasPassavelN(x, y) {
   for (const [dx, dy] of SETA_DIRS) if (!isSolid(x + dx, y + dy)) n++;
   return n;
 }
-// monta a lista para um caminho: nos pontos de decisão, uma parede ao lado
+// LOUCURA: a lista para um caminho — nos pontos de decisão, uma parede ao lado
 function setasDeCaminho(cam, max) {
   const lista = [];
   if (!cam || cam.length < 4) return lista;
-  let ultimo = -SETAS.espaco;
+  let ultimo = -SETAS.espacoLoucura;
   const g = grid;
   for (let i = 1; i < cam.length - 1 && lista.length < max; i++) {
     const c = cam[i], cx = c % COLS, cy = (c / COLS) | 0;
@@ -151,7 +159,7 @@ function setasDeCaminho(cam, max) {
     const vira = d0[0] !== d1[0] || d0[1] !== d1[1];
     const cruza = setasPassavelN(cx, cy) >= 3;
     if (!vira && !cruza) continue;
-    if (i - ultimo < SETAS.espaco) continue;
+    if (i - ultimo < SETAS.espacoLoucura) continue;
     // a parede ao lado da direção de SAÍDA (esquerda ou direita); tenta até 3 células à frente
     let feita = null;
     for (let k = 0; k < 3 && !feita; k++) {
@@ -177,38 +185,157 @@ function setasDeCaminho(cam, max) {
   }
   return lista;
 }
+// a parede ao lado do passo i do caminho (perpendicular à direção de SAÍDA), a até `alcance`
+// células — a mais perto dos dois lados. Móvel, porta ou parede falsa no meio: ali não serve.
+function setaNaParede(cam, i, alcance) {
+  const qx = cam[i] % COLS, qy = (cam[i] / COLS) | 0;
+  const d = [(cam[i + 1] % COLS) - qx, ((cam[i + 1] / COLS) | 0) - qy];
+  let feita = null, melhor = 99;
+  for (const lado of [[-d[1], d[0]], [d[1], -d[0]]]) {          // perpendiculares
+    for (let r = 1; r <= alcance && r < melhor; r++) {
+      const wx = qx + lado[0] * r, wy = qy + lado[1] * r;
+      const t = tileAt(wx, wy);
+      if (t === T_WALL) { melhor = r; feita = { wx, wy, n: [-lado[0], -lado[1]], d, cx: qx, cy: qy }; break; }
+      if (t === T_FAKE || isSolid(wx, wy)) break;
+    }
+  }
+  if (!feita) return null;
+  // lado para onde a seta aponta, para quem olha a parede de frente (f = -n; direita = (-f.y, f.x))
+  const f = [-feita.n[0], -feita.n[1]], dir = [-f[1], f[0]];
+  feita.tela = (feita.d[0] * dir[0] + feita.d[1] * dir[1]) > 0 ? "dir" : "esq";
+  feita.x = feita.wx + 0.5 + feita.n[0] * 0.75;          // onde a foto desenha (na frente da parede)
+  feita.y = feita.wy + 0.5 + feita.n[1] * 0.75;
+  feita.vista = false;
+  return feita;
+}
+// a PORTA da sala onde você está: a parede ao lado da boca por onde o caminho sai, pelo lado
+// de dentro (onde alguém pintaria "por aqui"), apontando para a boca. {s, i} ou null
+function setaNaPorta(cam) {
+  const sala = fl().rooms.find(r => player.x >= r.x && player.x < r.x + r.w &&
+                                    player.y >= r.y && player.y < r.y + r.h);
+  if (!sala) return null;
+  const k = cam.findIndex(c => { const x = c % COLS, y = (c / COLS) | 0;
+    return x < sala.x || x >= sala.x + sala.w || y < sala.y || y >= sala.y + sala.h; });
+  if (k < 1 || k >= cam.length - 1) return null;
+  const mx = cam[k] % COLS, my = (cam[k] / COLS) | 0;
+  const d = [mx - cam[k - 1] % COLS, my - ((cam[k - 1] / COLS) | 0)];
+  const n = [-d[0], -d[1]];                              // a face virada para dentro da sala
+  let melhor = null, bj = 99;
+  for (const lado of [[-d[1], d[0]], [d[1], -d[0]]]) {
+    for (let j = 1; j <= 3 && j < bj; j++) {
+      const wx = mx + lado[0] * j, wy = my + lado[1] * j, t = tileAt(wx, wy);
+      if (t === T_WALL) {
+        if (isSolid(wx + n[0], wy + n[1])) break;        // móvel encostado: a parede não aparece
+        const s = { wx, wy, n, d: [-lado[0], -lado[1]], cx: wx + n[0], cy: wy + n[1],
+                    x: wx + 0.5 + n[0] * 0.75, y: wy + 0.5 + n[1] * 0.75, vista: false };
+        // aponta para a boca: para quem olha a parede de frente (f = d), direita = (-f.y, f.x)
+        s.tela = (-lado[0] * -d[1] + -lado[1] * d[0]) > 0 ? "dir" : "esq";
+        if (hasLOS(player.x, player.y, s.x, s.y)) { melhor = s; bj = j; }
+        break;
+      }
+      if (t === T_FAKE || isSolid(wx, wy)) break;
+    }
+  }
+  return melhor ? { s: melhor, i: k } : null;
+}
+// SÃ CONSCIÊNCIA: a trilha sai de onde você está. A PRIMEIRA seta numa parede que se enxerga
+// daqui (e que uma foto alcança, até 16 células): ao lado do caminho a 1–3 passos; senão, ao
+// lado da porta da sala por onde o caminho sai; senão (sala grande, paredes longe do caminho)
+// a primeira parede na direção em que o caminho segue; senão, a primeira parede à vista.
+// As outras a cada `espaco` passos; onde já há sangue fotografado por perto, a casa não
+// escreve de novo (aquele vale pela seta)
+function setasTrilha(cam, fixas) {
+  const lista = [];
+  if (!cam || cam.length < 3) return lista;
+  const perto = (s, l, r) => l.some(v => Math.hypot(v.wx - s.wx, v.wy - s.wy) < r);
+  const visivel = (s) => hasLOS(player.x, player.y, s.x, s.y);
+  let pri = null;
+  for (let i = 1; i <= 3 && i < cam.length - 1 && !pri; i++) {
+    const s = setaNaParede(cam, i, SETAS.alcance);
+    if (s && visivel(s)) pri = { s, i };
+  }
+  const porta = pri ? null : setaNaPorta(cam);
+  if (porta && Math.hypot(porta.s.x - player.x, porta.s.y - player.y) <= 16) pri = porta;
+  for (let i = 4; !pri && i < Math.min(cam.length - 1, 24); i++) {
+    const s = setaNaParede(cam, i, 6);
+    if (!s || !visivel(s)) continue;
+    const ax = s.x - player.x, ay = s.y - player.y;
+    const cx = cam[i] % COLS + 0.5 - player.x, cy = ((cam[i] / COLS) | 0) + 0.5 - player.y;
+    const dS = Math.hypot(ax, ay), dC = Math.hypot(cx, cy);
+    if (dS <= 16 && dC > 0 && (ax * cx + ay * cy) / (dS * dC) > 0.9) pri = { s, i };   // < ~26°
+  }
+  if (!pri) pri = porta;
+  for (let i = 4; !pri && i < cam.length - 1; i++) {
+    const s = setaNaParede(cam, i, SETAS.alcance);
+    if (s && visivel(s)) pri = { s, i };
+  }
+  let prox = 1;                                          // nenhuma à vista: a trilha segue assim mesmo
+  if (pri) {
+    prox = pri.i + SETAS.espaco;
+    if (!perto(pri.s, fixas, SETAS.perto)) lista.push(pri.s);
+  }
+  for (let i = prox; i < cam.length - 1 && lista.length < SETAS.max; i++) {
+    if (i < prox) continue;
+    const s = setaNaParede(cam, i, SETAS.alcance);
+    if (!s || perto(s, lista, 2) || (pri && perto(s, [pri.s], 2))) continue;
+    prox = i + SETAS.espaco;
+    if (!perto(s, fixas, SETAS.perto)) lista.push(s);
+  }
+  return lista;
+}
+// as setas que já saíram numa FOTO: sangue na parede — não somem nem mudam (vão no save)
+function setasVistas(andar) {
+  const F = world.flags;
+  if (!F.setasVistas) F.setasVistas = {};
+  return F.setasVistas[andar] || (F.setasVistas[andar] = []);
+}
+// a foto pegou esta seta: daqui em diante aquela parede fica assim
+function setaFixa(s) {
+  if (s.fixa) return;
+  s.fixa = true;
+  setasVistas(world.cur).push(s);
+}
 function setasConstroi(modo) {
-  setas.lista = []; setas.modo = modo; setas.andar = world.cur;
+  setas.lista = []; setas.modo = modo; setas.andar = world.cur; setas.mundo = world;
   if (modo === "loucura") {
     const { dist, prev } = setasDist(player.x, player.y);
     const luz = setasLuzMaisPerto(dist);
     setas.chave = luz ? luz.id : null;
     if (!luz) return;
-    setas.lista = setasDeCaminho(setasCaminho(prev, luz.x, luz.y), 6);
+    setas.lista = setasDeCaminho(setasCaminho(prev, luz.x, luz.y), SETAS.maxLoucura);
     return;
   }
   const obj = objetivoAtual(), alvo = setasAlvoNoAndar(obj);
   setas.chave = alvo ? alvo.id : null;
   if (!alvo) return;
-  // o caminho sai de onde o jogador CHEGA no andar: a escada (ou o elevador, no último)
-  const c0 = world.cur === NFLOORS - 1 && fl().elev
-    ? { x: fl().elev.tile.x + 0.5, y: fl().elev.tile.y + 0.5 } : roomCenter(STAIR_ROOM);
-  const { prev } = setasDist(c0.x, c0.y);
-  setas.lista = setasDeCaminho(setasCaminho(prev, alvo.x, alvo.y), SETAS.max);
+  // a trilha sai de onde VOCÊ está (refeita a cada 2 s): a casa escreve na sua frente
+  const { prev } = setasDist(player.x, player.y);
+  setas.lista = setasTrilha(setasCaminho(prev, alvo.x, alvo.y), setasVistas(world.cur));
 }
 function setasUpdate(dt) {
   if (!world || state !== "play") return;
-  setas.t -= dt;
+  setas.t -= dt; setas.tObj -= dt;
   const modo = loucura ? "loucura" : "sa";
-  if (modo !== setas.modo || setas.andar !== world.cur) { setasConstroi(modo); setas.t = SETAS.recalc; return; }
+  // trocou o modo, o andar ou a CASA (run nova): refaz já
+  if (modo !== setas.modo || setas.andar !== world.cur || setas.mundo !== world) {
+    setasConstroi(modo); setas.t = SETAS.recalc; return;
+  }
+  if (modo === "sa" && setas.tObj <= 0) {          // o objetivo mudou: refaz já (as fotografadas ficam)
+    setas.tObj = 0.5;
+    const alvo = setasAlvoNoAndar(objetivoAtual());
+    if ((alvo ? alvo.id : null) !== setas.chave) { setasConstroi("sa"); setas.t = SETAS.recalc; return; }
+  }
   if (setas.t > 0) return;
-  setas.t = modo === "loucura" ? SETAS.recalc : 1.0;
-  if (modo === "loucura") { setasConstroi("loucura"); return; }
-  const alvo = setasAlvoNoAndar(objetivoAtual());
-  if ((alvo ? alvo.id : null) !== setas.chave) setasConstroi("sa");
+  setas.t = SETAS.recalc;
+  setasConstroi(modo);
 }
-// as setas que a FOTO vê (só em sã consciência: na loucura elas já estão no mapa)
-function setasFoto() { return setas.andar === world.cur && setas.modo === "sa" ? setas.lista : []; }
+// as setas que a FOTO vê: as já fotografadas (sempre — são sangue na parede) e, em sã
+// consciência, a trilha de agora (na loucura a trilha está no mapa, não na foto)
+function setasFoto() {
+  const fixas = setasVistas(world.cur);
+  if (setas.andar !== world.cur || setas.modo !== "sa" || setas.mundo !== world) return fixas;
+  return fixas.concat(setas.lista.filter(s => !s.fixa));
+}
 
 // ------------------------------------------------------------------
 // o desenho: seta de sangue escorrido (foto) e o brilho da loucura (mapa)
@@ -284,7 +411,7 @@ function loucuraAtalho(tipo) {
     for (const g of fl().ghosts) {
       const d = Math.hypot(g.x - player.x, g.y - player.y) || 0.001;
       if (g.respawn > 0 || d > 9) continue;
-      g.bote = null; g.chase = false; g.gasto = BOTE.gasto;
+      g.chase = false; g.gasto = 14;
       g.wx = g.x + (g.x - player.x) / d * 8; g.wy = g.y + (g.y - player.y) / d * 8;
     }
   } else if (tipo === "espelho") {

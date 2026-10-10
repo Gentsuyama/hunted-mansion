@@ -270,7 +270,7 @@ Categorias: parede falsa, marca, cofre, quadro, retrato visto, peça ✦.
 ## 12. A CASA REAGE (leva de 2026-10-02 — vinda dos estudos de Fear & Hunger e Inscryption)
 
 Princípio: ameaça ANUNCIADA, rara e cara; perda que fica; refúgio que cobra; a morte vira
-conteúdo. Constantes em `js/core.js` (`BOTE`, `ECO`, `SAN_*`, `LAMP_*`); lógica nova em
+conteúdo. Constantes em `js/core.js` (`TOQUE` — antes `BOTE` —, `ECO`, `SAN_*`, `LAMP_*`); lógica nova em
 `js/ritual.js`.
 
 - **Bote dos ecos.** O eco não fere por encostar. A 4,8 células, com linha de visão, ele
@@ -278,6 +278,13 @@ conteúdo. Constantes em `js/core.js` (`BOTE`, `ECO`, `SAN_*`, `LAMP_*`); lógic
   linha reta. Flash durante a inspiração corta o bote; sair da frente também. Um por vez — com
   dois ecos, o segundo salta antes de o flash recarregar. Menos ecos (3 porão, 1 térreo, 2 nos
   demais); fotografado, some por 50–80 s; ele só se arrasta até você se você faz barulho.
+- **O TOQUE (2026-10-10 — substitui o bote de 2026-10-03).** O Rodolfo reprovou o "carregar e
+  soltar uma magia" (inspirar, aro vermelho, golpe): o eco que caça vem DIRETO para cima de você e
+  SÓ ENCOSTAR já fere (`TOQUE`: a 1,05 célula, −16 de sanidade + ferida; fora da lamparina, nunca
+  manso, nunca de olhos fechados na loucura). Depois do toque ele sai para o escuro, gasto por 10 s,
+  e volta a caçar. Colado (< 2,2 células) ele se acende no mapa para dar para mirar; o flash empurra.
+  Medido (lotes 10/10b, `estudos/robo-humano-resultados.md`): com −20 o veterano venceu 4/28; com −16,
+  10/28 (o bote dava 26/28) — 38 a 49 toques por run. Calibragem pendente, decisão do Rodolfo.
 - **Feridas e lamparina.** A sanidade só volta sozinha até um teto (60). Cada golpe baixa o
   teto em 10 (marca âmbar na barra). A lamparina do hall de entrada cura tudo, tem 3 doses de
   óleo e cada descanso acorda mais um eco na casa. Os ecos não entram na luz dela. Quando o
@@ -301,6 +308,9 @@ conteúdo. Constantes em `js/core.js` (`BOTE`, `ECO`, `SAN_*`, `LAMP_*`); lógic
   ateliê (o placar da casa), grade do elevador, hall de ladrilho xadrez, sala secreta de tijolo.
 - **Pistas no mundo.** Pegadas pequenas que entram na parede falsa; memória de planta (parede
   já vista fica como fantasma e apodrece em minutos); olhos que não existem com sanidade < 28.
+  (2026-10-10: os olhos ficaram comuns — a cada 6–14 s × 1 / 0,6 / 0,4 conforme a sanidade, até dois
+  pares, em qualquer canto ESCURO à vista a 5–13 células, de preferência corredor ou porta; piscam uma
+  vez e somem quando a luz chega. Cosméticos.)
 
 ## 13. O DIÁRIO, O MENINO E A LOUCURA (leva de 2026-10-05 — pedidos do Rodolfo)
 
@@ -348,6 +358,11 @@ conteúdo. Constantes em `js/core.js` (`BOTE`, `ECO`, `SAN_*`, `LAMP_*`); lógic
   consciência obedecem à **visão de cima abstrata**: o mapa não mostra nada; só a FOTO revela
   (sprite de sangue escorrido de 160×110, pista "seta de sangue", o chat reage na primeira:
   "isso é SANGUE?? tem uma SETA na parede…" / "a casa escreve. já disse.").
+  **2026-10-10 (pedido do Rodolfo: "desde a primeira parede", ~30% das fotos):** a trilha sai do JOGADOR
+  (refeita a cada 2 s): a primeira seta numa parede à vista (ao lado do caminho a 1–3 passos, ou ao lado
+  da porta da sala por onde ele sai), as outras a cada 6 passos, até 10. Seta que sai numa foto fica na
+  parede para sempre (`flags.setasVistas`, no save). Medido: 1,2% → 28,5% das fotos do robô médio. A
+  primeira seta fotografada escreve a página "Corredor do térreo" no diário.
 - **Na loucura você vê o que não via.** As setas trocam de dono: deixam de apontar a história e
   passam a apontar a **luz mais perto** (candelabro aceso ou apagável, lamparina) a partir de onde
   você está, e BRILHAM no mapa (clarão vermelho pulsando, até 14 células) — a casa te mostra a
@@ -355,7 +370,7 @@ conteúdo. Constantes em `js/core.js` (`BOTE`, `ECO`, `SAN_*`, `LAMP_*`); lógic
 - **Três saídas novas da loucura**, além da luz com alma e do flash:
   1. **Fechar os olhos** — parado (sem entrada de movimento), no escuro, sem flash nem golpe, por 10 s:
      as pálpebras fecham na tela e a casa perde o interesse. De olhos fechados (mais de 1,5 s) o eco
-     não enxerga você nem dá o bote: vagueia e PASSA (é o que o Tomás fazia: "fechava os olhos até
+     não enxerga você nem encosta: vagueia e PASSA (é o que o Tomás fazia: "fechava os olhos até
      passar"). Ao abrir, quem estava em cima vai embora gasto. Um golpe zera a contagem.
   2. **Quebrar o espelho** — qualquer espelho da casa, só na loucura (`QUEBRAR O ESPELHO`); o da
      Cecília, enquanto ela dorme, não quebra ("tem alguém dentro").

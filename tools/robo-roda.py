@@ -62,9 +62,9 @@ with sync_playwright() as p:
     io.open(a.saida, "w", encoding="utf-8").write(json.dumps(res, ensure_ascii=False, indent=1))
     print("\n=== RESUMO (%d s reais, %d workers) ===" % (st["seg"], st["workers"]))
     for perfil, r in st["por"].items():
-        print("%-16s n=%-3d vit=%-3d mortes=%-3d tempo=%-3d outro=%-3d vitMin=%s morteMin=%s quedas/run=%s dano/min=%s botes/min=%s" % (
+        print("%-16s n=%-3d vit=%-3d mortes=%-3d tempo=%-3d outro=%-3d vitMin=%s morteMin=%s quedas/run=%s dano/min=%s toques/min=%s fotosSeta=%s de %s fotos" % (
             perfil, r["n"], r["vitorias"], r["mortes"], r["tempoEsgotado"], r["outro"], r["vitMin"], r["morteMin"],
-            r["quedasPorRun"], r["danoPorMin"], r["botesPorMin"]))
+            r["quedasPorRun"], r["danoPorMin"], r.get("toquesPorMin"), r.get("fotosSeta"), r.get("fotos")))
         if r["travou"]: print("    travou:", json.dumps(r["travou"], ensure_ascii=False)[:300])
     if st["erros"]: print("ERROS:", st["erros"])
     if erros: print("erros de página:", erros[:3])
