@@ -69,11 +69,30 @@ function fotoFalhou(erro) {
   toast(tf("A FOTO NÃO SAIU — o rolo voltou ({0})", String(erro).slice(0, 46)), 8);
 }
 
+// FLASH SEM FOTO por regra (sem tampa, rolo fora, rolos no fim): diz POR QUÊ, na hora.
+// No Galaxy S20 (2026-10-14) o "flash mas não sai foto" era isto: a tampa já põe o rolo,
+// o aviso mandava tocar na câmera do canto "para pôr/tirar", o toque TIRAVA — e daí em
+// diante cada FOTO era só o clarão, sem uma palavra. Três avisos por estado; mudou o
+// estado (pôs/tirou o rolo, achou a tampa), volta a explicar.
+const fotoVazia = { motivo: null, n: 0 };
+function fotoVaziaAviso(motivo) {
+  if (FOTO.rapido) return;                      // robôs de teste
+  if (fotoVazia.motivo !== motivo) { fotoVazia.motivo = motivo; fotoVazia.n = 0; }
+  if (fotoVazia.n >= 3) return;                 // já sabe: quem segue no flash vazio, escolheu
+  fotoVazia.n++;
+  toast(motivo === "tampa" ? "SÓ O FLASH — sem a TAMPA a câmera não guarda a foto"
+      : motivo === "rolos" ? "SÓ O FLASH — acabaram os rolos: procure latinhas de filme"
+      : controle.ativo ? "SÓ O FLASH — o rolo está FORA: [RB] põe o rolo"
+      : touchUI.seen ? "SÓ O FLASH — o rolo está FORA: toque na câmera do canto"
+      : "SÓ O FLASH — o rolo está FORA: [R] põe o rolo", 3.5);
+}
+
 function takePhoto() {
   if (flashCd > 0) return;
   const cam = world.flags.cam;
   // FOTO REAL exige: tampa na câmera + filme CARREGADO (R põe/tira) + rolos
   let fotoReal = cam.tampa && world.flags.filmLoaded && film > 0;
+  const motivoVazio = fotoReal ? null : !cam.tampa ? "tampa" : film <= 0 ? "rolos" : "fora";
   // o FLASH exige bateria; sem ela, a foto sai no escuro (e sem foto, nada acontece)
   const comFlash = bateria > 0;
   if (!comFlash && !fotoReal) {
@@ -161,6 +180,7 @@ function takePhoto() {
   } else {
     // FLASH VAZIO: nada é registrado — os ecos são só ARREMESSADOS
     sfxDry();
+    if (motivoVazio) fotoVaziaAviso(motivoVazio);   // (foto que falhou já avisou em fotoFalhou)
     let bateu = false;
     for (const g of fl().ghosts) {
       if (g.respawn > 0) continue;

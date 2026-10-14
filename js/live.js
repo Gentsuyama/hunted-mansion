@@ -209,7 +209,7 @@ const CHAT_REACT = {
   fuse:     ["fusível! o quadro de força deve ser no porão", "guarda isso"],
   elevator: ["ELEVADOR LIGADO, chique", "agora ficou fácil andar na casa"],
   safe:     ["ABRIU O COFRE!!", "o que tinha dentro?? mostra"],
-  tampa:    ["ACHOU A TAMPA DA CÂMERA!!", "agora dá pra pôr FILME e salvar foto",
+  tampa:    ["ACHOU A TAMPA DA CÂMERA!!", "agora a foto FICA, o rolo já tá dentro",
              "dá pra tirar o rolo da câmera, né? aí o flash não gasta nada"],
   obturador:["o OBTURADOR DE PRATA…", "é com ISSO que a câmera prende espírito forte",
              "igual ao do Blackwood. arrepiei"],

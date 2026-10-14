@@ -36,7 +36,7 @@ FORCA = ["berço", "cama", "espelho", "piano", "relógio", "escrivaninha", "polt
          "LIGAR", "PARAR", "REVELAR", "QUEIMAR", "FECHAR", "ELEVADOR", "ENTRAR",
          "CONTINUAR", "SANIDADE", "REVELADOR", "INTERRUPTOR", "FIXADOR",
          "ALVORADA", "CINZAS", "IDIOMA", "SAIR", "kkkkkkk", "CORREEEE", "achooooou",
-         "BLACKWOOD", "BATERIA", "alma", "almas", "pista:"]
+         "BLACKWOOD", "BATERIA", "alma", "almas", "pista:", "RECARREGAR"]
 
 TEC = re.compile(
     r"^(rgba?\(|#[0-9a-fA-F]{3,8}$|Assets/|hm_|Key[A-Z]$|Arrow|Shift|source-|"

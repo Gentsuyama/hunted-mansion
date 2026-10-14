@@ -202,6 +202,12 @@ quebradas = saída. Cada alma resolvida (libertada OU queimada) quebra uma.
 - FILME É ESCOLHA: R (ou toque na câmera) põe/tira o rolo. SEM filme =
   flash de graça que só espanta; COM filme = registra/captura e gasta 1.
   Fantasma forte sem filme no clique: só é jogado para trás.
+  A tampa já vem com o rolo DENTRO (o aviso diz isso primeiro; o do diário espera a
+  vez). Flash que não vira foto (sem tampa, rolo fora, sem rolos) SEMPRE diz por quê,
+  até 3 vezes por estado. No celular o cartão da câmera diz o que o toque faz (TIRAR/PÔR
+  ROLO) e mostra ROLO FORA grande; a faixa de baixo só recarrega depois da ampola.
+  (Galaxy S20, 2026-10-14: "faz o flash mas não sai foto" era tocar na câmera para
+  "pôr" o rolo — o toque TIRAVA o que a tampa já tinha posto.)
 
 ### O loop de resgate (ensina o tema "a câmera aprisiona")
 1. CONDIÇÃO desperta a alma (ela passa a vagar);

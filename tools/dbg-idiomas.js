@@ -25,7 +25,7 @@ window.dbgTelas = (id) => {
   live.hinted.add("chainsSeen");
   liveEvent("secret"); livePush(liveRandUser(), "ALI! ALI!! aquela parede de novo!! FOTOGRAFA ela");
   livePush(liveRandUser(), "gente… esse aí é o TOMÁS. o menino que sumiu na casa em 1951");
-  toast("TAMPA + FILME!  [R] põe/tira o rolo — sem filme o flash só espanta", 5);
+  toast("TAMPA + FILME — o rolo já está DENTRO: agora a foto fica", 5);
   prompt = { text: "COFRE — TENTAR O CÓDIGO", action: () => {} };
   mouse.x = 30; mouse.y = 300;
   const telas = [

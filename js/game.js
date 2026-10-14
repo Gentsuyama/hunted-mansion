@@ -139,6 +139,7 @@ function corpoReset() {
   folego = 1; folegoT = 0; semFolego = false;
   movModo = "parado"; movendo = false; tremor = 0;
   vistoCd = 0; sinalT = 0; polaroid = null;
+  toastFila.length = 0;                  // aviso que esperava a vez não atravessa de uma live para outra
   toqueLivreT = 0; danoT = 0;
   olhosFalsos = []; falsoT = 9;
 }
@@ -443,7 +444,7 @@ function updatePrompt() {
 // ------------------------------------------------------------------
 let eventTimer = 14;
 function update(dt) {
-  if (tomasEvt) { tomasEvtUpdate(dt); if (toastT > 0) toastT -= dt; return; }   // o menino conta: tudo para
+  if (tomasEvt) { tomasEvtUpdate(dt); toastPassa(dt); return; }   // o menino conta: tudo para
   // movimento com PESO: acelera, freia, e o ritmo decide o barulho
   let ix = 0, iy = 0;
   if (keys.has("KeyW") || keys.has("ArrowUp"))    iy -= 1;
@@ -536,7 +537,7 @@ function update(dt) {
   filmePendentes();
   // timers
   if (flashCd > 0) flashCd -= dt;
-  if (toastT > 0) toastT -= dt;
+  toastPassa(dt);
   if (flashT > 0) flashT = Math.max(0, flashT - dt / FLASH.duration);
   if (attractT > 0) attractT -= dt;
   if (shake > 0) shake = Math.max(0, shake - dt * 3);
@@ -735,9 +736,14 @@ function update(dt) {
           world.flags.filmLoaded = true;
           liveEvent("tampa");
           liveFixo("agora sim. uma câmera inteira.");
-          toast(touchUI.seen
-            ? "TAMPA + FILME!  toque na câmera do canto para pôr/tirar o rolo"
-            : "TAMPA + FILME!  [R] põe/tira o rolo — sem filme o flash só espanta", 8);
+          // o rolo JÁ entra com a tampa: o aviso diz isso primeiro. (No celular ele dizia
+          // "toque na câmera do canto para pôr/tirar o rolo" — o jogador tocava para PÔR, o
+          // toque TIRAVA, e dali em diante era flash sem foto. Visto no Galaxy S20, 2026-10-14.)
+          toast("TAMPA + FILME — o rolo já está DENTRO: agora a foto fica", 7);
+          toastDepois(controle.ativo ? "[RB] tira o rolo: aí o flash só espanta, sem gastar filme"
+            : touchUI.seen ? "tocar na câmera do canto TIRA o rolo: aí o flash só espanta"
+            : "[R] tira o rolo: aí o flash só espanta, sem gastar filme", 6);
+          fotoVazia.motivo = null;
         } else if (it.part === "ampola") {
           livePush(liveRandUser(), "que frasco é esse?? o vidro tá embaçado por dentro…");
           livePush(liveRandUser(), "encaixou na câmera. ele guardava alguma coisa aí. alguma coisa que a câmera TIRAVA");
@@ -1139,14 +1145,26 @@ function camHudHit(px2, py2) {
   return px2 > r.x && px2 < r.x + r.w && py2 > r.y && py2 < r.y + r.h;
 }
 // aviso central temporário (ensina mecânica nova sem depender do chat)
-let toastT = 0, toastText = "";
+let toastT = 0, toastText = "", toastFila = [];
 function toast(txt, seg) { toastText = txt; toastT = seg || 6; }
+// aviso que NÃO apaga o da tela: espera a vez. (Ao pegar a tampa, o diário avisava a
+// página nova no MESMO quadro e a explicação do rolo sumia antes de ser lida.)
+function toastDepois(txt, seg) {
+  if (toastT > 0.4 && toastText !== txt) {
+    if (!toastFila.some(f => f[0] === txt)) toastFila.push([txt, seg || 6]);
+  } else toast(txt, seg);
+}
+function toastPassa(dt) {
+  if (toastT > 0) toastT -= dt;
+  if (toastT <= 0 && toastFila.length) { const f = toastFila.shift(); toast(f[0], f[1]); }
+}
 
 function toggleFilm() {
   if (!world.flags.cam.tampa) return;
   world.flags.filmLoaded = !world.flags.filmLoaded;
+  if (typeof fotoVazia === "object") fotoVazia.motivo = null;   // estado novo: volta a explicar
   toast(world.flags.filmLoaded
-    ? "FILME NA CÂMERA" : "FILME FORA — só o flash", 2.8);
+    ? "ROLO DENTRO — agora a foto fica" : "ROLO FORA — o flash só espanta, não sai foto", 3);
   sfxPickup();
   if (!live.hinted.has("filmtoggle")) {
     live.hinted.add("filmtoggle");
@@ -1168,7 +1186,8 @@ function drawCamHUD() {
   ctx.font = "bold 11px 'HM Mono', 'HM CJK', 'Courier New', monospace";
   ctx.textAlign = "left"; ctx.textBaseline = "middle";
   ctx.fillStyle = "rgba(200,200,205,0.85)";
-  ctx.fillText(cm.tampa ? (touchUI.seen ? "toque: filme"
+  // no celular o cartão É o botão do rolo: o rótulo diz o que o toque FAZ agora
+  ctx.fillText(cm.tampa ? (touchUI.seen ? (world.flags.filmLoaded ? "TIRAR ROLO" : "PÔR ROLO")
                                         : "CÂMERA · [R] filme")
                         : "CÂMERA", r.x + 10, r.y + 13, r.w * 0.5 - 12);
   if (cm.tampa) {
@@ -1270,9 +1289,46 @@ function drawCamHUD() {
   }
   }   // fim do fallback procedural
 
+  if (touchUI.seen) {
+    // no celular, o estado em que a foto NÃO sai fica grande no cartão: o "FORA" de 10 px
+    // dava 5 px na tela do aparelho e o flash sem foto ficava sem explicação
+    if (cm.tampa && !(world.flags.filmLoaded && film > 0)) {
+      const yb = r.y + r.h / 2 + 4, hb = 26;
+      ctx.fillStyle = "rgba(16,12,6,0.84)";
+      ctx.fillRect(r.x + 6, yb - hb / 2, r.w - 12, hb);
+      ctx.strokeStyle = "rgba(235,195,110,0.8)"; ctx.lineWidth = 1.5;
+      ctx.strokeRect(r.x + 6, yb - hb / 2, r.w - 12, hb);
+      ctx.font = "bold 17px 'HM Mono', 'HM CJK', 'Courier New', monospace";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgba(245,205,120,0.98)";
+      ctx.fillText(film <= 0 ? "SEM ROLOS" : "ROLO FORA", r.x + r.w / 2, yb + 1, r.w - 24);
+    }
+    // a faixa de baixo do cartão recarrega a bateria (só existe depois da ampola): marcada,
+    // para ninguém gastar uma alma achando que estava mexendo no rolo
+    if (cm.ampola) {
+      ctx.strokeStyle = "rgba(160,160,170,0.35)"; ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.moveTo(r.x + 4, r.y + r.h - CAM_RECARGA_H); ctx.lineTo(r.x + r.w - 4, r.y + r.h - CAM_RECARGA_H); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font = "bold 11px 'HM Mono', 'HM CJK', 'Courier New', monospace";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgba(150,195,255,0.85)";
+      ctx.fillText("RECARREGAR", r.x + r.w / 2, r.y + r.h - 10, r.w - 16);
+    }
+  }
+
   // (rolos, bateria e almas ficaram no rodapé do HUD — ver hudRecursos)
   ctx.restore();
   ctx.textAlign = "left";
+}
+// o toque/clique no cartão da câmera: a faixa de baixo recarrega (depois da ampola),
+// o resto põe/tira o rolo. Antes da ampola o cartão inteiro é do rolo — a faixa
+// "recarregar" engolia o toque de quem tocava embaixo para pôr o rolo de volta.
+const CAM_RECARGA_H = 30;
+function camHudToque(py2) {
+  const r = camHudRect();
+  if (world.flags.cam.ampola && py2 > r.y + r.h - CAM_RECARGA_H) recarregar();
+  else toggleFilm();
 }
 
 // os RECURSOS no rodapé, ao lado da sanidade: bateria, rolos e — só depois de achar a
@@ -1660,10 +1716,7 @@ canvas.addEventListener("mousedown", e => {
   if (state !== "play") return;
   if (e.button === 0 && liveInPanel(mx, my)) { state = "chat"; live.scroll = 0; return; }
   if (e.button === 0 && polaroidHit(mx, my)) { openAlbum("play", album[album.length - 1]); return; }
-  if (e.button === 0 && camHudHit(mx, my)) {
-    if (my > camHudRect().y + camHudRect().h - 30) recarregar(); else toggleFilm();
-    return;
-  }
+  if (e.button === 0 && camHudHit(mx, my)) { camHudToque(my); return; }
   if (e.button === 2) takePhoto();
 });
 
@@ -1723,10 +1776,7 @@ canvas.addEventListener("touchstart", e => {
     if (state === "win")   { winHit(p.x, p.y); return; }
     if (liveInPanel(p.x, p.y)) { state = "chat"; live.scroll = 0; return; }
     if (polaroidHit(p.x, p.y)) { openAlbum("play", album[album.length - 1]); return; }
-    if (camHudHit(p.x, p.y)) {
-      if (p.y > camHudRect().y + camHudRect().h - 30) recarregar(); else toggleFilm();
-      continue;
-    }
+    if (camHudHit(p.x, p.y)) { camHudToque(p.y); continue; }
     if (Math.hypot(p.x - BTN_PHOTO.x, p.y - BTN_PHOTO.y) < BTN_PHOTO.r + 10) {
       takePhoto(); continue;
     }

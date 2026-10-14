@@ -121,7 +121,9 @@ function diarioEvento(id) {
   if (world.flags.diarioPego) {
     d.novas++;
     sfxPage();
-    toast(controle.ativo ? "O DIÁRIO GANHOU UMA PÁGINA — [Y] para ler"
+    // espera a vez: a página nasce junto com outro achado (tampa, ampola…) e não pode
+    // apagar o aviso dele — o caderno do HUD já pisca com a página nova
+    toastDepois(controle.ativo ? "O DIÁRIO GANHOU UMA PÁGINA — [Y] para ler"
         : touchUI.seen ? "O DIÁRIO GANHOU UMA PÁGINA — toque no caderno para ler"
                        : "O DIÁRIO GANHOU UMA PÁGINA — [J] para ler", 5);
   }
